@@ -1,0 +1,200 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn()
+        && request.auth.uid == userId;
+    }
+
+    function isProjectOwner() {
+      return signedIn()
+        && resource.data.ownerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read, update:
+        if isOwner(userId);
+
+      allow create:
+        if isOwner(userId);
+
+      allow delete:
+        if false;
+    }
+
+    match /projects/{projectId} {
+      allow read:
+        if signedIn()
+        && (
+          resource.data.ownerId ==
+          request.auth.uid
+          ||
+          resource.data.visibility == "public"
+        );
+
+      allow create:
+        if signedIn()
+        && request.resource.data.ownerId ==
+           request.auth.uid;
+
+      allow update, delete:
+        if isProjectOwner();
+    }
+
+    match /projects/{projectId}/members/{memberId} {
+      allow read:
+        if signedIn();
+
+      allow write:
+        if signedIn()
+        && get(
+          /databases/$(database)/documents/projects/$(projectId)
+        ).data.ownerId == request.auth.uid;
+    }
+
+    match /skills/{skillId} {
+      allow read:
+        if signedIn()
+        && (
+          resource.data.visibility == "public"
+          ||
+          resource.data.ownerId == request.auth.uid
+        );
+
+      allow create:
+        if signedIn()
+        && (
+          request.resource.data.ownerId ==
+          request.auth.uid
+        );
+
+      allow update, delete:
+        if signedIn()
+        && resource.data.ownerId ==
+           request.auth.uid;
+    }
+
+    match /agents/{agentId} {
+      allow read:
+        if signedIn()
+        && resource.data.ownerId ==
+           request.auth.uid;
+
+      allow create:
+        if signedIn()
+        && request.resource.data.ownerId ==
+           request.auth.uid;
+
+      allow update, delete:
+        if signedIn()
+        && resource.data.ownerId ==
+           request.auth.uid;
+    }
+
+    match /executions/{executionId} {
+      allow read:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow create:
+        if signedIn()
+        && request.resource.data.userId ==
+           request.auth.uid;
+
+      allow update:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow delete:
+        if false;
+    }
+
+    match /researchJobs/{jobId} {
+      allow read:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow create:
+        if signedIn()
+        && request.resource.data.userId ==
+           request.auth.uid;
+
+      allow update:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow delete:
+        if false;
+    }
+
+    match /documents/{documentId} {
+      allow read:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow create:
+        if signedIn()
+        && request.resource.data.userId ==
+           request.auth.uid;
+
+      allow update:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow delete:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+    }
+
+    match /deployments/{deploymentId} {
+      allow read:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow create:
+        if signedIn()
+        && request.resource.data.userId ==
+           request.auth.uid;
+
+      allow update:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow delete:
+        if false;
+    }
+
+    match /usage/{usageId} {
+      allow read:
+        if signedIn()
+        && resource.data.userId ==
+           request.auth.uid;
+
+      allow write:
+        if false;
+    }
+
+    match /system/{document=**} {
+      allow read:
+        if signedIn();
+
+      allow write:
+        if false;
+    }
+  }
+}
