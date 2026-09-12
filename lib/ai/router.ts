@@ -1,104 +1,198 @@
 import {
+  MODEL_CAPABILITIES,
+  PROVIDERS,
+} from "./config";
+
+import type {
   AIProvider,
-  MODEL_REGISTRY,
-  TaskType
+  AIRequest,
+  AIResponse,
+  TaskType,
 } from "./models";
 
-export interface RoutingRequest {
-  task: TaskType;
-  requiresTools?: boolean;
-  requiresVision?: boolean;
-  requiresStructuredOutput?: boolean;
-  preferFree?: boolean;
-  preferredProvider?: AIProvider;
-}
+import {
+  callProvider,
+} from "./providers";
 
 export interface RoutingDecision {
   provider: AIProvider;
+
   model: string;
+
   reason: string;
+
+  score: number;
 }
 
-export function selectModel(
-  request: RoutingRequest
-): RoutingDecision {
-  const candidates = MODEL_REGISTRY.filter((model) => {
-    if (!model.tasks.includes(request.task)) {
-      return false;
+function calculateScore(
+  request: AIRequest,
+  provider: AIProvider,
+  model: string,
+): number {
+  const capability =
+    MODEL_CAPABILITIES.find(
+      (item) =>
+        item.provider === provider &&
+        item.model === model,
+    );
+
+  if (!capability) {
+    return -Infinity;
+  }
+
+  if (
+    !capability.tasks.includes(
+      request.task,
+    )
+  ) {
+    return -Infinity;
+  }
+
+  if (
+    request.requiresTools &&
+    !capability.toolCalling
+  ) {
+    return -Infinity;
+  }
+
+  if (
+    request.requiresVision &&
+    !capability.vision
+  ) {
+    return -Infinity;
+  }
+
+  if (
+    request.requiresStructuredOutput &&
+    !capability.structuredOutput
+  ) {
+    return -Infinity;
+  }
+
+  let score =
+    capability.priority;
+
+  if (
+    request.provider ===
+    provider
+  ) {
+    score += 100;
+  }
+
+  if (
+    request.preferFree &&
+    provider === "openrouter"
+  ) {
+    score += 40;
+  }
+
+  return score;
+}
+
+export function selectProvider(
+  request: AIRequest,
+): RoutingDecision[] {
+  const decisions:
+    RoutingDecision[] = [];
+
+  for (const providerConfig of PROVIDERS) {
+    if (!providerConfig.enabled) {
+      continue;
     }
+
+    const model =
+      request.provider ===
+        providerConfig.provider &&
+      request.model
+        ? request.model
+        : providerConfig.defaultModel;
 
     if (
-      request.requiresTools &&
-      !model.toolCalling
+      !model ||
+      model === "auto"
     ) {
-      return false;
+      continue;
     }
+
+    const score =
+      calculateScore(
+        request,
+        providerConfig.provider,
+        model,
+      );
 
     if (
-      request.requiresVision &&
-      !model.vision
+      score === -Infinity
     ) {
-      return false;
+      continue;
     }
 
-    if (
-      request.requiresStructuredOutput &&
-      !model.structuredOutput
-    ) {
-      return false;
-    }
+    decisions.push({
+      provider:
+        providerConfig.provider,
 
-    return true;
-  });
+      model,
+
+      score,
+
+      reason:
+        `${providerConfig.provider} selected for ${request.task}`,
+    });
+  }
+
+  return decisions.sort(
+    (a, b) =>
+      b.score - a.score,
+  );
+}
+
+export async function generate(
+  request: AIRequest,
+): Promise<AIResponse> {
+  const candidates =
+    selectProvider(request);
 
   if (candidates.length === 0) {
     throw new Error(
-      `No AI provider supports task: ${request.task}`
+      `No configured provider can execute task "${request.task}".`,
     );
   }
 
-  const sorted = [...candidates].sort((a, b) => {
-    let scoreA = a.priority;
-    let scoreB = b.priority;
+  const failures: Array<{
+    provider: AIProvider;
+    error: string;
+  }> = [];
 
-    if (
-      request.preferredProvider &&
-      a.provider === request.preferredProvider
-    ) {
-      scoreA += 50;
+  for (const candidate of candidates) {
+    try {
+      return await callProvider(
+        candidate.provider,
+        {
+          ...request,
+
+          provider:
+            candidate.provider,
+
+          model:
+            candidate.model,
+        },
+      );
+    } catch (error) {
+      failures.push({
+        provider:
+          candidate.provider,
+
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unknown provider error.",
+      });
     }
+  }
 
-    if (
-      request.preferredProvider &&
-      b.provider === request.preferredProvider
-    ) {
-      scoreB += 50;
-    }
-
-    if (
-      request.preferFree &&
-      a.provider === "openrouter"
-    ) {
-      scoreA += 30;
-    }
-
-    if (
-      request.preferFree &&
-      b.provider === "openrouter"
-    ) {
-      scoreB += 30;
-    }
-
-    return scoreB - scoreA;
-  });
-
-  const selected = sorted[0];
-
-  return {
-    provider: selected.provider,
-    model: selected.model,
-    reason:
-      `Selected ${selected.provider}/${selected.model} ` +
-      `for ${request.task}.`
-  };
+  throw new Error(
+    `All AI providers failed: ${JSON.stringify(
+      failures,
+    )}`,
+  );
 }
