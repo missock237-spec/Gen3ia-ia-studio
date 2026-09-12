@@ -34,6 +34,37 @@ export interface ExecuteToolRequest {
   input: unknown;
   signal?: AbortSignal;
 }
+export async function executeTool(
+  request: ExecuteToolRequest,
+) {
+  const tool = toolRegistry.get(
+    request.toolName,
+  );
+
+  if (!tool) {
+    return {
+      success: false,
+      error: `Unknown tool: ${request.toolName}`,
+    };
+  }
+
+  // 1. permission
+  // 2. validation Zod
+  // 3. approval si nécessaire
+  // 4. exécution
+  // 5. audit
+  // 6. résultat normalisé
+
+  return {
+    success: true,
+    output: await tool.execute({
+      userId: request.userId,
+      executionId: request.executionId,
+      input: request.input,
+      signal: request.signal,
+    }),
+  };
+}
 
 export class ToolExecutor {
   constructor(
