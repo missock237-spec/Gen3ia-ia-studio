@@ -14,6 +14,10 @@ import {
   createComposioTool,
 } from "@/lib/integrations/composio/adapter";
 
+import {
+  githubCreateRepositoryTool,
+} from "@/lib/integrations/github/tools";
+
 export function createDefaultToolRegistry() {
   const registry =
     new ToolRegistry();
@@ -34,5 +38,12 @@ export function createDefaultToolRegistry() {
     );
   }
 
+  if (
+  process.env.GITHUB_TOKEN
+) {
+  registry.register(
+    githubCreateRepositoryTool,
+  );
+}
   return registry;
 }
