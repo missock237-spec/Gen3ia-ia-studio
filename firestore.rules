@@ -192,9 +192,12 @@ service cloud.firestore {
     match /system/{document=**} {
       allow read:
         if signedIn();
-
       allow write:
         if false;
     }
-  }
+  match /toolAuditLogs/{logId} {
+  allow read: if isAdmin();
+  allow write: if false;
+}
+}
 }
