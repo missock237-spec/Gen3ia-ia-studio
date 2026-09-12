@@ -27,6 +27,14 @@ export interface ToolApprovalService {
   }): Promise<boolean>;
 }
 
+export interface ExecuteToolRequest {
+  userId: string;
+  executionId: string;
+  toolName: string;
+  input: unknown;
+  signal?: AbortSignal;
+}
+
 export class ToolExecutor {
   constructor(
     private readonly registry: ToolRegistry,
