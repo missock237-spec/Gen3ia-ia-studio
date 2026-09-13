@@ -13,6 +13,12 @@ service firebase.storage {
         && request.auth.uid == userId;
     }
 
+match /users/{userId}/artifacts/{allPaths=**} {
+  allow read: if request.auth != null
+    && request.auth.uid == userId;
+
+  allow write: if false;
+}
     match /projects/{projectId}/users/{userId}/{allPaths=**} {
       allow read, write:
         if signedIn()
