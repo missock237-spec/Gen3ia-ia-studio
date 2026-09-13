@@ -2,9 +2,13 @@ import { randomUUID } from "crypto";
 
 import { generate } from "@/lib/ai/router";
 import {
-  executeTool,
-  toolRegistry,
-} from "@/lib/tools";
+  executeToolSecurely,
+} from "./secure-tool-executor";
+
+import {
+  ExecutionPolicy,
+  DEFAULT_EXECUTION_POLICY,
+} from "@/lib/security/execution-policy"; 
 
 import {
   RuntimeExecutionState,
