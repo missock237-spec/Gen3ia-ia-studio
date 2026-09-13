@@ -11,6 +11,14 @@ import {
 } from "./web/open";
 
 import {
+  getArtifactTool,
+} from "./files/get-artifact";
+
+registry.register(
+  getArtifactTool,
+);
+
+import {
   createComposioTool,
 } from "@/lib/integrations/composio/adapter";
 
