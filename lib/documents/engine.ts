@@ -16,6 +16,127 @@ import {
   GeneratedDocument
 } from "./types";
 
+import {
+  randomUUID,
+} from "node:crypto";
+
+import path from "node:path";
+
+import {
+  DocumentPlanSchema,
+} from "./types";
+
+import {
+  EXTENSIONS,
+} from "./mime";
+
+import {
+  generateDocument,
+} from "./generators";
+
+import {
+  validateArtifact,
+} from "./validator";
+
+import {
+  createZip,
+  type ZipEntry,
+} from "./zip";
+
+export interface GenerateArtifactInput {
+  userId: string;
+
+  plan: unknown;
+
+  projectId?: string;
+
+  executionId?: string;
+
+  zipEntries?: ZipEntry[];
+}
+
+export async function generateArtifact(
+  input: GenerateArtifactInput,
+) {
+  const plan =
+    DocumentPlanSchema.parse(input.plan);
+
+  let data: Buffer;
+
+  if (plan.format === "zip") {
+    data = await createZip(
+      input.zipEntries ?? [],
+    );
+  } else {
+    data = await generateDocument(plan);
+  }
+
+  const validation =
+    validateArtifact(
+      plan.format,
+      data,
+    );
+
+  if (!validation.valid) {
+    throw new Error(
+      `Artifact validation failed: ${validation.errors.join(
+        "; ",
+      )}`,
+    );
+  }
+
+  const artifactId = randomUUID();
+
+  const safeTitle =
+    plan.title
+      .replace(
+        /[^a-zA-Z0-9._-]+/g,
+        "-",
+      )
+      .replace(/-+/g, "-")
+      .slice(0, 80) ||
+    "artifact";
+
+  const filename =
+    `${safeTitle}.${EXTENSIONS[plan.format]}`;
+
+  const storagePath =
+    path.posix.join(
+      "users",
+      input.userId,
+      "artifacts",
+      artifactId,
+      filename,
+    );
+
+  return {
+    artifactId,
+
+    userId: input.userId,
+
+    projectId: input.projectId,
+
+    executionId: input.executionId,
+
+    filename,
+
+    format: plan.format,
+
+    mimeType: validation.mimeType,
+
+    sizeBytes: data.length,
+
+    storagePath,
+
+    data,
+
+    validation,
+
+    createdAt:
+      new Date().toISOString(),
+  };
+}
+
 export class DocumentEngine {
   async generate(
     request: DocumentRequest
