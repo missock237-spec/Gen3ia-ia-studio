@@ -86,6 +86,43 @@ export class AgentRuntime {
     const validation =
       validateDAG(options.plan);
 
+    private async executeTool(
+  step: RuntimeStep,
+): Promise<unknown> {
+  if (!step.toolName) {
+    throw new Error(
+      `Tool step ${step.id} has no toolName`,
+    );
+  }
+
+  const dependencyContext =
+    this.getDependencyOutputs(step);
+
+  return executeToolSecurely({
+    userId:
+      this.state.userId,
+
+    executionId:
+      this.state.executionId,
+
+    toolName:
+      step.toolName,
+
+    input: {
+      ...step.input,
+
+      dependencies:
+        dependencyContext,
+    },
+
+    policy:
+      this.policy,
+
+    signal:
+      this.signal,
+  });
+    }
+
 if (
   this.state.totalRetries >=
   this.state.maxTotalRetries
