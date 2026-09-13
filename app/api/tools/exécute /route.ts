@@ -1,110 +1,150 @@
 import {
-  randomUUID,
-} from "node:crypto";
-
-import {
   NextRequest,
   NextResponse,
 } from "next/server";
 
-import { z } from "zod";
+import {
+  protectRoute,
+} from "@/lib/security/route-guard";
 
 import {
-  requireUser,
-} from "@/lib/security/authenticated-request";
+  rateLimit,
+} from "@/lib/security/rate-limit";
 
 import {
-  createDefaultToolRegistry,
-} from "@/lib/tools/default-registry";
+  executeThroughGateway,
+} from "@/lib/execution/execution-gateway";
 
 import {
-  ToolExecutor,
-} from "@/lib/tools/executor";
+  createAgentPolicy,
+} from "@/lib/security/agent-policy";
 
-const RequestSchema =
-  z.object({
-    toolId:
-      z.string().min(1),
-
-    input:
-      z.unknown(),
-
-    projectId:
-      z.string().optional(),
-
-    agentId:
-      z.string().optional(),
-
-    executionId:
-      z.string().optional(),
-  });
+import {
+  randomUUID,
+} from "crypto";
 
 export async function POST(
   request: NextRequest,
 ) {
-  try {
-    const user =
-      await requireUser(request);
+  const auth =
+    await protectRoute(
+      request,
+    );
 
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const userId =
+    auth.context.userId;
+
+  const limit =
+    rateLimit(
+      `tools:${userId}`,
+      {
+        limit: 30,
+
+        windowMs:
+          60 * 1000,
+      },
+    );
+
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        success: false,
+
+        error:
+          "Too many tool requests.",
+
+        retryAfterMs:
+          limit.retryAfterMs,
+      },
+      {
+        status: 429,
+      },
+    );
+  }
+
+  try {
     const body =
       await request.json();
 
-    const input =
-      RequestSchema.parse(
-        body,
+    const {
+      toolName,
+      input,
+      executionId,
+    } = body;
+
+    if (
+      typeof toolName !==
+      "string"
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+
+          error:
+            "toolName is required.",
+        },
+        {
+          status: 400,
+        },
       );
+    }
 
-    const registry =
-      createDefaultToolRegistry();
-
-    const executor =
-      new ToolExecutor(
-        registry,
+    const policy =
+      createAgentPolicy(
+        "standard",
       );
 
     const result =
-      await executor.execute(
+      await executeThroughGateway({
+        userId,
+
+        executionId:
+          executionId ??
+          randomUUID(),
+
+        type: "tool",
+
+        name:
+          toolName,
+
+        input:
+          input ?? {},
+
+        policy,
+
+      });
+
+    if (!result.success) {
+      return NextResponse.json(
+        result,
         {
-          id:
-            randomUUID(),
-
-          toolId:
-            input.toolId,
-
-          input:
-            input.input,
-
-          requestedAt:
-            new Date().toISOString(),
-        },
-        {
-          userId:
-            user.uid,
-
-          projectId:
-            input.projectId,
-
-          agentId:
-            input.agentId,
-
-          executionId:
-            input.executionId,
+          status: 403,
         },
       );
+    }
 
-    return NextResponse.json({
+    return NextResponse.json(
       result,
-    });
+      {
+        status: 200,
+      },
+    );
   } catch (error) {
     return NextResponse.json(
       {
+        success: false,
+
         error:
           error instanceof Error
             ? error.message
-            : "Tool execution failed.",
+            : "Internal error",
       },
       {
-        status: 400,
+        status: 500,
       },
     );
   }
