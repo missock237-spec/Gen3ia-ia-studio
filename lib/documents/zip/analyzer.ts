@@ -37,6 +37,31 @@ const TEXT_EXTENSIONS = new Set([
   ".env.example",
 ]);
 
+const MAX_COMPRESSION_RATIO = 200;
+const size = entry.uncompressedSize;
+const compressedSize =
+  entry.compressedSize;
+
+if (
+  compressedSize === 0 &&
+  size > 0
+) {
+  fail(
+    `Suspicious compression ratio: ${filename}`,
+  );
+  return;
+}
+
+if (
+  compressedSize > 0 &&
+  size / compressedSize >
+    MAX_COMPRESSION_RATIO
+) {
+  fail(
+    `Compression ratio too high: ${filename}`,
+  );
+  return;
+}
 function isUnsafePath(filename: string): boolean {
   const normalized = filename.replace(/\\/g, "/");
 
