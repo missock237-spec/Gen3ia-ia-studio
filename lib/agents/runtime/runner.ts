@@ -255,6 +255,88 @@ private areAllStepsFinished(): boolean {
           new Date().toISOString(),
       });
 
+if (
+  typeof output === "string" &&
+  output.length > 50
+) {
+  try {
+    await writeMemory({
+      userId:
+        this.state.userId,
+
+      projectId:
+        typeof step.input.projectId ===
+        "string"
+          ? step.input.projectId
+          : undefined,
+
+      type: "execution",
+
+      content:
+        `Step ${step.name} completed.\n\n${output.slice(
+          0,
+          12000,
+        )}`,
+
+      metadata: {
+        executionId:
+          this.state.executionId,
+
+        stepId:
+          step.id,
+      },
+
+      importance: 0.6,
+    });
+  } catch (memoryError) {
+    console.error(
+      "Memory write failed:",
+      memoryError,
+    );
+  }
+}
+
+      if (
+  typeof output === "string" &&
+  output.length > 50
+) {
+  try {
+    await writeMemory({
+      userId:
+        this.state.userId,
+
+      projectId:
+        typeof step.input.projectId ===
+        "string"
+          ? step.input.projectId
+          : undefined,
+
+      type: "execution",
+
+      content:
+        `Step ${step.name} completed.\n\n${output.slice(
+          0,
+          12000,
+        )}`,
+
+      metadata: {
+        executionId:
+          this.state.executionId,
+
+        stepId:
+          step.id,
+      },
+
+      importance: 0.6,
+    });
+  } catch (memoryError) {
+    console.error(
+      "Memory write failed:",
+      memoryError,
+    );
+  }
+      }
+      
       if (
         step.sideEffect ||
         step.maxRetries <= 0
