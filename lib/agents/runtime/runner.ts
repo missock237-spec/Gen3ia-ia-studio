@@ -37,6 +37,10 @@ import {
   buildAgentContext,
 } from "./context-builder";
 
+import {
+  writeMemory,
+} from "@/lib/memory/service";
+
 export interface RuntimeRunnerOptions {
   userId: string;
 
