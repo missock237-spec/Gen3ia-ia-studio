@@ -63,6 +63,18 @@ export interface RuntimeRunnerOptions {
   signal?: AbortSignal;
 }
 
+export interface RuntimeRunnerOptions {
+  userId: string;
+
+  objective: string;
+
+  plan: RuntimePlan;
+
+  signal?: AbortSignal;
+
+  policy?: ExecutionPolicy;
+}
+
 export class AgentRuntime {
   private state: RuntimeExecutionState;
 
