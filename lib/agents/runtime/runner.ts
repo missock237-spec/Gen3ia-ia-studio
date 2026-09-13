@@ -344,6 +344,45 @@ private areAllStepsFinished(): boolean {
     return response.content;
   }
 
+const response = await generate({
+  taskType:
+    step.type === "research"
+      ? "research"
+      : step.type === "code"
+        ? "coding"
+        : "agent",
+
+  messages: [
+    {
+      role: "system",
+      content:
+        "You are an autonomous Gen3ia agent. Use retrieved context when relevant. Do not claim retrieved information as current external truth unless it is verified.",
+    },
+
+    {
+      role: "user",
+      content: JSON.stringify({
+        objective:
+          this.state.objective,
+
+        step: {
+          id: step.id,
+          name: step.name,
+          description:
+            step.description,
+          input: step.input,
+        },
+
+        dependencies:
+          dependencyContext,
+
+        retrievedContext:
+          ragContext,
+      }),
+    },
+  ],
+});
+  
   private async executeTool(
     step: RuntimeStep,
   ): Promise<unknown> {
