@@ -164,6 +164,14 @@ export class AgentRuntime {
     }
   }
 
+private areAllStepsFinished(): boolean {
+  return this.state.plan.steps.every(
+    (step) =>
+      step.status === "completed" ||
+      step.status === "skipped",
+  );
+}
+  
   private async executeStep(
     step: RuntimeStep,
   ): Promise<void> {
