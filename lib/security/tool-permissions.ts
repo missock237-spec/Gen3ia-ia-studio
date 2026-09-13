@@ -1,0 +1,164 @@
+import {
+  ExecutionPolicy,
+  Permission,
+  ToolRisk,
+  assertPermission,
+  assertToolAllowed,
+} from "./execution-policy";
+
+export interface ToolSecurityDefinition {
+  name: string;
+
+  risk: ToolRisk;
+
+  requiredPermissions: Permission[];
+
+  network?: boolean;
+
+  filesystemRead?: boolean;
+
+  filesystemWrite?: boolean;
+
+  destructive?: boolean;
+
+  externalApp?: boolean;
+}
+
+const TOOL_SECURITY: Record<
+  string,
+  ToolSecurityDefinition
+> = {
+  "web.search": {
+    name: "web.search",
+    risk: "read",
+    requiredPermissions: [
+      "tool.read",
+      "network.read",
+    ],
+    network: true,
+  },
+
+  "file.read": {
+    name: "file.read",
+    risk: "read",
+    requiredPermissions: [
+      "tool.read",
+      "file.read",
+    ],
+    filesystemRead: true,
+  },
+
+  "file.create": {
+    name: "file.create",
+    risk: "write",
+    requiredPermissions: [
+      "tool.write",
+      "file.create",
+      "file.write",
+    ],
+    filesystemWrite: true,
+  },
+
+  "file.delete": {
+    name: "file.delete",
+    risk: "destructive",
+    requiredPermissions: [
+      "tool.destructive",
+      "file.delete",
+    ],
+    filesystemWrite: true,
+    destructive: true,
+  },
+
+  "composio.execute": {
+    name: "composio.execute",
+    risk: "external",
+    requiredPermissions: [
+      "tool.external",
+      "tool.write",
+      "network.write",
+    ],
+    network: true,
+    externalApp: true,
+  },
+
+  "code.execute": {
+    name: "code.execute",
+    risk: "destructive",
+    requiredPermissions: [
+      "code.execute",
+    ],
+  },
+};
+
+export function getToolSecurityDefinition(
+  toolName: string,
+): ToolSecurityDefinition {
+  const definition = TOOL_SECURITY[toolName];
+
+  if (!definition) {
+    throw new Error(
+      `Unknown tool security definition: ${toolName}`,
+    );
+  }
+
+  return definition;
+}
+
+export function authorizeTool(
+  policy: ExecutionPolicy,
+  toolName: string,
+): ToolSecurityDefinition {
+  assertToolAllowed(policy, toolName);
+
+  const definition =
+    getToolSecurityDefinition(toolName);
+
+  for (
+    const permission
+    of definition.requiredPermissions
+  ) {
+    assertPermission(
+      policy,
+      permission,
+    );
+  }
+
+  if (
+    definition.network &&
+    !policy.allowNetwork
+  ) {
+    throw new Error(
+      `Network access denied for tool: ${toolName}`,
+    );
+  }
+
+  if (
+    definition.externalApp &&
+    !policy.allowExternalApps
+  ) {
+    throw new Error(
+      `External application access denied: ${toolName}`,
+    );
+  }
+
+  if (
+    definition.filesystemWrite &&
+    !policy.allowFileWrite
+  ) {
+    throw new Error(
+      `Filesystem write denied: ${toolName}`,
+    );
+  }
+
+  if (
+    definition.destructive &&
+    !policy.allowFileDelete
+  ) {
+    throw new Error(
+      `Destructive operation denied: ${toolName}`,
+    );
+  }
+
+  return definition;
+}
