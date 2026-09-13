@@ -28,6 +28,13 @@ service cloud.firestore {
         if false;
     }
 
+match /artifacts/{artifactId} {
+  allow read: if isAuthenticated()
+    && resource.data.userId == request.auth.uid;
+
+  allow write: if false;
+}
+
     match /projects/{projectId} {
       allow read:
         if signedIn()
