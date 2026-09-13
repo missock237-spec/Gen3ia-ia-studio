@@ -115,6 +115,9 @@ export interface RuntimeExecutionState {
 
   iteration: number;
 
+totalRetries: 0,
+maxTotalRetries: 15,
+  
   startedAt?: string;
   completedAt?: string;
 
