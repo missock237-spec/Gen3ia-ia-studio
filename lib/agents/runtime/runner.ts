@@ -33,6 +33,10 @@ import {
 
 import { RuntimeScheduler } from "./scheduler";
 
+import {
+  buildAgentContext,
+} from "./context-builder";
+
 export interface RuntimeRunnerOptions {
   userId: string;
 
