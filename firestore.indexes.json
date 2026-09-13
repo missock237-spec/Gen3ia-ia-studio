@@ -58,4 +58,22 @@
     }
   ],
   "fieldOverrides": []
+  match /memories/{memoryId} {
+  allow read: if isAuthenticated()
+    && resource.data.userId == request.auth.uid;
+
+  allow write: if false;
+  }
+match /knowledgeDocuments/{documentId} {
+  allow read: if isAuthenticated()
+    && resource.data.userId == request.auth.uid;
+
+  allow write: if false;
+}
+match /knowledgeChunks/{chunkId} {
+  allow read: if isAuthenticated()
+    && resource.data.userId == request.auth.uid;
+
+  allow write: if false;
+}
 }
