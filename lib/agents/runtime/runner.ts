@@ -54,6 +54,27 @@ export class AgentRuntime {
     const validation =
       validateDAG(options.plan);
 
+if (
+  this.state.totalRetries >=
+  this.state.maxTotalRetries
+) {
+  this.state.status = "failed";
+
+  this.state.error =
+    "Global retry budget exhausted.";
+
+  this.state.completedAt =
+    new Date().toISOString();
+
+  await saveCheckpoint(
+    this.state,
+  );
+
+  return this.state;
+}
+
+this.state.totalRetries++;
+    
     if (!validation.valid) {
       throw new Error(
         `Invalid agent DAG:\n${validation.errors.join(
