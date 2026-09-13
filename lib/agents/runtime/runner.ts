@@ -23,6 +23,14 @@ import {
   validateDAG,
 } from "./dag";
 
+import {
+  critiqueExecution,
+} from "@/lib/agents/critic/service";
+
+import {
+  applyCorrections,
+} from "@/lib/agents/critic/corrector";
+
 import { RuntimeScheduler } from "./scheduler";
 
 export interface RuntimeRunnerOptions {
