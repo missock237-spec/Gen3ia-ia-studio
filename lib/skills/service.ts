@@ -34,7 +34,20 @@ export class SkillService {
     if (selected.length > 0) {
       return {
         created: false,
+        
+export async function getAvailableSkills(
+  userId: string,
+) {
+  const skills =
+    await repository.listActiveSkills();
 
+  return skills.filter(
+    (skill) =>
+      skill.visibility === "public" ||
+      skill.ownerId === userId,
+    );
+    }
+        
         selected: selected.map(
           (item) => ({
             skill: item.skill,
