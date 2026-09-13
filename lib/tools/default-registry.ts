@@ -18,6 +18,30 @@ import {
   githubCreateRepositoryTool,
 } from "@/lib/integrations/github/tools";
 
+registry.register(
+  createArtifactTool,
+);
+
+registry.register(
+  analyzeZipTool,
+);
+
+registry.register(
+  createZipTool,
+);
+
+import {
+  createArtifactTool,
+} from "./files/create-artifact";
+
+import {
+  analyzeZipTool,
+} from "./files/analyze-zip";
+
+import {
+  createZipTool,
+} from "./files/create-zip";
+
 export function createDefaultToolRegistry() {
   const registry =
     new ToolRegistry();
