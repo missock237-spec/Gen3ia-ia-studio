@@ -18,18 +18,7 @@ export async function createLiveSession(input: {
   pairingTokenHash: string;
 }): Promise<LiveSession> {
   const now = Date.now();
-  const session: LiveSession = {
-    id: input.id,
-    ownerId: input.ownerId,
-    name: input.name,
-    objective: input.objective,
-    status: "pending",
-    permissions: input.permissions,
-    createdAt: now,
-    updatedAt: now,
-    expiresAt: input.expiresAt,
-    version: 1,
-  };
+  const session: LiveSession = { id: input.id, ownerId: input.ownerId, name: input.name, objective: input.objective, status: "pending", permissions: input.permissions, createdAt: now, updatedAt: now, expiresAt: input.expiresAt, version: 1 };
   await ref(input.id).set({ ...session, pairingTokenHash: input.pairingTokenHash });
   return session;
 }
@@ -38,12 +27,7 @@ export async function getLiveSession(id: string): Promise<(LiveSession & { pairi
   const snap = await ref(id).get();
   if (!snap.exists) return null;
   const data = snap.data()!;
-  return {
-    ...(data as LiveSession),
-    createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
-    updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : Date.now(),
-    pairingTokenHash: String(data.pairingTokenHash ?? ""),
-  };
+  return { ...(data as LiveSession), createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(), updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : Date.now(), pairingTokenHash: String(data.pairingTokenHash ?? "") };
 }
 
 export async function assertLiveSessionOwner(id: string, ownerId: string) {
@@ -53,7 +37,8 @@ export async function assertLiveSessionOwner(id: string, ownerId: string) {
 }
 
 export async function updateLiveSessionStatus(id: string, status: LiveSessionStatus, deviceId?: string) {
-  await ref(id).update({ status, ...(deviceId ? { deviceId } : {}), updatedAt: Date.now(), version: Date.now() });
+  const now = Date.now();
+  await ref(id).update({ status, ...(deviceId ? { deviceId } : {}), updatedAt: now, version: now });
 }
 
 export async function heartbeatLiveSession(id: string, deviceId: string) {
@@ -67,20 +52,20 @@ export async function setPendingLiveAction(id: string, pendingAction: LivePendin
 
 export async function approvePendingLiveAction(id: string, actionId: string, ownerId: string) {
   const sessionRef = ref(id);
-  const result = await adminDb.runTransaction(async (tx) => {
+  return adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(sessionRef);
     if (!snap.exists) throw new Error("Live session not found");
-    const data = snap.data()! as LiveSession & { pairingTokenHash: string };
+    const data = snap.data()! as LiveSession;
     if (data.ownerId !== ownerId) throw new Error("Live session access denied");
     const pending = data.pendingAction;
     if (!pending || pending.actionId !== actionId) throw new Error("Pending live action not found");
     if (pending.approvedAt || pending.sentAt) throw new Error("Live action is no longer pending approval");
     if (Date.now() - pending.createdAt > PENDING_ACTION_MAX_AGE_MS) throw new Error("Live action approval expired");
+    if (data.inFlightAction) throw new Error("Another live action is still in flight");
     const approvedAt = Date.now();
     tx.update(sessionRef, { "pendingAction.approvedAt": approvedAt, status: "running", updatedAt: approvedAt, version: approvedAt });
     return approvedAt;
   });
-  return result;
 }
 
 export async function claimApprovedLiveAction(id: string, deviceId: string): Promise<LivePendingAction | null> {
@@ -90,14 +75,57 @@ export async function claimApprovedLiveAction(id: string, deviceId: string): Pro
     if (!snap.exists) return null;
     const data = snap.data()! as LiveSession;
     const pending = data.pendingAction;
-    if (data.deviceId !== deviceId || data.status !== "running" || !pending?.approvedAt || pending.sentAt) return null;
+    if (data.deviceId !== deviceId || data.status !== "running" || !pending?.approvedAt || pending.sentAt || data.inFlightAction) return null;
     if (Date.now() - pending.createdAt > PENDING_ACTION_MAX_AGE_MS) {
       tx.update(sessionRef, { pendingAction: null, status: "paused", updatedAt: Date.now(), version: Date.now() });
       return null;
     }
     const sentAt = Date.now();
-    tx.update(sessionRef, { "pendingAction.sentAt": sentAt, updatedAt: sentAt, version: sentAt });
+    tx.update(sessionRef, { "pendingAction.sentAt": sentAt, updatedAt: sentAt, version: sentAt, inFlightAction: { actionId: pending.actionId, action: pending.action, requestedAt: pending.createdAt, sentAt, deviceId } });
     return { ...pending, sentAt };
+  });
+}
+
+export async function beginLiveAction(id: string, actionId: string, action: LiveAction, deviceId: string) {
+  const sessionRef = ref(id);
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(sessionRef);
+    if (!snap.exists) throw new Error("Live session not found");
+    const data = snap.data()! as LiveSession;
+    if (data.deviceId !== deviceId) throw new Error("Live device is not authorized");
+    if (data.status !== "running") throw new Error("Live session is not running");
+    if (data.inFlightAction) throw new Error("Another live action is still in flight");
+    const now = Date.now();
+    tx.update(sessionRef, { inFlightAction: { actionId, action, requestedAt: now, sentAt: now, deviceId }, updatedAt: now, version: now });
+  });
+}
+
+export async function completeLiveAction(id: string, actionId: string, deviceId: string) {
+  const sessionRef = ref(id);
+  await adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(sessionRef);
+    if (!snap.exists) throw new Error("Live session not found");
+    const data = snap.data()! as LiveSession;
+    const inFlight = data.inFlightAction;
+    if (!inFlight || inFlight.actionId !== actionId || inFlight.deviceId !== deviceId) throw new Error("Unknown or expired live action");
+    const now = Date.now();
+    tx.update(sessionRef, { inFlightAction: null, pendingAction: null, updatedAt: now, version: now });
+  });
+}
+
+export async function recoverInFlightLiveAction(id: string, actionId: string, ownerId: string) {
+  const sessionRef = ref(id);
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(sessionRef);
+    if (!snap.exists) throw new Error("Live session not found");
+    const data = snap.data()! as LiveSession;
+    if (data.ownerId !== ownerId) throw new Error("Live session access denied");
+    const inFlight = data.inFlightAction;
+    if (!inFlight || inFlight.actionId !== actionId) throw new Error("In-flight live action not found");
+    const now = Date.now();
+    const pending: LivePendingAction = { actionId: inFlight.actionId, action: inFlight.action, createdAt: now, approvedAt: now };
+    tx.update(sessionRef, { inFlightAction: null, pendingAction: pending, status: "running", updatedAt: now, version: now });
+    return pending;
   });
 }
 
@@ -107,8 +135,8 @@ export async function clearPendingLiveAction(id: string, actionId: string) {
     const snap = await tx.get(sessionRef);
     if (!snap.exists) return;
     const data = snap.data()! as LiveSession;
-    if (data.pendingAction?.actionId !== actionId) return;
-    tx.update(sessionRef, { pendingAction: null, updatedAt: Date.now(), version: Date.now() });
+    if (data.pendingAction?.actionId !== actionId && data.inFlightAction?.actionId !== actionId) return;
+    tx.update(sessionRef, { pendingAction: null, inFlightAction: null, updatedAt: Date.now(), version: Date.now() });
   });
 }
 
