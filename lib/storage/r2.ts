@@ -9,33 +9,83 @@ function getConfig() {
   if (!accountId || !accessKeyId || !secretAccessKey || !bucket) throw new Error("R2 configuration is incomplete");
   return { accountId, accessKeyId, secretAccessKey, bucket };
 }
+
 function getClient() {
   const { accountId, accessKeyId, secretAccessKey } = getConfig();
-  return new S3Client({ region: "auto", endpoint: `https://${accountId}.r2.cloudflarestorage.com`, credentials: { accessKeyId, secretAccessKey } });
+  return new S3Client({
+    region: "auto",
+    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    credentials: { accessKeyId, secretAccessKey },
+  });
 }
+
 export async function uploadToR2(key: string, body: Uint8Array | Buffer, contentType: string): Promise<void> {
   const { bucket } = getConfig();
-  await getClient().send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType, ContentLength: body.byteLength }));
+  await getClient().send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: key,
+    Body: body,
+    ContentType: contentType,
+    ContentLength: body.byteLength,
+  }));
 }
-export async function putObject(options: { key: string; body: Uint8Array | Buffer; contentType: string; contentLength?: number }) {
+
+export async function putObject(options: {
+  key: string;
+  body: Uint8Array | Buffer;
+  contentType: string;
+  contentLength?: number;
+}) {
   return uploadToR2(options.key, options.body, options.contentType);
 }
+
+/**
+ * Downloads an R2 object without ever buffering more than maxBytes.
+ * ContentLength is rejected before the network body is consumed when available;
+ * streamed chunks are also bounded to protect against incorrect/missing metadata.
+ */
 export async function downloadFromR2(key: string, maxBytes = 100 * 1024 * 1024): Promise<Buffer> {
+  if (!Number.isInteger(maxBytes) || maxBytes < 1) throw new Error("Invalid R2 read limit");
+
   const { bucket } = getConfig();
   const response = await getClient().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   if (!response.Body) throw new Error("R2 object has no body");
-  const bytes = await response.Body.transformToByteArray();
-  if (bytes.byteLength > maxBytes) throw new Error("R2 object exceeds configured read limit");
-  return Buffer.from(bytes);
+  if (typeof response.ContentLength === "number" && response.ContentLength > maxBytes) {
+    response.Body.destroy?.();
+    throw new Error("R2 object exceeds configured read limit");
+  }
+
+  const chunks: Buffer[] = [];
+  let total = 0;
+
+  for await (const chunk of response.Body as AsyncIterable<Uint8Array | Buffer | string>) {
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += bytes.byteLength;
+    if (total > maxBytes) {
+      response.Body.destroy?.();
+      throw new Error("R2 object exceeds configured read limit");
+    }
+    chunks.push(bytes);
+  }
+
+  return Buffer.concat(chunks, total);
 }
+
 export async function deleteFromR2(key: string): Promise<void> {
   const { bucket } = getConfig();
   await getClient().send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }
-export async function deleteObject(key: string): Promise<void> { return deleteFromR2(key); }
+
+export async function deleteObject(key: string): Promise<void> {
+  return deleteFromR2(key);
+}
+
 export async function createR2DownloadUrl(key: string, expiresIn = 300): Promise<string> {
   const { bucket } = getConfig();
   if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 3600) throw new Error("Invalid signed URL expiration");
   return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
 }
-export async function createDownloadUrl(key: string, expiresIn = 600): Promise<string> { return createR2DownloadUrl(key, expiresIn); }
+
+export async function createDownloadUrl(key: string, expiresIn = 600): Promise<string> {
+  return createR2DownloadUrl(key, expiresIn);
+}
