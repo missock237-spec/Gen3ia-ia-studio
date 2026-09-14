@@ -14,22 +14,27 @@ import {
   getArtifactRecord,
 } from "./artifact-repository";
 
-export async function storeLocalArtifact(input: {
+export interface StoreArtifactInput {
   ownerId: string;
   executionId: string;
-  localPath: string;
   name: string;
   mimeType: string;
+  data: Uint8Array | Buffer;
   expiresAt?: number;
-}) {
+}
+
+export async function storeArtifactBuffer(input: StoreArtifactInput) {
+  const data = Buffer.from(input.data);
+  const artifactId = createArtifactId();
+  const storageKey = createArtifactStorageKey(
+    input.ownerId,
+    artifactId,
+    input.name,
+  );
+  const checksum = crypto.createHash("sha256").update(data).digest("hex");
   let uploadedKey: string | null = null;
 
   try {
-    const data = await fs.readFile(input.localPath);
-    const artifactId = createArtifactId();
-    const storageKey = createArtifactStorageKey(input.ownerId, artifactId, input.name);
-    const checksum = crypto.createHash("sha256").update(data).digest("hex");
-
     await uploadToR2(storageKey, data, input.mimeType);
     uploadedKey = storageKey;
 
@@ -50,15 +55,41 @@ export async function storeLocalArtifact(input: {
     return artifact;
   } catch (error) {
     if (uploadedKey) {
-      try { await deleteFromR2(uploadedKey); } catch {}
+      try {
+        await deleteFromR2(uploadedKey);
+      } catch {}
     }
     throw error;
+  }
+}
+
+export async function storeLocalArtifact(input: {
+  ownerId: string;
+  executionId: string;
+  localPath: string;
+  name: string;
+  mimeType: string;
+  expiresAt?: number;
+}) {
+  try {
+    const data = await fs.readFile(input.localPath);
+    return await storeArtifactBuffer({
+      ownerId: input.ownerId,
+      executionId: input.executionId,
+      name: input.name,
+      mimeType: input.mimeType,
+      data,
+      expiresAt: input.expiresAt,
+    });
   } finally {
     await fs.rm(input.localPath, { force: true }).catch(() => undefined);
   }
 }
 
-export async function getArtifactDownloadUrl(artifactId: string, userId: string) {
+export async function getArtifactDownloadUrl(
+  artifactId: string,
+  userId: string,
+) {
   const artifact = await getArtifactRecord(artifactId);
   if (!artifact) throw new Error("Artifact not found");
   assertArtifactOwner(artifact, userId);
