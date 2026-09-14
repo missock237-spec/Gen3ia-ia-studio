@@ -1,24 +1,18 @@
-import fs from "node:fs/promises";
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 
 import {
-  uploadToR2,
-  deleteFromR2,
   createR2DownloadUrl,
+  deleteFromR2,
+  uploadToR2,
 } from "@/lib/storage/r2";
-
-import {
-  createArtifactId,
-  createArtifactStorageKey,
-} from "./artifact";
-
+import { createArtifactId, createArtifactStorageKey } from "./artifact";
+import { assertArtifactOwner } from "./artifact-access";
 import {
   createArtifactRecord,
   deleteArtifactRecord,
   getArtifactRecord,
 } from "./artifact-repository";
-
-import { assertArtifactOwner } from "./artifact-access";
 
 export async function storeLocalArtifact(input: {
   ownerId: string;
@@ -26,94 +20,61 @@ export async function storeLocalArtifact(input: {
   localPath: string;
   name: string;
   mimeType: string;
+  expiresAt?: number;
 }) {
-  const data = await fs.readFile(input.localPath);
+  let uploadedKey: string | null = null;
 
-  const artifactId = createArtifactId();
+  try {
+    const data = await fs.readFile(input.localPath);
+    const artifactId = createArtifactId();
+    const storageKey = createArtifactStorageKey(input.ownerId, artifactId, input.name);
+    const checksum = crypto.createHash("sha256").update(data).digest("hex");
 
-  const storageKey = createArtifactStorageKey(
-    input.ownerId,
-    artifactId,
-    input.name,
-  );
+    await uploadToR2(storageKey, data, input.mimeType);
+    uploadedKey = storageKey;
 
-  const checksum = crypto
-    .createHash("sha256")
-    .update(data)
-    .digest("hex");
+    const artifact = {
+      artifactId,
+      ownerId: input.ownerId,
+      executionId: input.executionId,
+      name: input.name,
+      mimeType: input.mimeType,
+      size: data.length,
+      storageKey,
+      checksum,
+      createdAt: Date.now(),
+      ...(input.expiresAt ? { expiresAt: input.expiresAt } : {}),
+    };
 
-  await uploadToR2(
-    storageKey,
-    data,
-    input.mimeType,
-  );
-
-  const artifact = {
-    artifactId,
-    ownerId: input.ownerId,
-    executionId: input.executionId,
-    name: input.name,
-    mimeType: input.mimeType,
-    size: data.length,
-    storageKey,
-    checksum,
-    createdAt: Date.now(),
-  };
-
-  await createArtifactRecord(artifact);
-
-  await fs.rm(input.localPath, {
-    force: true,
-  });
-
-  return artifact;
+    await createArtifactRecord(artifact);
+    return artifact;
+  } catch (error) {
+    if (uploadedKey) {
+      try { await deleteFromR2(uploadedKey); } catch {}
+    }
+    throw error;
+  } finally {
+    await fs.rm(input.localPath, { force: true }).catch(() => undefined);
+  }
 }
 
-export async function getArtifactDownloadUrl(
-  artifactId: string,
-  userId: string,
-) {
-  const artifact = await getArtifactRecord(
-    artifactId,
-  );
+export async function getArtifactDownloadUrl(artifactId: string, userId: string) {
+  const artifact = await getArtifactRecord(artifactId);
+  if (!artifact) throw new Error("Artifact not found");
+  assertArtifactOwner(artifact, userId);
 
-  if (!artifact) {
-    throw new Error("Artifact not found");
+  if (artifact.expiresAt && artifact.expiresAt <= Date.now()) {
+    throw new Error("Artifact expired");
   }
 
-  assertArtifactOwner(
-    artifact,
-    userId,
-  );
-
-  return createR2DownloadUrl(
-    artifact.storageKey,
-    300,
-  );
+  return createR2DownloadUrl(artifact.storageKey, 300);
 }
 
-export async function removeArtifact(
-  artifactId: string,
-  userId: string,
-) {
-  const artifact = await getArtifactRecord(
-    artifactId,
-  );
+export async function removeArtifact(artifactId: string, userId: string) {
+  const artifact = await getArtifactRecord(artifactId);
+  if (!artifact) throw new Error("Artifact not found");
+  assertArtifactOwner(artifact, userId);
 
-  if (!artifact) {
-    throw new Error("Artifact not found");
-  }
-
-  assertArtifactOwner(
-    artifact,
-    userId,
-  );
-
-  await deleteFromR2(
-    artifact.storageKey,
-  );
-
-  await deleteArtifactRecord(
-    artifactId,
-  );
+  await deleteFromR2(artifact.storageKey);
+  await deleteArtifactRecord(artifactId);
 }
