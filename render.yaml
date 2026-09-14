@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: gen3ia-web
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: COMPOSIO_API_KEY
+        sync: false
+
+  - type: web
+    name: gen3ia-live-gateway
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm run live:gateway
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: LIVE_GATEWAY_PORT
+        value: 10000
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LIVE_AGENT_VISION_MODEL
+        sync: false
