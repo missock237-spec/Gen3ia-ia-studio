@@ -1,126 +1,118 @@
 import {
-  ExecutionPolicy,
-  DEFAULT_EXECUTION_POLICY,
+  assertPermission,
+  assertToolAllowed,
+  type ExecutionPolicy,
 } from "@/lib/security/execution-policy";
 
-import {
-  executeToolSecurely,
-} from "@/lib/agents/runtime/secure-tool-executor";
-
-import {
-  sandbox,
-} from "@/lib/agents/runtime/sandbox";
-
-export interface ExecutionGatewayRequest {
+export interface ExecutionRequest {
   userId: string;
-
   executionId: string;
 
-  type:
-    | "tool"
-    | "code";
+  toolName: string;
 
-  name: string;
+  input: unknown;
 
-  input?: Record<string, unknown>;
+  policy: ExecutionPolicy;
 
-  code?: string;
-
-  policy?: ExecutionPolicy;
-
-  signal?: AbortSignal;
+  execute: () => Promise<unknown>;
 }
 
-export interface ExecutionGatewayResult {
-  success: boolean;
-
-  output?: unknown;
-
-  error?: string;
+function estimateBytes(
+  value: unknown,
+): number {
+  try {
+    return Buffer.byteLength(
+      JSON.stringify(value),
+      "utf8",
+    );
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
 }
 
 export async function executeThroughGateway(
-  request: ExecutionGatewayRequest,
-): Promise<ExecutionGatewayResult> {
-  const policy =
-    request.policy ??
-    DEFAULT_EXECUTION_POLICY;
+  request: ExecutionRequest,
+): Promise<unknown> {
+  assertToolAllowed(
+    request.policy,
+    request.toolName,
+  );
 
-  try {
-    if (
-      request.type === "tool"
-    ) {
-      const output =
-        await executeToolSecurely({
-          userId:
-            request.userId,
+  const inputBytes =
+    estimateBytes(request.input);
 
-          executionId:
-            request.executionId,
-
-          toolName:
-            request.name,
-
-          input:
-            request.input ?? {},
-
-          policy,
-
-          signal:
-            request.signal,
-        });
-
-      return {
-        success: true,
-        output,
-      };
-    }
-
-    if (
-      request.type === "code"
-    ) {
-      if (
-        !policy.allowCodeExecution
-      ) {
-        throw new Error(
-          "Code execution is not permitted.",
-        );
-      }
-
-      if (!request.code) {
-        throw new Error(
-          "No code supplied.",
-        );
-      }
-
-      return sandbox.execute({
-        executionId:
-          request.executionId,
-
-        userId:
-          request.userId,
-
-        code:
-          request.code,
-
-        input:
-          request.input,
-
-        policy,
-      });
-    }
-
+  if (
+    inputBytes >
+    request.policy.maxInputBytes
+  ) {
     throw new Error(
-      "Unsupported execution type.",
+      "Execution input exceeds the configured limit.",
     );
-  } catch (error) {
-    return {
-      success: false,
-
-      error:
-        error instanceof Error
-          ? error.message
-          : String(error),
-    };
   }
+
+  const tool =
+    request.toolName;
+
+  if (
+    tool === "code.execute"
+  ) {
+    assertPermission(
+      request.policy,
+      "code.execute",
+    );
+
+    if (
+      !request.policy
+        .allowCodeExecution
+    ) {
+      throw new Error(
+        "Code execution is disabled by policy.",
+      );
     }
+  }
+
+  if (
+    tool.startsWith("file.")
+  ) {
+    assertPermission(
+      request.policy,
+      tool === "file.read"
+        ? "file.read"
+        : "file.write",
+    );
+  }
+
+  if (
+    tool.startsWith(
+      "composio.",
+    )
+  ) {
+    assertPermission(
+      request.policy,
+      "tool.external",
+    );
+
+    if (
+      !request.policy
+        .allowExternalApps
+    ) {
+      throw new Error(
+        "External applications are disabled by policy.",
+      );
+    }
+  }
+
+  const result =
+    await request.execute();
+
+  if (
+    estimateBytes(result) >
+    request.policy.maxOutputBytes
+  ) {
+    throw new Error(
+      "Execution output exceeds the configured limit.",
+    );
+  }
+
+  return result;
+}
