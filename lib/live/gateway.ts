@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
-import { beginLiveAction, claimApprovedLiveAction, clearPendingLiveAction, completeLiveAction, getLiveSession, heartbeatLiveSession, recordLiveEvent, setPendingLiveAction, updateLiveSessionStatus } from "./repository";
+import { beginLiveAction, claimApprovedLiveAction, clearPendingLiveAction, completeLiveAction, getLiveSession, heartbeatLiveSession, recordLiveEvent, recordLiveObservation, recordLiveRuntimeActionResult, recoverInFlightLiveAction, setLiveRuntimeRecoveryRequired, setLiveRuntimeWaitingConfirmation, setPendingLiveAction, startLiveRuntime, updateLiveSessionStatus } from "./repository";
 import { constantTimeEqual, hashPairingToken, assertActionAllowed } from "./security";
 import { decideLiveAction, actionRequiresConfirmation } from "./vision-decider";
 import { LiveActionSchema, LiveClientMessageSchema, type LiveClientMessage, type LiveServerMessage } from "./types";
@@ -74,6 +74,7 @@ async function synchronizeConnection(state: ConnectionState): Promise<boolean> {
     if (!state.pausedByServer) {
       state.pausedByServer = true;
       await updateLiveSessionStatus(state.sessionId, "paused", state.deviceId);
+      await setLiveRuntimeRecoveryRequired(state.sessionId, session.inFlightAction.actionId);
       send(state.socket, { type: "pause", reason: "An action was interrupted or its result was lost. Explicit retry approval is required." });
       await recordLiveEvent(state.sessionId, { type: "action.recovery_required", actionId: session.inFlightAction.actionId });
     }
@@ -88,6 +89,7 @@ async function synchronizeConnection(state: ConnectionState): Promise<boolean> {
   }
   if (state.pausedByServer && session.status === "running") {
     state.pausedByServer = false;
+    await startLiveRuntime(state.sessionId, state.deviceId);
     send(state.socket, { type: "resume", reason: "Live session resumed" });
   }
   if (session.status === "running" && session.pendingAction?.approvedAt && !session.pendingAction.sentAt) {
@@ -116,8 +118,13 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           const initiallyPaused = session.status === "paused" || Boolean(session.inFlightAction);
           state = { sessionId: session.id, deviceId: message.deviceId, socket, pausedByServer: initiallyPaused, lastFrameAt: 0 };
           clients.set(session.id, state);
-          if (!initiallyPaused) await updateLiveSessionStatus(session.id, "running", message.deviceId);
-          else await updateLiveSessionStatus(session.id, "paused", message.deviceId);
+          if (!initiallyPaused) {
+            await updateLiveSessionStatus(session.id, "running", message.deviceId);
+            await startLiveRuntime(session.id, message.deviceId);
+          } else {
+            await updateLiveSessionStatus(session.id, "paused", message.deviceId);
+            if (session.inFlightAction) await setLiveRuntimeRecoveryRequired(session.id, session.inFlightAction.actionId);
+          }
           await recordLiveEvent(session.id, { type: "connected", deviceId: message.deviceId, recoveryRequired: Boolean(session.inFlightAction) });
           send(socket, { type: "hello.ack", sessionId: session.id, heartbeatIntervalMs: HEARTBEAT_MS, frameIntervalMs: MAX_FRAME_INTERVAL_MS });
           if (session.inFlightAction) send(socket, { type: "pause", reason: "An interrupted action requires explicit retry approval before it can run again." });
@@ -144,15 +151,16 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           if (session.inFlightAction) return;
           const feedback = state.lastActionResult && now - state.lastActionResult.at <= ACTION_RESULT_MAX_AGE_MS ? state.lastActionResult : undefined;
           const decision = await decideLiveAction(session, jpeg, message.width, message.height, feedback);
-          await recordLiveEvent(state.sessionId, { type: "vision.decision", message: decision.message, done: decision.done, action: decision.action });
+          const action = decision.action ? LiveActionSchema.parse(decision.action) : undefined;
+          const actionId = action ? randomUUID() : undefined;
+          await recordLiveObservation(state.sessionId, { deviceId: state.deviceId, decisionMessage: decision.message, done: decision.done, actionId });
+          await recordLiveEvent(state.sessionId, { type: "vision.decision", message: decision.message, done: decision.done, action: action ?? null });
           if (decision.done) {
             await updateLiveSessionStatus(state.sessionId, "connected", state.deviceId);
             return;
           }
-          if (!decision.action) return;
-          const action = LiveActionSchema.parse(decision.action);
+          if (!action || !actionId) return;
           assertActionAllowed(action, session.permissions);
-          const actionId = randomUUID();
           if (actionRequiresConfirmation(action)) {
             await setPendingLiveAction(state.sessionId, { actionId, action, createdAt: Date.now() });
             await recordLiveEvent(state.sessionId, { type: "action.blocked", reason: "confirmation_required", actionId, action });
@@ -172,6 +180,7 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           if (state.lastActionId !== message.actionId) throw new Error("Unknown or expired live action");
           await completeLiveAction(state.sessionId, message.actionId, state.deviceId);
           state.lastActionResult = { ok: message.ok, error: message.error, at: Date.now() };
+          await recordLiveRuntimeActionResult(state.sessionId, { deviceId: state.deviceId, actionId: message.actionId, ok: message.ok, error: message.error });
           await clearPendingLiveAction(state.sessionId, message.actionId);
           await recordLiveEvent(state.sessionId, { type: "action.result", actionId: message.actionId, ok: message.ok, error: message.error });
         }
