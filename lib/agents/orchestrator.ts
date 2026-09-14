@@ -61,18 +61,22 @@ function buildSteps(task: OrchestratorTask, roles: AgentRole[], context: Record<
   return steps;
 }
 
-export async function createOrchestratorPlan(task: OrchestratorTask): Promise<{ executionId: string; roles: AgentRole[]; plan: RuntimePlan }> {
+export function createOrchestratorPlan(task: OrchestratorTask): { executionId: string; roles: AgentRole[]; plan: RuntimePlan } {
   const executionId = randomUUID();
   const roles = classifyRoles(task.objective, task.requestedRoles);
-  const persistedCustomer = task.customerId ? await getCustomerContext(task.userId, task.customerId) : null;
-  const context = { ...(task.context ?? {}), ...(task.customerId ? { customerId: task.customerId } : {}), ...(persistedCustomer ? { customer: persistedCustomer } : {}) };
+  const context = { ...(task.context ?? {}), ...(task.customerId ? { customerId: task.customerId } : {}) };
   return { executionId, roles, plan: { executionId, objective: task.objective, steps: buildSteps(task, roles, context), maxConcurrency: Math.min(4, roles.length), maxIterations: 20 } };
 }
 
 export async function runOrchestrator(task: OrchestratorTask): Promise<OrchestratorResult> {
   if (!task.userId?.trim()) throw new Error("Orchestrator requires userId");
   if (!task.objective?.trim()) throw new Error("Orchestrator requires objective");
-  const { executionId, roles, plan } = await createOrchestratorPlan(task);
+  const persistedCustomer = task.customerId ? await getCustomerContext(task.userId, task.customerId) : null;
+  const effectiveTask: OrchestratorTask = {
+    ...task,
+    context: { ...(task.context ?? {}), ...(task.customerId ? { customerId: task.customerId } : {}), ...(persistedCustomer ? { customer: persistedCustomer } : {}) },
+  };
+  const { executionId, roles, plan } = createOrchestratorPlan(effectiveTask);
   const policy: ExecutionPolicy = { ...DEFAULT_EXECUTION_POLICY, allowedTools: ["web.search", "file.read"], permissions: ["tool.read", "file.read", "network.read"], maxSteps: Math.max(DEFAULT_EXECUTION_POLICY.maxSteps, plan.steps.length + 5), allowNetwork: true };
   const runtime = new AgentRuntime({ userId: task.userId, objective: task.objective, plan, policy, signal: task.signal });
   const state = await runtime.run();
