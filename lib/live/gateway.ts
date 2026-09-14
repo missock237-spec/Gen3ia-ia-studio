@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
-import { getLiveSession, heartbeatLiveSession, recordLiveEvent, updateLiveSessionStatus } from "./repository";
+import { claimApprovedLiveAction, clearPendingLiveAction, getLiveSession, heartbeatLiveSession, recordLiveEvent, setPendingLiveAction, updateLiveSessionStatus } from "./repository";
 import { constantTimeEqual, hashPairingToken, assertActionAllowed } from "./security";
 import { decideLiveAction, actionRequiresConfirmation } from "./vision-decider";
 import { LiveActionSchema, LiveClientMessageSchema, type LiveClientMessage, type LiveServerMessage } from "./types";
@@ -44,6 +44,15 @@ async function authenticateHello(message: Extract<LiveClientMessage, { type: "he
   return session;
 }
 
+async function dispatchApprovedAction(state: ConnectionState): Promise<void> {
+  const pending = await claimApprovedLiveAction(state.sessionId, state.deviceId);
+  if (!pending) return;
+  state.lastActionId = pending.actionId;
+  state.lastActionResult = undefined;
+  send(state.socket, { type: "action", actionId: pending.actionId, action: pending.action });
+  await recordLiveEvent(state.sessionId, { type: "action.requested", actionId: pending.actionId, action: pending.action, approved: true });
+}
+
 async function synchronizeConnection(state: ConnectionState): Promise<boolean> {
   const session = await getLiveSession(state.sessionId);
   if (!session || session.deviceId !== state.deviceId) {
@@ -71,6 +80,9 @@ async function synchronizeConnection(state: ConnectionState): Promise<boolean> {
   if (state.pausedByServer && session.status === "running") {
     state.pausedByServer = false;
     send(state.socket, { type: "resume", reason: "Live session resumed" });
+  }
+  if (session.status === "running" && session.pendingAction?.approvedAt && !session.pendingAction.sentAt) {
+    await dispatchApprovedAction(state);
   }
   return true;
 }
@@ -129,14 +141,14 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           if (!decision.action) return;
           const action = LiveActionSchema.parse(decision.action);
           assertActionAllowed(action, session.permissions);
+          const actionId = randomUUID();
           if (actionRequiresConfirmation(action)) {
-            await recordLiveEvent(state.sessionId, { type: "action.blocked", reason: "confirmation_required", action });
+            await setPendingLiveAction(state.sessionId, { actionId, action, createdAt: Date.now() });
+            await recordLiveEvent(state.sessionId, { type: "action.blocked", reason: "confirmation_required", actionId, action });
             state.pausedByServer = true;
             send(socket, { type: "pause", reason: "A sensitive action requires explicit confirmation" });
-            await updateLiveSessionStatus(state.sessionId, "paused", state.deviceId);
             return;
           }
-          const actionId = randomUUID();
           state.lastActionId = actionId;
           state.lastActionResult = undefined;
           await recordLiveEvent(state.sessionId, { type: "action.requested", actionId, action });
@@ -147,6 +159,7 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
         if (message.type === "action.result") {
           if (state.lastActionId !== message.actionId) throw new Error("Unknown or expired live action");
           state.lastActionResult = { ok: message.ok, error: message.error, at: Date.now() };
+          await clearPendingLiveAction(state.sessionId, message.actionId);
           await recordLiveEvent(state.sessionId, { type: "action.result", actionId: message.actionId, ok: message.ok, error: message.error });
         }
       } catch (error) {
