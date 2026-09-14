@@ -29,6 +29,23 @@ function safeOutputName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255) || "gen3ia-output.zip";
 }
 
+function decodeBase64(value: string): Buffer {
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    throw new Error("Invalid base64 file payload");
+  }
+  const data = Buffer.from(value, "base64");
+  if (data.length === 0) throw new Error("Decoded file payload is empty");
+  return data;
+}
+
+function assertUniquePaths(entries: Array<{ filename: string }>): void {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (seen.has(entry.filename)) throw new Error(`Duplicate ZIP path: ${entry.filename}`);
+    seen.add(entry.filename);
+  }
+}
+
 async function readWorkspaceFiles(workspaceRoot: string) {
   const entries: Array<{ filename: string; data: Buffer }> = [];
   let totalBytes = 0;
@@ -57,6 +74,7 @@ async function readWorkspaceFiles(workspaceRoot: string) {
 
   await walk(workspaceRoot, "");
   if (!entries.length) throw new Error("Workspace contains no files");
+  assertUniquePaths(entries);
   return entries;
 }
 
@@ -77,8 +95,9 @@ export const createZipTool: ToolDefinition = {
     } else {
       entries = parsed.files!.map((file) => ({
         filename: sanitizeArchivePath(file.filename),
-        data: Buffer.from(file.dataBase64, "base64"),
+        data: decodeBase64(file.dataBase64),
       }));
+      assertUniquePaths(entries);
       let total = 0;
       for (const entry of entries) {
         if (entry.data.length > MAX_SINGLE_FILE) throw new Error(`File exceeds ${MAX_SINGLE_FILE} bytes: ${entry.filename}`);
