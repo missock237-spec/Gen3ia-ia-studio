@@ -1,4 +1,3 @@
-import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import type { LivePermission, LiveSession, LiveSessionStatus } from "./types";
 
@@ -37,7 +36,13 @@ export async function createLiveSession(input: {
 export async function getLiveSession(id: string): Promise<(LiveSession & { pairingTokenHash: string }) | null> {
   const snap = await ref(id).get();
   if (!snap.exists) return null;
-  return snap.data() as LiveSession & { pairingTokenHash: string };
+  const data = snap.data()!;
+  return {
+    ...(data as LiveSession),
+    createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(),
+    updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : Date.now(),
+    pairingTokenHash: String(data.pairingTokenHash ?? ""),
+  };
 }
 
 export async function assertLiveSessionOwner(id: string, ownerId: string) {
@@ -47,13 +52,13 @@ export async function assertLiveSessionOwner(id: string, ownerId: string) {
 }
 
 export async function updateLiveSessionStatus(id: string, status: LiveSessionStatus, deviceId?: string) {
-  await ref(id).update({ status, ...(deviceId ? { deviceId } : {}), updatedAt: FieldValue.serverTimestamp(), version: FieldValue.increment(1) });
+  await ref(id).update({ status, ...(deviceId ? { deviceId } : {}), updatedAt: Date.now(), version: Date.now() });
 }
 
 export async function heartbeatLiveSession(id: string, deviceId: string) {
-  await ref(id).update({ lastHeartbeatAt: FieldValue.serverTimestamp(), deviceId, updatedAt: FieldValue.serverTimestamp() });
+  await ref(id).update({ lastHeartbeatAt: Date.now(), deviceId, updatedAt: Date.now() });
 }
 
 export async function recordLiveEvent(id: string, event: Record<string, unknown>) {
-  await ref(id).collection("events").add({ ...event, createdAt: FieldValue.serverTimestamp() });
+  await ref(id).collection("events").add({ ...event, createdAt: Date.now() });
 }
