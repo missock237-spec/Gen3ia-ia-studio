@@ -1,25 +1,18 @@
 import yauzl from "yauzl";
 import type { ArtifactFileEntry, ZipAnalysisResult } from "../types";
+import { sanitizeArchivePath } from "./path-security";
 
 const MAX_FILES = 10_000;
 const MAX_TOTAL_UNCOMPRESSED = 500 * 1024 * 1024;
 const MAX_SINGLE_FILE = 100 * 1024 * 1024;
 const MAX_TEXT_EXTRACTION = 10 * 1024 * 1024;
 const MAX_COMPRESSION_RATIO = 200;
-const MAX_PATH_LENGTH = 1024;
 
 const TEXT_EXTENSIONS = new Set([
   ".txt", ".md", ".markdown", ".json", ".csv", ".ts", ".tsx", ".js", ".jsx",
   ".mjs", ".cjs", ".py", ".java", ".go", ".rs", ".cpp", ".c", ".h", ".css",
   ".scss", ".html", ".xml", ".yaml", ".yml", ".env.example",
 ]);
-
-function isUnsafePath(filename: string): boolean {
-  if (filename.length > MAX_PATH_LENGTH) return true;
-  const normalized = filename.replace(/\\/g, "/");
-  if (normalized.startsWith("/") || /^[A-Za-z]:\//.test(normalized)) return true;
-  return normalized.split("/").some((segment) => segment === "..");
-}
 
 function isTextFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -43,6 +36,7 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
       const textFiles: Array<{ path: string; content: string }> = [];
       const warnings: string[] = [];
       const errors: string[] = [];
+      const seenPaths = new Set<string>();
       let totalUncompressed = 0;
       let fileCount = 0;
       let finished = false;
@@ -68,8 +62,16 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
       zipFile.on("entry", (entry) => {
         if (finished) return;
         const filename = entry.fileName;
-        if (isUnsafePath(filename)) return finishUnsafe(`Unsafe ZIP path: ${filename}`);
+        let safePath: string;
+        try {
+          safePath = sanitizeArchivePath(filename);
+        } catch {
+          return finishUnsafe(`Unsafe ZIP path: ${filename}`);
+        }
+
         if (isSymlink(entry)) return finishUnsafe(`Symlink entry is not allowed: ${filename}`);
+        if (seenPaths.has(safePath)) return finishUnsafe(`Duplicate ZIP path: ${safePath}`);
+        seenPaths.add(safePath);
 
         fileCount += 1;
         if (fileCount > MAX_FILES) return finishUnsafe(`ZIP contains more than ${MAX_FILES} entries.`);
@@ -90,7 +92,7 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
         }
 
         files.push({
-          path: filename,
+          path: safePath,
           type: isDirectory ? "directory" : isTextFile(filename) ? "text" : "binary",
           sizeBytes: size,
           compressedSizeBytes: compressedSize,
@@ -109,7 +111,7 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
             stream.on("data", (chunk: Buffer) => chunks.push(chunk));
             stream.on("end", () => {
               if (finished) return;
-              textFiles.push({ path: filename, content: Buffer.concat(chunks).toString("utf8") });
+              textFiles.push({ path: safePath, content: Buffer.concat(chunks).toString("utf8") });
               zipFile.readEntry();
             });
             stream.on("error", () => {
