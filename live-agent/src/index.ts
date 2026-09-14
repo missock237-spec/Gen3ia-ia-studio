@@ -4,17 +4,13 @@ import { Button, Key, Point, keyboard, mouse } from "@nut-tree/nut-js";
 import WebSocket from "ws";
 import { z } from "zod";
 import { readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 
 const gatewayUrl = process.env.GEN3IA_LIVE_GATEWAY_URL;
 const sessionId = process.env.GEN3IA_LIVE_SESSION_ID;
 const pairingToken = process.env.GEN3IA_LIVE_PAIRING_TOKEN;
 const deviceId = process.env.GEN3IA_LIVE_DEVICE_ID;
 const stateFile = process.env.GEN3IA_LIVE_STATE_FILE || ".gen3ia-live-state.json";
-
-if (!gatewayUrl || !sessionId || !pairingToken || !deviceId) {
-  throw new Error("GEN3IA_LIVE_GATEWAY_URL, GEN3IA_LIVE_SESSION_ID, GEN3IA_LIVE_PAIRING_TOKEN and GEN3IA_LIVE_DEVICE_ID are required");
-}
+if (!gatewayUrl || !sessionId || !pairingToken || !deviceId) throw new Error("GEN3IA_LIVE_GATEWAY_URL, GEN3IA_LIVE_SESSION_ID, GEN3IA_LIVE_PAIRING_TOKEN and GEN3IA_LIVE_DEVICE_ID are required");
 
 const MAX_FRAME_BYTES = 1_500_000;
 const DEFAULT_FRAME_INTERVAL_MS = 900;
@@ -26,7 +22,6 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("keyboard.key"), key: z.string().min(1).max(64) }),
   z.object({ type: z.literal("wait"), ms: z.number().int().min(50).max(30000) }),
 ]);
-
 type CompletedAction = { actionId: string; ok: true; completedAt: number };
 let completedActions = new Map<string, CompletedAction>();
 
@@ -36,18 +31,14 @@ async function loadActionJournal() {
     const parsed = JSON.parse(raw) as { sessionId?: string; actions?: CompletedAction[] };
     if (parsed.sessionId !== sessionId || !Array.isArray(parsed.actions)) return;
     completedActions = new Map(parsed.actions.filter((item) => typeof item?.actionId === "string").slice(-MAX_COMPLETED_ACTIONS).map((item) => [item.actionId, item]));
-  } catch {
-    completedActions = new Map();
-  }
+  } catch { completedActions = new Map(); }
 }
 
 async function persistActionJournal() {
-  const directory = dirname(stateFile);
   const temporary = `${stateFile}.tmp`;
   const actions = [...completedActions.values()].slice(-MAX_COMPLETED_ACTIONS);
   await writeFile(temporary, JSON.stringify({ version: 1, sessionId, deviceId, actions }), { encoding: "utf8", mode: 0o600 });
   await rename(temporary, stateFile);
-  void directory;
 }
 
 let socket: WebSocket | null = null;
@@ -108,9 +99,7 @@ function connect() {
         frameIntervalMs = Math.max(DEFAULT_FRAME_INTERVAL_MS, Number(message.frameIntervalMs) || DEFAULT_FRAME_INTERVAL_MS);
         if (heartbeatTimer) clearInterval(heartbeatTimer);
         heartbeatTimer = setInterval(() => send({ type: "heartbeat", sessionId, deviceId, timestamp: Date.now() }), Number.isFinite(heartbeatInterval) && heartbeatInterval >= 5000 ? heartbeatInterval : 15000);
-        paused = false;
-        startCapture();
-        return;
+        paused = false; startCapture(); return;
       }
       if (message.type === "action") {
         const actionId = typeof message.actionId === "string" ? message.actionId : "";
@@ -120,11 +109,9 @@ function connect() {
           await executeAction(message.action);
           completedActions.set(actionId, { actionId, ok: true, completedAt: Date.now() });
           if (completedActions.size > MAX_COMPLETED_ACTIONS) completedActions.delete(completedActions.keys().next().value!);
-          await persistActionJournal();
+          try { await persistActionJournal(); } catch (error) { console.error("failed to persist live action journal", error); }
           send({ type: "action.result", sessionId, actionId, ok: true });
-        } catch (error) {
-          send({ type: "action.result", sessionId, actionId, ok: false, error: error instanceof Error ? error.message : String(error) });
-        }
+        } catch (error) { send({ type: "action.result", sessionId, actionId, ok: false, error: error instanceof Error ? error.message : String(error) }); }
         return;
       }
       if (message.type === "pause") { paused = true; stopCapture(); console.warn(`Gen3ia Live Agent paused: ${String(message.reason || "No reason provided")}`); return; }
@@ -138,5 +125,4 @@ function connect() {
 
 process.on("SIGINT", () => { stopped = true; stopCapture(); socket?.close(); });
 process.on("SIGTERM", () => { stopped = true; stopCapture(); socket?.close(); });
-
 void loadActionJournal().then(connect).catch((error) => { console.error("failed to initialize live action journal", error); process.exit(1); });
