@@ -1,131 +1,57 @@
 import Fastify from "fastify";
 
-import {
-  SandboxJobSchema
-} from "./job-schema";
+import { SandboxJobSchema } from "./job-schema";
+import { verifySignature } from "./security";
+import { runSandbox } from "./runner";
 
-import {
-  verifySignature
-} from "./security";
+const app = Fastify({
+  logger: true,
+  bodyLimit: 600_000
+});
 
-import {
-  runSandbox
-} from "./runner";
+app.get("/health", async () => ({
+  ok: true,
+  service: "gen3ia-sandbox"
+}));
 
-const app =
-  Fastify({
-    logger: true,
-    bodyLimit: 1_000_000
-  });
+app.post("/execute", async (request, reply) => {
+  const timestamp = request.headers["x-gen3ia-timestamp"];
+  const signature = request.headers["x-gen3ia-signature"];
+  const requestId = request.headers["x-gen3ia-request-id"];
 
-app.get(
-  "/health",
-  async () => {
-    return {
-      ok: true,
-      service:
-        "gen3ia-sandbox"
-    };
+  if (
+    typeof timestamp !== "string" ||
+    typeof signature !== "string" ||
+    typeof requestId !== "string"
+  ) {
+    return reply.code(401).send({ error: "Missing authentication headers" });
   }
-);
 
-app.post(
-  "/execute",
-  async (
-    request,
-    reply
-  ) => {
-    const timestamp =
-      request.headers[
-        "x-gen3ia-timestamp"
-      ];
-
-    const signature =
-      request.headers[
-        "x-gen3ia-signature"
-      ];
-
-    if (
-      typeof timestamp !==
-        "string" ||
-      typeof signature !==
-        "string"
-    ) {
-      return reply
-        .code(401)
-        .send({
-          error:
-            "Missing signature"
-        });
-    }
-
-    const rawBody =
-      JSON.stringify(
-        request.body
-      );
-
-    if (
-      !verifySignature(
-        rawBody,
-        timestamp,
-        signature
-      )
-    ) {
-      return reply
-        .code(401)
-        .send({
-          error:
-            "Invalid signature"
-        });
-    }
-
-    const parsed =
-      SandboxJobSchema.safeParse(
-        request.body
-      );
-
-    if (!parsed.success) {
-      return reply
-        .code(400)
-        .send({
-          error:
-            "Invalid sandbox job",
-
-          details:
-            parsed.error.issues
-        });
-    }
-
-    try {
-      const result =
-        await runSandbox(
-          parsed.data
-        );
-
-      return reply.send(
-        result
-      );
-    } catch (error) {
-      request.log.error(
-        error
-      );
-
-      return reply
-        .code(500)
-        .send({
-          error:
-            "Sandbox execution failed"
-        });
-    }
+  const rawBody = JSON.stringify(request.body);
+  if (!verifySignature(rawBody, timestamp, signature, requestId)) {
+    return reply.code(401).send({ error: "Invalid or replayed request" });
   }
-);
 
-const port =
-  Number(
-    process.env.PORT ?? 8080
-  );
+  const parsed = SandboxJobSchema.safeParse(request.body);
+  if (!parsed.success) {
+    return reply.code(400).send({
+      error: "Invalid sandbox job",
+      details: parsed.error.issues
+    });
+  }
 
-app.listen({
-  host: "0.0.0.0",
-  port
+  try {
+    const result = await runSandbox(parsed.data);
+    return reply.send(result);
+  } catch (error) {
+    request.log.error(error);
+    return reply.code(500).send({ error: "Sandbox execution failed" });
+  }
+});
+
+const port = Number(process.env.PORT ?? 8080);
+
+app.listen({ host: "0.0.0.0", port }).catch((error) => {
+  app.log.error(error);
+  process.exit(1);
 });
