@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { ToolDefinition } from "../types";
 import { analyzeZip } from "@/lib/documents/zip";
 import { getArtifactRecord } from "@/lib/documents/artifact-repository";
+import { downloadFromR2 } from "@/lib/storage/r2";
 
 const inputSchema = z.object({
   dataBase64: z.string().min(1).max(140_000_000).optional(),
@@ -24,7 +25,8 @@ export const analyzeZipTool: ToolDefinition = {
     } else {
       const artifact = await getArtifactRecord(parsed.artifactId!);
       if (!artifact || artifact.ownerId !== context.userId) throw new Error("Artifact not found");
-      throw new Error("ZIP artifact retrieval requires the configured private R2 download adapter");
+      if (artifact.size > 100 * 1024 * 1024) throw new Error("ZIP artifact exceeds 100 MiB");
+      data = await downloadFromR2(artifact.storageKey, 100 * 1024 * 1024);
     }
     if (data.length > 100 * 1024 * 1024) throw new Error("ZIP input exceeds 100 MiB");
     const result = await analyzeZip(data);
