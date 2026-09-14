@@ -23,6 +23,7 @@ services:
   - type: web
     name: gen3ia-live-gateway
     runtime: node
+    numInstances: 1
     buildCommand: npm install
     startCommand: npm run live:gateway
     envVars:
