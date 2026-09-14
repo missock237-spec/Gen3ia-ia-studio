@@ -3,6 +3,10 @@ import { recordToolAudit } from "./audit";
 import { ToolRegistry } from "./registry";
 import { createDefaultToolRegistry } from "./default-registry";
 import type { ToolCall, ToolContext, ToolResult } from "./types";
+import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
+import { authorizeTool } from "@/lib/security/tool-permissions";
+import { executeSandbox } from "@/lib/sandbox/client";
+import type { SandboxLimits, SandboxRuntime } from "@/lib/sandbox/types";
 
 export interface ToolApprovalService {
   requestApproval(params: { userId: string; toolId: string; input: unknown; reason: string }): Promise<boolean>;
@@ -14,15 +18,53 @@ export interface ExecuteToolRequest {
   toolName: string;
   input: unknown;
   signal?: AbortSignal;
+  policy?: ExecutionPolicy;
 }
 
 const toolRegistry = createDefaultToolRegistry();
+const DEFAULT_SANDBOX_LIMITS: SandboxLimits = {
+  timeoutMs: 30_000,
+  memoryMb: 512,
+  cpu: 1,
+  maxOutputBytes: 1_000_000,
+};
+
+function parseSandboxInput(input: unknown) {
+  if (!input || typeof input !== "object") throw new Error("code.execute input must be an object");
+  const value = input as Record<string, unknown>;
+  if (value.runtime !== "node" && value.runtime !== "python") throw new Error("Invalid sandbox runtime");
+  if (typeof value.code !== "string" || value.code.length < 1 || value.code.length > 500_000) throw new Error("Invalid sandbox code");
+  const limits = { ...DEFAULT_SANDBOX_LIMITS, ...(value.limits as Partial<SandboxLimits> | undefined) };
+  if (!Number.isInteger(limits.timeoutMs) || limits.timeoutMs < 100 || limits.timeoutMs > 120_000) throw new Error("Invalid sandbox timeout");
+  if (!Number.isInteger(limits.memoryMb) || limits.memoryMb < 64 || limits.memoryMb > 2_048) throw new Error("Invalid sandbox memory limit");
+  if (typeof limits.cpu !== "number" || limits.cpu < 0.1 || limits.cpu > 2) throw new Error("Invalid sandbox CPU limit");
+  if (!Number.isInteger(limits.maxOutputBytes) || limits.maxOutputBytes < 1_024 || limits.maxOutputBytes > 10_000_000) throw new Error("Invalid sandbox output limit");
+  return { runtime: value.runtime as SandboxRuntime, code: value.code, input: value.input, limits };
+}
 
 export async function executeTool(request: ExecuteToolRequest) {
-  const tool = toolRegistry.get(request.toolName);
-  if (!tool) return { success: false, error: `Unknown tool: ${request.toolName}` };
+  const policy = request.policy ?? DEFAULT_EXECUTION_POLICY;
 
   try {
+    authorizeTool(policy, request.toolName);
+    if (request.signal?.aborted) throw new Error("Execution cancelled");
+
+    if (request.toolName === "code.execute") {
+      const sandbox = parseSandboxInput(request.input);
+      const result = await executeSandbox({
+        executionId: request.executionId,
+        userId: request.userId,
+        runtime: sandbox.runtime,
+        code: sandbox.code,
+        input: sandbox.input,
+        limits: sandbox.limits,
+        network: "none",
+      });
+      return { success: true, output: result };
+    }
+
+    const tool = toolRegistry.get(request.toolName);
+    if (!tool) return { success: false, error: `Unknown tool: ${request.toolName}` };
     const parsedInput = tool.inputSchema.parse(request.input);
     const output = await tool.execute(parsedInput, {
       userId: request.userId,
