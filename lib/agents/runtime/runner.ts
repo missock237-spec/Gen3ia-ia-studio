@@ -1,27 +1,13 @@
 import { randomUUID } from "node:crypto";
-
 import { generate } from "@/lib/ai/router";
 import { executeToolSecurely } from "./secure-tool-executor";
-import {
-  ExecutionPolicy,
-  DEFAULT_EXECUTION_POLICY,
-} from "@/lib/security/execution-policy";
-import {
-  RuntimeExecutionState,
-  RuntimePlan,
-  RuntimeStep,
-} from "./types";
+import { ExecutionPolicy, DEFAULT_EXECUTION_POLICY } from "@/lib/security/execution-policy";
+import { RuntimeExecutionState, RuntimePlan, RuntimeStep } from "./types";
 import { createCheckpoint, saveCheckpoint } from "./checkpoint";
 import { getReadySteps, validateDAG } from "./dag";
 import { RuntimeScheduler } from "./scheduler";
 
-export interface RuntimeRunnerOptions {
-  userId: string;
-  objective: string;
-  plan: RuntimePlan;
-  signal?: AbortSignal;
-  policy?: ExecutionPolicy;
-}
+export interface RuntimeRunnerOptions { userId: string; objective: string; plan: RuntimePlan; signal?: AbortSignal; policy?: ExecutionPolicy; }
 
 export class AgentRuntime {
   private state: RuntimeExecutionState;
@@ -32,54 +18,32 @@ export class AgentRuntime {
 
   constructor(options: RuntimeRunnerOptions) {
     const validation = validateDAG(options.plan);
-    if (!validation.valid) {
-      throw new Error(`Invalid agent DAG:\n${validation.errors.join("\n")}`);
-    }
-
+    if (!validation.valid) throw new Error(`Invalid agent DAG:\n${validation.errors.join("\n")}`);
     this.signal = options.signal;
     this.policy = options.policy ?? DEFAULT_EXECUTION_POLICY;
     this.scheduler = new RuntimeScheduler(options.plan.maxConcurrency);
     this.startedAtMs = Date.now();
-
-    this.state = {
-      executionId: options.plan.executionId || randomUUID(),
-      userId: options.userId,
-      objective: options.objective,
-      status: "pending",
-      plan: options.plan,
-      observations: [],
-      evaluations: [],
-      outputs: {},
-      iteration: 0,
-      totalRetries: 0,
-      maxTotalRetries: 15,
-    };
+    this.state = { executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective, status: "pending", plan: options.plan, observations: [], evaluations: [], outputs: {}, iteration: 0, totalRetries: 0, maxTotalRetries: 15 };
   }
 
   async run(): Promise<RuntimeExecutionState> {
     this.state.status = "running";
     this.state.startedAt = new Date().toISOString();
     await createCheckpoint(this.state);
-
     try {
       while (this.state.iteration < this.state.plan.maxIterations) {
         this.throwIfCancelled();
         this.assertExecutionBudget();
         this.state.iteration++;
-
         const completed = this.getCompletedSteps();
         const running = new Set(this.scheduler.getRunning());
         const ready = getReadySteps(this.state.plan, completed, running);
-
         if (ready.length === 0 && this.scheduler.getRunning().length === 0) break;
-
         const executable = ready.slice(0, this.scheduler.capacity);
         await Promise.all(executable.map((step) => this.executeStep(step)));
         await saveCheckpoint(this.state);
-
         if (this.areAllStepsFinished()) break;
       }
-
       this.finalize();
       await saveCheckpoint(this.state);
       return this.state;
@@ -96,35 +60,17 @@ export class AgentRuntime {
     this.scheduler.start(step);
     step.status = "running";
     const startedAt = Date.now();
-
     try {
       this.assertExecutionBudget();
       const output = await this.withTimeout(this.dispatch(step), step.timeoutMs);
       step.output = output;
       step.status = "completed";
       this.state.outputs[step.id] = output;
-      this.state.observations.push({
-        stepId: step.id,
-        success: true,
-        output,
-        latencyMs: Date.now() - startedAt,
-        timestamp: new Date().toISOString(),
-      });
+      this.state.observations.push({ stepId: step.id, success: true, output, latencyMs: Date.now() - startedAt, timestamp: new Date().toISOString() });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      this.state.observations.push({
-        stepId: step.id,
-        success: false,
-        error: message,
-        latencyMs: Date.now() - startedAt,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (step.sideEffect || step.maxRetries <= 0 || this.state.totalRetries >= this.state.maxTotalRetries) {
-        step.status = "failed";
-        throw error;
-      }
-
+      this.state.observations.push({ stepId: step.id, success: false, error: message, latencyMs: Date.now() - startedAt, timestamp: new Date().toISOString() });
+      if (step.sideEffect || step.maxRetries <= 0 || this.state.totalRetries >= this.state.maxTotalRetries) { step.status = "failed"; throw error; }
       this.state.totalRetries++;
       step.maxRetries--;
       step.status = "pending";
@@ -136,68 +82,34 @@ export class AgentRuntime {
 
   private async dispatch(step: RuntimeStep): Promise<unknown> {
     switch (step.type) {
-      case "llm":
-      case "document":
-      case "media":
-        return this.executeLLM(step);
-      case "tool":
-        return this.executeTool(step);
-      case "research":
-        return this.executeTool({ ...step, toolName: step.toolName ?? "web.search" });
-      case "code":
-        return this.executeCode(step);
-      case "condition":
-        return this.evaluateCondition(step);
-      default:
-        throw new Error(`Unsupported runtime step: ${step.type}`);
+      case "llm": case "document": case "media": return this.executeLLM(step);
+      case "tool": return this.executeTool(step);
+      case "research": return this.executeTool({ ...step, toolName: step.toolName ?? "web.search" });
+      case "code": return this.executeCode(step);
+      case "condition": return this.evaluateCondition(step);
+      default: throw new Error(`Unsupported runtime step: ${step.type}`);
     }
   }
 
   private async executeLLM(step: RuntimeStep): Promise<unknown> {
     const dependencyContext = this.getDependencyOutputs(step);
-    const response = await generate({
-      task: "agent",
-      messages: [
-        {
-          role: "system",
-          content: "You are an autonomous Gen3ia agent. Execute the assigned step precisely. Never invent external results.",
-        },
-        {
-          role: "user",
-          content: JSON.stringify({
-            objective: this.state.objective,
-            step: { id: step.id, name: step.name, description: step.description, input: step.input },
-            dependencies: dependencyContext,
-          }),
-        },
-      ],
-    });
+    const role = step.agentRole ?? "general";
+    const response = await generate({ task: "agent", messages: [
+      { role: "system", content: `You are the ${role} agent inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. Be factual, operational and explicit about uncertainty. Never invent external results, credentials, customer data, transactions or completed actions. Do not perform side effects unless a separately authorized tool step executes them.` },
+      { role: "user", content: JSON.stringify({ objective: this.state.objective, agentRole: role, step: { id: step.id, name: step.name, description: step.description, input: step.input }, dependencies: dependencyContext }) },
+    ] });
     return response.text;
   }
 
   private async executeTool(step: RuntimeStep): Promise<unknown> {
     if (!step.toolName) throw new Error(`Tool step ${step.id} has no toolName`);
-    return executeToolSecurely({
-      userId: this.state.userId,
-      executionId: this.state.executionId,
-      toolName: step.toolName,
-      input: { ...step.input, dependencies: this.getDependencyOutputs(step) },
-      policy: this.policy,
-      signal: this.signal,
-    });
+    return executeToolSecurely({ userId: this.state.userId, executionId: this.state.executionId, toolName: step.toolName, input: { ...step.input, dependencies: this.getDependencyOutputs(step) }, policy: this.policy, signal: this.signal });
   }
 
   private async executeCode(step: RuntimeStep): Promise<unknown> {
     const code = typeof step.input.code === "string" ? step.input.code : null;
     if (!code) throw new Error("Code execution requires input.code");
-    return executeToolSecurely({
-      userId: this.state.userId,
-      executionId: this.state.executionId,
-      toolName: "code.execute",
-      input: { ...step.input, code },
-      policy: this.policy,
-      signal: this.signal,
-    });
+    return executeToolSecurely({ userId: this.state.userId, executionId: this.state.executionId, toolName: "code.execute", input: { ...step.input, code }, policy: this.policy, signal: this.signal });
   }
 
   private evaluateCondition(step: RuntimeStep): boolean {
@@ -205,43 +117,11 @@ export class AgentRuntime {
     if (typeof expression !== "string") return true;
     return Boolean(this.state.outputs[expression]);
   }
-
-  private getDependencyOutputs(step: RuntimeStep): Record<string, unknown> {
-    return Object.fromEntries(step.dependencies.map((dependency) => [dependency, this.state.outputs[dependency]]));
-  }
-
-  private getCompletedSteps(): Set<string> {
-    return new Set(this.state.plan.steps.filter((step) => step.status === "completed").map((step) => step.id));
-  }
-
-  private areAllStepsFinished(): boolean {
-    return this.state.plan.steps.every((step) => ["completed", "skipped", "failed"].includes(step.status));
-  }
-
-  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Step timeout after ${timeoutMs}ms`)), timeoutMs);
-    });
-    try {
-      return await Promise.race([promise, timeout]);
-    } finally {
-      if (timer) clearTimeout(timer);
-    }
-  }
-
-  private throwIfCancelled(): void {
-    if (this.signal?.aborted) throw new Error("Agent execution cancelled");
-  }
-
-  private assertExecutionBudget(): void {
-    if (this.state.iteration > this.policy.maxSteps) throw new Error("Execution step budget exhausted");
-    if (Date.now() - this.startedAtMs > this.policy.maxExecutionMs) throw new Error("Execution time budget exhausted");
-  }
-
-  private finalize(): void {
-    const hasFailures = this.state.plan.steps.some((step) => step.status === "failed");
-    this.state.status = hasFailures ? "failed" : "completed";
-    this.state.completedAt = new Date().toISOString();
-  }
+  private getDependencyOutputs(step: RuntimeStep): Record<string, unknown> { return Object.fromEntries(step.dependencies.map((dependency) => [dependency, this.state.outputs[dependency]])); }
+  private getCompletedSteps(): Set<string> { return new Set(this.state.plan.steps.filter((step) => step.status === "completed").map((step) => step.id)); }
+  private areAllStepsFinished(): boolean { return this.state.plan.steps.every((step) => ["completed", "skipped", "failed"].includes(step.status)); }
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> { let timer: ReturnType<typeof setTimeout> | undefined; const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error(`Step timeout after ${timeoutMs}ms`)), timeoutMs); }); try { return await Promise.race([promise, timeout]); } finally { if (timer) clearTimeout(timer); } }
+  private throwIfCancelled(): void { if (this.signal?.aborted) throw new Error("Agent execution cancelled"); }
+  private assertExecutionBudget(): void { if (this.state.iteration > this.policy.maxSteps) throw new Error("Execution step budget exhausted"); if (Date.now() - this.startedAtMs > this.policy.maxExecutionMs) throw new Error("Execution time budget exhausted"); }
+  private finalize(): void { const hasFailures = this.state.plan.steps.some((step) => step.status === "failed"); this.state.status = hasFailures ? "failed" : "completed"; this.state.completedAt = new Date().toISOString(); }
 }
