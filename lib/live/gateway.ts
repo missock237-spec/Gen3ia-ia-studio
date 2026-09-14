@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { randomUUID } from "node:crypto";
-import { beginLiveAction, claimApprovedLiveAction, clearPendingLiveAction, completeLiveAction, getLiveSession, heartbeatLiveSession, recordLiveEvent, recordLiveObservation, recordLiveRuntimeActionResult, recoverInFlightLiveAction, setLiveRuntimeRecoveryRequired, setLiveRuntimeWaitingConfirmation, setPendingLiveAction, startLiveRuntime, updateLiveSessionStatus } from "./repository";
+import { beginLiveAction, claimApprovedLiveAction, clearPendingLiveAction, completeLiveAction, getLiveSession, heartbeatLiveSession, recordLiveEvent, recordLiveObservation, recordLiveRuntimeActionResult, setLiveRuntimeRecoveryRequired, setPendingLiveAction, startLiveRuntime, updateLiveSessionStatus } from "./repository";
 import { constantTimeEqual, hashPairingToken, assertActionAllowed } from "./security";
 import { decideLiveAction, actionRequiresConfirmation } from "./vision-decider";
 import { LiveActionSchema, LiveClientMessageSchema, type LiveClientMessage, type LiveServerMessage } from "./types";
@@ -92,9 +92,7 @@ async function synchronizeConnection(state: ConnectionState): Promise<boolean> {
     await startLiveRuntime(state.sessionId, state.deviceId);
     send(state.socket, { type: "resume", reason: "Live session resumed" });
   }
-  if (session.status === "running" && session.pendingAction?.approvedAt && !session.pendingAction.sentAt) {
-    await dispatchApprovedAction(state);
-  }
+  if (session.status === "running" && session.pendingAction?.approvedAt && !session.pendingAction.sentAt) await dispatchApprovedAction(state);
   return true;
 }
 
@@ -103,11 +101,9 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
 
   server.on("connection", (socket) => {
     let state: ConnectionState | null = null;
-
     socket.on("message", async (raw) => {
       try {
         const message = LiveClientMessageSchema.parse(JSON.parse(raw.toString()));
-
         if (message.type === "hello") {
           const session = await authenticateHello(message);
           const existing = clients.get(session.id);
@@ -131,16 +127,13 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           else if (initiallyPaused) send(socket, { type: "pause", reason: "Live session is paused" });
           return;
         }
-
         if (!state || message.sessionId !== state.sessionId || message.deviceId !== state.deviceId) throw new Error("Unauthenticated live connection");
         if (!(await synchronizeConnection(state))) return;
         if (state.pausedByServer && message.type === "frame") return;
-
         if (message.type === "heartbeat") {
           await heartbeatLiveSession(state.sessionId, state.deviceId);
           return;
         }
-
         if (message.type === "frame") {
           const now = Date.now();
           if (now - state.lastFrameAt < MAX_FRAME_INTERVAL_MS) return;
@@ -156,7 +149,10 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           await recordLiveObservation(state.sessionId, { deviceId: state.deviceId, decisionMessage: decision.message, done: decision.done, actionId });
           await recordLiveEvent(state.sessionId, { type: "vision.decision", message: decision.message, done: decision.done, action: action ?? null });
           if (decision.done) {
+            state.pausedByServer = true;
             await updateLiveSessionStatus(state.sessionId, "connected", state.deviceId);
+            send(socket, { type: "pause", reason: "Live objective completed" });
+            await recordLiveEvent(state.sessionId, { type: "completed", message: decision.message });
             return;
           }
           if (!action || !actionId) return;
@@ -175,7 +171,6 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           send(socket, { type: "action", actionId, action });
           return;
         }
-
         if (message.type === "action.result") {
           if (state.lastActionId !== message.actionId) throw new Error("Unknown or expired live action");
           await completeLiveAction(state.sessionId, message.actionId, state.deviceId);
@@ -192,7 +187,6 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
         } else socket.close(4003, "Authentication failed");
       }
     });
-
     socket.on("close", async () => {
       if (!state) return;
       if (clients.get(state.sessionId)?.socket === socket) {
@@ -204,15 +198,9 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
       }
     });
   });
-
   const poller = setInterval(() => {
-    for (const state of clients.values()) {
-      void synchronizeConnection(state).catch((error) => {
-        send(state.socket, { type: "pause", reason: error instanceof Error ? error.message : "Session synchronization failed" });
-      });
-    }
+    for (const state of clients.values()) void synchronizeConnection(state).catch((error) => send(state.socket, { type: "pause", reason: error instanceof Error ? error.message : "Session synchronization failed" }));
   }, SESSION_POLL_MS);
-
   server.on("close", () => clearInterval(poller));
   return server;
 }
