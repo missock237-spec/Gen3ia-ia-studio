@@ -50,6 +50,7 @@ export function createAgentPolicy(
           "file.modify",
           "zip.analyze",
           "zip.create",
+          "zip.extract",
           "artifact.create",
           "code.execute",
           "composio.execute",
