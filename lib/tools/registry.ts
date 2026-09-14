@@ -1,62 +1,119 @@
 import type {
-  ToolDefinition,
-} from "./types";
+  ToolRisk,
+} from "@/lib/security/execution-policy";
 
-export class ToolRegistry {
-  private readonly tools =
-    new Map<
-      string,
-      ToolDefinition
-    >();
+export interface Gen3iaToolDefinition {
+  name: string;
 
-  register(
-    tool: ToolDefinition,
-  ): void {
-    if (
-      this.tools.has(tool.id)
-    ) {
-      throw new Error(
-        `Tool "${tool.id}" is already registered.`,
-      );
-    }
+  description: string;
 
-    this.tools.set(
-      tool.id,
-      tool,
-    );
-  }
+  risk: ToolRisk;
 
-  replace(
-    tool: ToolDefinition,
-  ): void {
-    this.tools.set(
-      tool.id,
-      tool,
-    );
-  }
+  permission:
+    | "tool.read"
+    | "tool.write"
+    | "tool.external"
+    | "tool.destructive"
+    | "file.read"
+    | "file.write"
+    | "file.create"
+    | "file.delete"
+    | "network.read"
+    | "network.write"
+    | "code.execute";
 
-  get(
-    toolId: string,
-  ): ToolDefinition {
-    const tool =
-      this.tools.get(toolId);
-
-    if (!tool) {
-      throw new Error(
-        `Unknown tool: ${toolId}`,
-      );
-    }
-
-    return tool;
-  }
-
-  has(
-    toolId: string,
-  ): boolean {
-    return this.tools.has(toolId);
-  }
-
-  list(): ToolDefinition[] {
-    return [...this.tools.values()];
-  }
+  sideEffect: boolean;
 }
+
+export const GEN3IA_TOOLS:
+  Gen3iaToolDefinition[] = [
+    {
+      name: "web.search",
+      description:
+        "Search the public web.",
+      risk: "read",
+      permission:
+        "network.read",
+      sideEffect: false,
+    },
+
+    {
+      name: "file.read",
+      description:
+        "Read a workspace file.",
+      risk: "read",
+      permission:
+        "file.read",
+      sideEffect: false,
+    },
+
+    {
+      name: "file.create",
+      description:
+        "Create a workspace file.",
+      risk: "write",
+      permission:
+        "file.create",
+      sideEffect: true,
+    },
+
+    {
+      name: "file.modify",
+      description:
+        "Modify an existing workspace file.",
+      risk: "write",
+      permission:
+        "file.write",
+      sideEffect: true,
+    },
+
+    {
+      name: "zip.analyze",
+      description:
+        "Analyze a ZIP archive.",
+      risk: "read",
+      permission:
+        "file.read",
+      sideEffect: false,
+    },
+
+    {
+      name: "zip.create",
+      description:
+        "Create a ZIP archive from a workspace.",
+      risk: "write",
+      permission:
+        "file.write",
+      sideEffect: true,
+    },
+
+    {
+      name: "artifact.create",
+      description:
+        "Create a persistent artifact.",
+      risk: "write",
+      permission:
+        "file.write",
+      sideEffect: true,
+    },
+
+    {
+      name: "code.execute",
+      description:
+        "Execute code in the isolated sandbox.",
+      risk: "external",
+      permission:
+        "code.execute",
+      sideEffect: false,
+    },
+
+    {
+      name: "composio.execute",
+      description:
+        "Execute an authorized external application action.",
+      risk: "external",
+      permission:
+        "tool.external",
+      sideEffect: true,
+    },
+  ];
