@@ -1,0 +1,123 @@
+import { randomUUID } from "node:crypto";
+
+export type ExecutionEventType =
+  | "execution.started"
+  | "execution.completed"
+  | "execution.failed"
+  | "agent.started"
+  | "agent.completed"
+  | "agent.failed"
+  | "tool.started"
+  | "tool.completed"
+  | "tool.failed"
+  | "model.request"
+  | "model.response"
+  | "artifact.created"
+  | "sandbox.started"
+  | "sandbox.completed";
+
+export interface ExecutionEvent {
+  id: string;
+  executionId: string;
+  type: ExecutionEventType;
+  timestamp: string;
+
+  agentId?: string;
+  stepId?: string;
+  toolName?: string;
+  model?: string;
+
+  durationMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  estimatedCostUsd?: number;
+
+  metadata: Record<
+    string,
+    unknown
+  >;
+}
+
+export class ExecutionTracer {
+  private readonly events: ExecutionEvent[] =
+    [];
+
+  constructor(
+    private readonly executionId: string,
+  ) {}
+
+  emit(
+    event: Omit<
+      ExecutionEvent,
+      "id" |
+        "executionId" |
+        "timestamp"
+    >,
+  ): ExecutionEvent {
+    const result: ExecutionEvent = {
+      ...event,
+
+      id: randomUUID(),
+
+      executionId:
+        this.executionId,
+
+      timestamp:
+        new Date().toISOString(),
+
+      metadata:
+        event.metadata ?? {},
+    };
+
+    this.events.push(result);
+
+    return result;
+  }
+
+  getEvents(): ExecutionEvent[] {
+    return [...this.events];
+  }
+
+  getTotalDuration(): number {
+    const started =
+      this.events.find(
+        (event) =>
+          event.type ===
+          "execution.started",
+      );
+
+    const completed =
+      [...this.events]
+        .reverse()
+        .find(
+          (event) =>
+            event.type ===
+              "execution.completed" ||
+            event.type ===
+              "execution.failed",
+        );
+
+    if (!started || !completed) {
+      return 0;
+    }
+
+    return (
+      new Date(
+        completed.timestamp,
+      ).getTime() -
+      new Date(
+        started.timestamp,
+      ).getTime()
+    );
+  }
+
+  getEstimatedCost(): number {
+    return this.events.reduce(
+      (total, event) =>
+        total +
+        (event.estimatedCostUsd ??
+          0),
+      0,
+    );
+  }
+}
