@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import { AgentRuntime } from "@/lib/agents/runtime/runner";
 import type { RuntimePlan, RuntimeStep } from "@/lib/agents/runtime/types";
 import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
+import { getCustomerContext } from "@/lib/agents/memory/customer-context";
 
 export type AgentRole = "customer_service" | "sales" | "content" | "admin" | "analytics";
 export interface AgentDefinition { id: AgentRole; name: string; mission: string; capabilities: string[]; policy: ExecutionPolicy; }
-export interface OrchestratorTask { userId: string; objective: string; context?: Record<string, unknown>; requestedRoles?: AgentRole[]; signal?: AbortSignal; }
+export interface OrchestratorTask { userId: string; objective: string; context?: Record<string, unknown>; customerId?: string; requestedRoles?: AgentRole[]; signal?: AbortSignal; }
 export interface OrchestratorResult { executionId: string; roles: AgentRole[]; state: Awaited<ReturnType<AgentRuntime["run"]>>; summary: string; }
 
 const READ_POLICY: ExecutionPolicy = { ...DEFAULT_EXECUTION_POLICY, allowedTools: ["web.search", "file.read"], permissions: ["tool.read", "file.read", "network.read"], allowNetwork: true };
@@ -37,8 +38,7 @@ export function classifyRoles(objective: string, requestedRoles?: AgentRole[]): 
   return selected.length ? selected.slice(0, 4) : ["analytics"];
 }
 
-function buildSteps(task: OrchestratorTask, roles: AgentRole[]): RuntimeStep[] {
-  const context = task.context ?? {};
+function buildSteps(task: OrchestratorTask, roles: AgentRole[], context: Record<string, unknown>): RuntimeStep[] {
   const steps: RuntimeStep[] = roles.map((role) => {
     const definition = AGENTS[role];
     const isResearch = role === "analytics";
@@ -61,16 +61,18 @@ function buildSteps(task: OrchestratorTask, roles: AgentRole[]): RuntimeStep[] {
   return steps;
 }
 
-export function createOrchestratorPlan(task: OrchestratorTask): { executionId: string; roles: AgentRole[]; plan: RuntimePlan } {
+export async function createOrchestratorPlan(task: OrchestratorTask): Promise<{ executionId: string; roles: AgentRole[]; plan: RuntimePlan }> {
   const executionId = randomUUID();
   const roles = classifyRoles(task.objective, task.requestedRoles);
-  return { executionId, roles, plan: { executionId, objective: task.objective, steps: buildSteps(task, roles), maxConcurrency: Math.min(4, roles.length), maxIterations: 20 } };
+  const persistedCustomer = task.customerId ? await getCustomerContext(task.userId, task.customerId) : null;
+  const context = { ...(task.context ?? {}), ...(task.customerId ? { customerId: task.customerId } : {}), ...(persistedCustomer ? { customer: persistedCustomer } : {}) };
+  return { executionId, roles, plan: { executionId, objective: task.objective, steps: buildSteps(task, roles, context), maxConcurrency: Math.min(4, roles.length), maxIterations: 20 } };
 }
 
 export async function runOrchestrator(task: OrchestratorTask): Promise<OrchestratorResult> {
   if (!task.userId?.trim()) throw new Error("Orchestrator requires userId");
   if (!task.objective?.trim()) throw new Error("Orchestrator requires objective");
-  const { executionId, roles, plan } = createOrchestratorPlan(task);
+  const { executionId, roles, plan } = await createOrchestratorPlan(task);
   const policy: ExecutionPolicy = { ...DEFAULT_EXECUTION_POLICY, allowedTools: ["web.search", "file.read"], permissions: ["tool.read", "file.read", "network.read"], maxSteps: Math.max(DEFAULT_EXECUTION_POLICY.maxSteps, plan.steps.length + 5), allowNetwork: true };
   const runtime = new AgentRuntime({ userId: task.userId, objective: task.objective, plan, policy, signal: task.signal });
   const state = await runtime.run();
