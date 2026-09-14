@@ -21,6 +21,23 @@ export const LiveSessionStatusSchema = z.enum([
 ]);
 export type LiveSessionStatus = z.infer<typeof LiveSessionStatusSchema>;
 
+export const LiveActionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("mouse.move"), x: z.number().finite().min(0).max(100000), y: z.number().finite().min(0).max(100000) }),
+  z.object({ type: z.literal("mouse.click"), button: z.enum(["left", "middle", "right"]).default("left") }),
+  z.object({ type: z.literal("keyboard.type"), text: z.string().max(10000) }),
+  z.object({ type: z.literal("keyboard.key"), key: z.string().min(1).max(64) }),
+  z.object({ type: z.literal("wait"), ms: z.number().int().min(50).max(30000) }),
+]);
+export type LiveAction = z.infer<typeof LiveActionSchema>;
+
+export interface LivePendingAction {
+  actionId: string;
+  action: LiveAction;
+  createdAt: number;
+  approvedAt?: number;
+  sentAt?: number;
+}
+
 export interface LiveSession {
   id: string;
   ownerId: string;
@@ -34,6 +51,7 @@ export interface LiveSession {
   lastHeartbeatAt?: number;
   expiresAt?: number;
   version: number;
+  pendingAction?: LivePendingAction;
 }
 
 export type LiveClientMessage =
@@ -48,15 +66,6 @@ export type LiveServerMessage =
   | { type: "pause"; reason: string }
   | { type: "resume"; reason: string }
   | { type: "stop"; reason: string };
-
-export const LiveActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("mouse.move"), x: z.number().finite().min(0).max(100000), y: z.number().finite().min(0).max(100000) }),
-  z.object({ type: z.literal("mouse.click"), button: z.enum(["left", "middle", "right"]).default("left") }),
-  z.object({ type: z.literal("keyboard.type"), text: z.string().max(10000) }),
-  z.object({ type: z.literal("keyboard.key"), key: z.string().min(1).max(64) }),
-  z.object({ type: z.literal("wait"), ms: z.number().int().min(50).max(30000) }),
-]);
-export type LiveAction = z.infer<typeof LiveActionSchema>;
 
 export const LiveClientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("hello"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), pairingToken: z.string().min(32).max(256) }),
