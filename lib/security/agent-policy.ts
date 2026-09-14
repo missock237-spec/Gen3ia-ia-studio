@@ -14,13 +14,8 @@ export function createAgentPolicy(
 ): ExecutionPolicy {
   const base: ExecutionPolicy = {
     ...DEFAULT_EXECUTION_POLICY,
-
     allowedTools: [],
-
-    permissions: [
-      "tool.read",
-      "file.read",
-    ],
+    permissions: ["tool.read", "file.read"],
   };
 
   switch (level) {
@@ -30,26 +25,24 @@ export function createAgentPolicy(
     case "standard":
       return {
         ...base,
-
         allowedTools: [
           "web.search",
           "file.read",
           "file.create",
         ],
-
         permissions: [
           "tool.read",
+          "tool.write",
           "file.read",
           "file.write",
+          "file.create",
         ],
-
         allowFileWrite: true,
       };
 
     case "power":
       return {
         ...base,
-
         allowedTools: [
           "web.search",
           "file.read",
@@ -61,17 +54,17 @@ export function createAgentPolicy(
           "code.execute",
           "composio.execute",
         ],
-
         permissions: [
           "tool.read",
           "tool.write",
           "tool.external",
           "file.read",
           "file.write",
+          "file.create",
           "network.read",
+          "network.write",
           "code.execute",
         ],
-
         allowNetwork: true,
         allowExternalApps: true,
         allowFileWrite: true,
@@ -81,9 +74,7 @@ export function createAgentPolicy(
     case "admin":
       return {
         ...base,
-
         allowedTools: ["*"],
-
         permissions: [
           "tool.read",
           "tool.write",
@@ -97,7 +88,6 @@ export function createAgentPolicy(
           "network.write",
           "code.execute",
         ],
-
         allowNetwork: true,
         allowExternalApps: true,
         allowFileWrite: true,
