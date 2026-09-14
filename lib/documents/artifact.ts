@@ -8,29 +8,22 @@ export interface ArtifactMetadata {
   mimeType: string;
   size: number;
   storageKey: string;
-  createdAt: Date;
+  checksum: string;
+  createdAt: number;
+  expiresAt?: number;
 }
 
 export function createArtifactId(): string {
-  return `art_${crypto
-    .randomBytes(18)
-    .toString("base64url")}`;
+  return `art_${crypto.randomBytes(18).toString("base64url")}`;
 }
 
 export function createArtifactStorageKey(
   ownerId: string,
   artifactId: string,
-  filename: string
+  filename: string,
 ): string {
-  const safeFilename =
-    filename
-      .replace(/[^a-zA-Z0-9._-]/g, "_")
-      .slice(0, 180);
+  const safeOwnerId = ownerId.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 128);
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 180);
 
-  return [
-    "artifacts",
-    ownerId,
-    artifactId,
-    safeFilename,
-  ].join("/");
+  return ["artifacts", safeOwnerId, artifactId, safeFilename].join("/");
 }
