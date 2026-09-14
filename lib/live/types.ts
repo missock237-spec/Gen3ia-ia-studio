@@ -43,16 +43,24 @@ export type LiveClientMessage =
   | { type: "action.result"; sessionId: string; actionId: string; ok: boolean; error?: string; result?: unknown };
 
 export type LiveServerMessage =
-  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number }
+  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number; frameIntervalMs: number }
   | { type: "action"; actionId: string; action: LiveAction }
   | { type: "pause"; reason: string }
+  | { type: "resume"; reason: string }
   | { type: "stop"; reason: string };
 
 export const LiveActionSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("mouse.move"), x: z.number().finite(), y: z.number().finite() }),
+  z.object({ type: z.literal("mouse.move"), x: z.number().finite().min(0).max(100000), y: z.number().finite().min(0).max(100000) }),
   z.object({ type: z.literal("mouse.click"), button: z.enum(["left", "middle", "right"]).default("left") }),
   z.object({ type: z.literal("keyboard.type"), text: z.string().max(10000) }),
   z.object({ type: z.literal("keyboard.key"), key: z.string().min(1).max(64) }),
   z.object({ type: z.literal("wait"), ms: z.number().int().min(50).max(30000) }),
 ]);
 export type LiveAction = z.infer<typeof LiveActionSchema>;
+
+export const LiveClientMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("hello"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), pairingToken: z.string().min(32).max(256) }),
+  z.object({ type: z.literal("heartbeat"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive() }),
+  z.object({ type: z.literal("frame"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive(), width: z.number().int().min(1).max(10000), height: z.number().int().min(1).max(10000), jpegBase64: z.string().min(1).max(2_000_000) }),
+  z.object({ type: z.literal("action.result"), sessionId: z.string().min(1).max(128), actionId: z.string().uuid(), ok: z.boolean(), error: z.string().max(2000).optional(), result: z.unknown().optional() }),
+]);
