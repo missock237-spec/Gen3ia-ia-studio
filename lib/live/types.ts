@@ -38,6 +38,15 @@ export interface LivePendingAction {
   sentAt?: number;
 }
 
+/** An action already delivered to the desktop client whose result has not arrived. */
+export interface LiveInFlightAction {
+  actionId: string;
+  action: LiveAction;
+  requestedAt: number;
+  sentAt?: number;
+  deviceId: string;
+}
+
 export interface LiveSession {
   id: string;
   ownerId: string;
@@ -52,6 +61,7 @@ export interface LiveSession {
   expiresAt?: number;
   version: number;
   pendingAction?: LivePendingAction;
+  inFlightAction?: LiveInFlightAction;
 }
 
 export type LiveClientMessage =
