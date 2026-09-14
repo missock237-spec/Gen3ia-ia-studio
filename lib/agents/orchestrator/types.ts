@@ -46,9 +46,7 @@ export const MultiAgentPlanSchema = z.object({
   maxConcurrency: z.number().int().min(1).max(16).default(4),
 });
 
-export type MultiAgentPlan = z.infer<
-  typeof MultiAgentPlanSchema
->;
+export type MultiAgentPlan = z.infer<typeof MultiAgentPlanSchema>;
 
 export interface AgentResult {
   agentId: string;
@@ -60,17 +58,10 @@ export interface AgentResult {
 
 export interface MultiAgentExecutionState {
   executionId: string;
-  status:
-    | "pending"
-    | "running"
-    | "completed"
-    | "failed"
-    | "cancelled";
-
+  status: "pending" | "running" | "completed" | "failed" | "cancelled";
   results: Record<string, AgentResult>;
-
   messages: AgentMessage[];
-
   startedAt?: string;
   completedAt?: string;
-    }
+  error?: string;
+}
