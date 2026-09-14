@@ -6,12 +6,22 @@ import { createArtifactTool } from "./files/create-artifact";
 import { createFileTool } from "./files/create";
 import { createZipTool } from "./files/create-zip";
 import { analyzeZipTool } from "./files/analyze-zip";
+import { extractZipTool } from "./files/extract-zip";
 import { createComposioTool } from "@/lib/integrations/composio/adapter";
 import { githubCreateRepositoryTool } from "@/lib/integrations/github/tools";
 
 export function createDefaultToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
-  for (const tool of [webSearchTool, webOpenTool, getArtifactTool, createArtifactTool, createFileTool, createZipTool, analyzeZipTool]) registry.register(tool);
+  for (const tool of [
+    webSearchTool,
+    webOpenTool,
+    getArtifactTool,
+    createArtifactTool,
+    createFileTool,
+    createZipTool,
+    analyzeZipTool,
+    extractZipTool,
+  ]) registry.register(tool);
   if (process.env.COMPOSIO_API_KEY) registry.register(createComposioTool());
   if (process.env.GITHUB_TOKEN) registry.register(githubCreateRepositoryTool);
   return registry;
