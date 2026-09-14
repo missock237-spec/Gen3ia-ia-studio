@@ -97,7 +97,8 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
       executionId: options.executionId,
       toolName: options.toolName,
       input: options.input,
-      signal: controller.signal
+      signal: controller.signal,
+      policy
     });
 
     if (!result.success) throw new Error(result.error ?? `Tool ${options.toolName} failed`);
