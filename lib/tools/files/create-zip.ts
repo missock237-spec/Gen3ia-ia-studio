@@ -1,47 +1,101 @@
 import { z } from "zod";
 import type { ToolDefinition } from "../types";
 import { createZip } from "@/lib/documents/zip";
-import { storeLocalArtifact } from "@/lib/documents/artifact-store";
+import { storeArtifactBuffer } from "@/lib/documents/artifact-store";
 import { assertWorkspaceOwner } from "@/lib/execution/workspace-registry";
+import { sanitizeArchivePath } from "@/lib/documents/zip/path-security";
 import path from "node:path";
 import fs from "node:fs/promises";
+
+const MAX_FILES = 10_000;
+const MAX_TOTAL_BYTES = 500 * 1024 * 1024;
+const MAX_SINGLE_FILE = 100 * 1024 * 1024;
+const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
 
 const inputSchema = z.object({
   workspaceId: z.string().min(1).max(128).optional(),
   filename: z.string().min(1).max(255).default("gen3ia-output.zip"),
-  files: z.array(z.object({ filename: z.string().min(1).max(1024), dataBase64: z.string().min(1) })).min(1).max(10000),
+  files: z.array(
+    z.object({
+      filename: z.string().min(1).max(1024),
+      dataBase64: z.string().min(1).max(140_000_000),
+    }),
+  ).max(MAX_FILES).optional(),
+}).refine((value) => Boolean(value.workspaceId || value.files?.length), {
+  message: "workspaceId or files is required",
 });
+
+function safeOutputName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 255) || "gen3ia-output.zip";
+}
+
+async function readWorkspaceFiles(workspaceRoot: string) {
+  const entries: Array<{ filename: string; data: Buffer }> = [];
+  let totalBytes = 0;
+
+  async function walk(current: string, relativeRoot: string) {
+    const children = await fs.readdir(current, { withFileTypes: true });
+    for (const child of children) {
+      if (entries.length >= MAX_FILES) throw new Error(`Workspace contains more than ${MAX_FILES} files`);
+      const absolute = path.join(current, child.name);
+      const relative = path.posix.join(relativeRoot, child.name);
+      const safePath = sanitizeArchivePath(relative);
+      const stat = await fs.lstat(absolute);
+
+      if (stat.isSymbolicLink()) throw new Error(`Symbolic links are not allowed in ZIP workspaces: ${safePath}`);
+      if (stat.isDirectory()) {
+        await walk(absolute, relative);
+        continue;
+      }
+      if (!stat.isFile()) continue;
+      if (stat.size > MAX_SINGLE_FILE) throw new Error(`File exceeds ${MAX_SINGLE_FILE} bytes: ${safePath}`);
+      totalBytes += stat.size;
+      if (totalBytes > MAX_TOTAL_BYTES) throw new Error("Workspace exceeds ZIP uncompressed size limit");
+      entries.push({ filename: safePath, data: await fs.readFile(absolute) });
+    }
+  }
+
+  await walk(workspaceRoot, "");
+  if (!entries.length) throw new Error("Workspace contains no files");
+  return entries;
+}
 
 export const createZipTool: ToolDefinition = {
   id: "zip.create",
   name: "zip.create",
-  description: "Create, validate and persist a ZIP artifact from agent-generated files.",
+  description: "Create and persist a secure ZIP artifact from agent files or an authenticated execution workspace.",
   category: "files",
   risk: "medium",
   inputSchema,
   execute: async (input, context) => {
     const parsed = inputSchema.parse(input);
-    const entries = parsed.files.map((file) => ({
-      filename: file.filename,
-      data: Buffer.from(file.dataBase64, "base64"),
-    }));
-    const data = await createZip(entries);
-
-    const tempRoot = context.executionId ? path.join("/tmp", `gen3ia-${context.executionId}`) : "/tmp";
-    await fs.mkdir(tempRoot, { recursive: true, mode: 0o700 });
-    const outputPath = path.join(tempRoot, parsed.filename.replace(/[^a-zA-Z0-9._-]/g, "_"));
-    await fs.writeFile(outputPath, data, { mode: 0o600 });
+    let entries: Array<{ filename: string; data: Buffer }>;
 
     if (parsed.workspaceId) {
-      assertWorkspaceOwner(parsed.workspaceId, context.userId);
+      const workspace = assertWorkspaceOwner(parsed.workspaceId, context.userId);
+      entries = await readWorkspaceFiles(workspace.root);
+    } else {
+      entries = parsed.files!.map((file) => ({
+        filename: sanitizeArchivePath(file.filename),
+        data: Buffer.from(file.dataBase64, "base64"),
+      }));
+      let total = 0;
+      for (const entry of entries) {
+        if (entry.data.length > MAX_SINGLE_FILE) throw new Error(`File exceeds ${MAX_SINGLE_FILE} bytes: ${entry.filename}`);
+        total += entry.data.length;
+        if (total > MAX_TOTAL_BYTES) throw new Error("ZIP input exceeds uncompressed size limit");
+      }
     }
 
-    const artifact = await storeLocalArtifact({
+    const data = await createZip(entries);
+    if (data.length > MAX_ARCHIVE_BYTES) throw new Error("Generated ZIP exceeds 100 MiB");
+
+    const artifact = await storeArtifactBuffer({
       ownerId: context.userId,
       executionId: context.executionId ?? "unknown",
-      localPath: outputPath,
-      name: parsed.filename,
+      name: safeOutputName(parsed.filename),
       mimeType: "application/zip",
+      data,
     });
 
     return {
