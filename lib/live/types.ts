@@ -21,6 +21,35 @@ export const LiveSessionStatusSchema = z.enum([
 ]);
 export type LiveSessionStatus = z.infer<typeof LiveSessionStatusSchema>;
 
+export const LiveRuntimeStatusSchema = z.enum([
+  "idle",
+  "running",
+  "waiting_confirmation",
+  "paused",
+  "recovering",
+  "completed",
+  "failed",
+  "stopped",
+]);
+export type LiveRuntimeStatus = z.infer<typeof LiveRuntimeStatusSchema>;
+
+export interface LiveRuntimeState {
+  status: LiveRuntimeStatus;
+  iteration: number;
+  maxIterations: number;
+  startedAt?: number;
+  completedAt?: number;
+  lastObservationAt?: number;
+  lastDecisionMessage?: string;
+  lastActionId?: string;
+  lastActionResult?: {
+    ok: boolean;
+    error?: string;
+    at: number;
+  };
+  error?: string;
+}
+
 export const LiveActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mouse.move"), x: z.number().finite().min(0).max(100000), y: z.number().finite().min(0).max(100000) }),
   z.object({ type: z.literal("mouse.click"), button: z.enum(["left", "middle", "right"]).default("left") }),
@@ -60,6 +89,7 @@ export interface LiveSession {
   lastHeartbeatAt?: number;
   expiresAt?: number;
   version: number;
+  runtime?: LiveRuntimeState;
   pendingAction?: LivePendingAction;
   inFlightAction?: LiveInFlightAction;
 }
