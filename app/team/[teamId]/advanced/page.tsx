@@ -6,7 +6,6 @@ import { useAuth } from '@/lib/firebase/auth-client';
 
 const MAX_OBJECTIVE_LENGTH = 20000;
 const ALLOWED_PATHS = new Set(['orchestrator', 'memory', 'prediction']);
-
 type AdvancedPath = 'orchestrator' | 'memory' | 'prediction';
 
 export default function TeamAdvancedPage() {
@@ -18,36 +17,29 @@ export default function TeamAdvancedPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const call = useCallback(async (path: AdvancedPath, body: unknown) => {
+  const call = useCallback(async (path: AdvancedPath, body: Record<string, unknown>) => {
     if (!user) { setError('Connexion requise'); return; }
-    if (!teamId || !ALLOWED_PATHS.has(path)) { setError('Contexte d’équipe invalide'); return; }
+    if (!teamId || teamId.length > 200 || /[/.#\[\]\\]/.test(teamId) || !ALLOWED_PATHS.has(path)) { setError('Contexte d’équipe invalide'); return; }
     setBusy(true); setError(''); setResult(null);
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 60_000);
     try {
       const token = await user.getIdToken();
       if (!token) throw new Error('Session d’authentification invalide');
-      const response = await fetch(`/api/team/${encodeURIComponent(teamId)}/${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-        credentials: 'same-origin',
-      });
+      const response = await fetch(`/api/team/${encodeURIComponent(teamId)}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body), signal: controller.signal, credentials: 'same-origin' });
       const contentType = response.headers.get('content-type') ?? '';
-      const data = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
-      if (!response.ok) throw new Error(typeof data?.error === 'string' ? data.error : 'Erreur serveur');
+      const data: unknown = contentType.includes('application/json') ? await response.json() : { error: await response.text() };
+      if (!response.ok) {
+        const message = typeof data === 'object' && data !== null && 'error' in data && typeof data.error === 'string' ? data.error : 'Erreur serveur';
+        throw new Error(message);
+      }
       setResult(data);
     } catch (e) {
       setError(e instanceof DOMException && e.name === 'AbortError' ? 'La requête a expiré. Réessayez.' : e instanceof Error ? e.message : 'Erreur inconnue');
-    } finally {
-      window.clearTimeout(timeout);
-      setBusy(false);
-    }
+    } finally { window.clearTimeout(timeout); setBusy(false); }
   }, [teamId, user]);
 
   const safeObjective = objective.trim().slice(0, MAX_OBJECTIVE_LENGTH);
-
   return <main className="mx-auto max-w-5xl space-y-8 p-8">
     <header><p className="text-sm font-medium text-indigo-500">Espace équipe</p><h1 className="text-3xl font-bold">Intelligence d’équipe avancée</h1><p className="mt-2 text-gray-500">Coordination multi-agent, mémoire de travail optimisée et anticipation des échecs. Accès réservé aux membres de cette équipe.</p></header>
     <section className="space-y-4 rounded-xl border p-6"><h2 className="text-xl font-semibold">Coordination automatique</h2><textarea value={objective} onChange={(e) => setObjective(e.target.value.slice(0, MAX_OBJECTIVE_LENGTH))} placeholder="Objectif à exécuter par l’équipe d’agents…" className="min-h-32 w-full rounded-lg border p-3" maxLength={MAX_OBJECTIVE_LENGTH}/><button disabled={busy || !safeObjective} onClick={() => void call('orchestrator', { objective: safeObjective })} className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50">Lancer la coordination</button></section>
