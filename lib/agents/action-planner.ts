@@ -1,4 +1,5 @@
-import { generate } from "@/lib/ai/router";
+import { randomUUID } from "node:crypto";
+import { generateForUser } from "@/lib/billing/ai-execution";
 import type { AgentRole } from "./orchestrator";
 
 export interface PlannedExternalAction {
@@ -34,27 +35,37 @@ const schema = {
 };
 
 export async function planExternalActions(params: {
+  userId: string;
   objective: string;
   roles: AgentRole[];
   context?: Record<string, unknown>;
+  executionId?: string;
 }): Promise<PlannedExternalAction[]> {
-  const response = await generate({
-    task: "agent",
-    messages: [
-      {
-        role: "system",
-        content: `You are Gen3ia's action planner. Produce ONLY proposed external application actions. Never claim an action was executed. Only use roles present in the supplied list. Actions must be safe to present for human confirmation. Never request passwords, API keys, tokens, cookies, recovery codes, payment credentials or secrets. Prefer drafts/read operations when possible. For Composio, toolSlug must be the exact connected Composio action slug known to the user; never invent a successful result. Return strict JSON matching this schema: ${JSON.stringify(schema)}`,
-      },
-      {
-        role: "user",
-        content: JSON.stringify({ objective: params.objective, roles: params.roles, context: params.context ?? {} }),
-      },
-    ],
+  const executionId = params.executionId ?? randomUUID();
+  const billed = await generateForUser({
+    userId: params.userId,
+    executionId,
+    complexity: 1.25,
+    request: {
+      task: "agent",
+      maxTokens: 3072,
+      requiresStructuredOutput: true,
+      messages: [
+        {
+          role: "system",
+          content: `You are Gen3ia's action planner. Produce ONLY proposed external application actions. Never claim an action was executed. Only use roles present in the supplied list. Actions must be safe to present for human confirmation. Never request passwords, API keys, tokens, cookies, recovery codes, payment credentials or secrets. Prefer drafts/read operations when possible. For Composio, toolSlug must be the exact connected Composio action slug known to the user; never invent a successful result. Return strict JSON matching this schema: ${JSON.stringify(schema)}`,
+        },
+        {
+          role: "user",
+          content: JSON.stringify({ objective: params.objective, roles: params.roles, context: params.context ?? {} }),
+        },
+      ],
+    },
   });
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(response.text);
+    parsed = JSON.parse(billed.response.text);
   } catch {
     throw new Error("Action planner returned invalid JSON");
   }
