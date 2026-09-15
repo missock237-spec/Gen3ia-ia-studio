@@ -7,18 +7,32 @@ import type { SandboxRuntime, SandboxLimits } from "@/lib/sandbox/types";
 import { executeAgentTerminal } from "./agent-terminal";
 import { recall, remember } from "@/lib/memory/user-memory";
 import { requestCameraCapture } from "@/lib/camera/agent-camera";
+import { executeAdsTool, type AdsProvider } from "@/lib/integrations/composio/ads";
 import { reserveToolExecution, settleToolExecution, releaseToolExecution } from "@/lib/billing/tool-meter";
 
 export interface SecureToolExecutionOptions { userId: string; executionId: string; toolName: string; input: Record<string, unknown>; policy?: ExecutionPolicy; signal?: AbortSignal; }
 const DEFAULT_SANDBOX_LIMITS: SandboxLimits = { timeoutMs: 30_000, memoryMb: 512, cpu: 1, maxOutputBytes: 1_000_000 };
 function parseSandboxInput(input: Record<string, unknown>) { const runtime = input.runtime; const code = input.code; const providedLimits = input.limits; if (runtime !== "node" && runtime !== "python") throw new Error("code.execute requires runtime 'node' or 'python'"); if (typeof code !== "string" || code.length === 0 || code.length > 500_000) throw new Error("code.execute requires code between 1 and 500000 characters"); if (providedLimits !== undefined && (typeof providedLimits !== "object" || providedLimits === null)) throw new Error("code.execute limits must be an object"); const limits = { ...DEFAULT_SANDBOX_LIMITS, ...(providedLimits as Partial<SandboxLimits> | undefined) }; if (!Number.isInteger(limits.timeoutMs) || limits.timeoutMs < 100 || limits.timeoutMs > 120_000 || !Number.isInteger(limits.memoryMb) || limits.memoryMb < 64 || limits.memoryMb > 2_048 || typeof limits.cpu !== "number" || limits.cpu < 0.1 || limits.cpu > 2 || !Number.isInteger(limits.maxOutputBytes) || limits.maxOutputBytes < 1_024 || limits.maxOutputBytes > 10_000_000) throw new Error("code.execute limits are outside the allowed sandbox bounds"); return { runtime: runtime as SandboxRuntime, code, input: input.input, limits }; }
 
+function parseAdsExecutionInput(input: Record<string, unknown>) {
+  const provider = input.provider;
+  const toolSlug = input.toolSlug;
+  const args = input.arguments;
+  if (provider !== "google_ads" && provider !== "meta_ads" && provider !== "tiktok_ads") throw new Error("ads.publish requires a supported Ads provider.");
+  if (typeof toolSlug !== "string" || toolSlug.length > 200) throw new Error("ads.publish requires a Composio toolSlug.");
+  if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("ads.publish requires an arguments object.");
+  return { provider: provider as AdsProvider, toolSlug, arguments: args as Record<string, unknown> };
+}
+
 export async function executeToolSecurely(options: SecureToolExecutionOptions): Promise<unknown> {
   const policy = options.policy ?? DEFAULT_EXECUTION_POLICY; assertExecutionInputSize(options.input, policy.maxInputBytes); authorizeTool(policy, options.toolName); if (options.signal?.aborted) throw new Error("Execution cancelled");
   const startedAt = Date.now(); const reservation = await reserveToolExecution({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, input: options.input });
   try {
     let result: unknown;
-    if (options.toolName === "terminal.execute") {
+    if (options.toolName === "ads.publish") {
+      const ads = parseAdsExecutionInput(options.input);
+      result = await executeAdsTool({ userId: options.userId, provider: ads.provider, toolSlug: ads.toolSlug, arguments: ads.arguments, signal: options.signal });
+    } else if (options.toolName === "terminal.execute") {
       const runtime = options.input.runtime === "python" ? "python" : "node"; if (typeof options.input.command !== "string") throw new Error("terminal.execute requires command");
       result = await executeAgentTerminal({ userId: options.userId, executionId: options.executionId, runtime, command: options.input.command, cwd: typeof options.input.cwd === "string" ? options.input.cwd : undefined, timeoutMs: typeof options.input.timeoutMs === "number" ? options.input.timeoutMs : undefined, memoryMb: typeof options.input.memoryMb === "number" ? options.input.memoryMb : undefined });
     } else if (options.toolName === "memory.read") {
