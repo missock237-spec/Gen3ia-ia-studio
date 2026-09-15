@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 
@@ -60,7 +60,7 @@ export default function BillingPage() {
   </main>;
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
   main: { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#080b14", color: "#f5f7ff" },
   card: { width: "100%", maxWidth: 620, padding: 32, borderRadius: 24, border: "1px solid #242a3d", background: "#101522", boxShadow: "0 20px 70px rgba(0,0,0,.35)" },
   eyebrow: { fontSize: 12, letterSpacing: 2, opacity: .65, marginBottom: 10 },
