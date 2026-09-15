@@ -5,7 +5,7 @@ import { adminDb } from "@/lib/firebase/admin";
 export const WALLET_CURRENCY = (process.env.GEN3IA_WALLET_CURRENCY ?? "EUR").toUpperCase();
 const WALLET_COLLECTION = "userWallets";
 const LEDGER_COLLECTION = "walletLedger";
-const WELCOME_AMOUNT_MINOR = 500; // 5.00 EUR, granted once when the wallet is first initialized.
+const WELCOME_AMOUNT_MINOR = 500;
 
 export const WalletTransactionTypeSchema = z.enum([
   "topup",
@@ -33,9 +33,9 @@ function walletRef(userId: string) {
   return adminDb.collection(WALLET_COLLECTION).doc(userId);
 }
 
-function assertMinorAmount(amountMinor: number) {
-  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
-    throw new Error("Amount must be a positive integer in minor currency units.");
+function assertMinorAmount(amountMinor: number, allowZero = false) {
+  if (!Number.isSafeInteger(amountMinor) || (allowZero ? amountMinor < 0 : amountMinor <= 0)) {
+    throw new Error("Amount must be a valid integer in minor currency units.");
   }
 }
 
@@ -47,11 +47,6 @@ function toMillis(value: unknown): number {
   return Date.now();
 }
 
-/**
- * Creates the wallet lazily on the first authenticated use.
- * The 5 EUR demonstration balance is a one-time grant and is protected by
- * a deterministic ledger document, so retries/concurrent requests cannot grant it twice.
- */
 async function ensureWallet(userId: string): Promise<void> {
   const wallet = walletRef(userId);
   const welcomeLedger = adminDb.collection(LEDGER_COLLECTION).doc(`welcome_${userId}`);
@@ -77,7 +72,7 @@ async function ensureWallet(userId: string): Promise<void> {
       currency: WALLET_CURRENCY,
       provider: "gen3ia",
       reference: `welcome_${userId}`,
-      metadata: { reason: "one-time demonstration balance for new account" },
+      metadata: { reason: "one-time welcome balance" },
       createdAt: FieldValue.serverTimestamp(),
     });
   });
@@ -85,8 +80,7 @@ async function ensureWallet(userId: string): Promise<void> {
 
 export async function getWallet(userId: string): Promise<WalletSnapshot> {
   await ensureWallet(userId);
-  const ref = walletRef(userId);
-  const snap = await ref.get();
+  const snap = await walletRef(userId).get();
   if (!snap.exists) throw new Error("Wallet could not be initialized.");
   const data = snap.data() ?? {};
   const balanceMinor = Number(data.balanceMinor ?? 0);
@@ -170,8 +164,8 @@ export async function reserveFunds(params: {
   await adminDb.runTransaction(async (tx) => {
     const [walletSnap, ledgerSnap] = await Promise.all([tx.get(wallet), tx.get(ledger)]);
     if (ledgerSnap.exists) return;
-    const balance = Number(walletSnap.exists ? walletSnap.get("balanceMinor") ?? 0 : 0);
-    const reserved = Number(walletSnap.exists ? walletSnap.get("reservedMinor") ?? 0 : 0);
+    const balance = Number(walletSnap.get("balanceMinor") ?? 0);
+    const reserved = Number(walletSnap.get("reservedMinor") ?? 0);
     if (balance - reserved < params.amountMinor) {
       if (balance - reserved <= 0) throw new Error("AI agents are stopped because the wallet balance is 0. Recharge your Gen3ia wallet to resume all agents.");
       throw new Error("Insufficient wallet balance for this execution.");
@@ -203,8 +197,15 @@ export async function settleReservation(params: {
   actualChargeMinor: number;
   metadata?: Record<string, string>;
 }): Promise<WalletSnapshot> {
-  if (!Number.isSafeInteger(params.reservedMinor) || params.reservedMinor <= 0) throw new Error("Invalid reserved amount.");
-  if (!Number.isSafeInteger(params.actualChargeMinor) || params.actualChargeMinor < 0) throw new Error("Invalid actual charge.");
+  assertMinorAmount(params.reservedMinor);
+  assertMinorAmount(params.actualChargeMinor, true);
+
+  // A reservation is a hard spending ceiling. Never allow settlement to consume
+  // funds that were reserved by another concurrent execution.
+  if (params.actualChargeMinor > params.reservedMinor) {
+    throw new Error("Actual execution cost exceeds the reserved wallet amount; settlement is blocked to protect concurrent reservations.");
+  }
+
   const wallet = walletRef(params.userId);
   const settlement = adminDb.collection(LEDGER_COLLECTION).doc(`settlement_${params.reference}`);
 
@@ -216,6 +217,7 @@ export async function settleReservation(params: {
     const reserved = Number(walletSnap.get("reservedMinor") ?? 0);
     if (reserved < params.reservedMinor) throw new Error("Wallet reservation is inconsistent.");
     if (balance < params.actualChargeMinor) throw new Error("Wallet balance cannot cover actual execution cost.");
+
     tx.update(wallet, {
       balanceMinor: balance - params.actualChargeMinor,
       reservedMinor: reserved - params.reservedMinor,
@@ -240,7 +242,7 @@ export async function releaseReservation(params: {
   reference: string;
   reservedMinor: number;
 }): Promise<WalletSnapshot> {
-  if (!Number.isSafeInteger(params.reservedMinor) || params.reservedMinor <= 0) throw new Error("Invalid reserved amount.");
+  assertMinorAmount(params.reservedMinor);
   const wallet = walletRef(params.userId);
   const release = adminDb.collection(LEDGER_COLLECTION).doc(`release_${params.reference}`);
   await adminDb.runTransaction(async (tx) => {
