@@ -31,6 +31,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
         toolSlug: claimed.toolSlug,
         arguments: claimed.arguments,
       },
+      approvalId,
       policy,
     });
 
