@@ -2,209 +2,109 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return signedIn()
-        && request.auth.uid == userId;
-    }
-
-    function isProjectOwner() {
-      return signedIn()
-        && resource.data.ownerId == request.auth.uid;
+    function signedIn() { return request.auth != null; }
+    function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function projectOwner() { return signedIn() && resource.data.ownerId == request.auth.uid; }
+    function projectOwnerAfterUpdate() {
+      return projectOwner()
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.visibility in ['private', 'public'];
     }
 
     match /users/{userId} {
-      allow read, update:
-        if isOwner(userId);
-
-      allow create:
-        if isOwner(userId);
-
-      allow delete:
-        if false;
+      allow read, update: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow delete: if false;
     }
 
-match /artifacts/{artifactId} {
-  allow read: if isAuthenticated()
-    && resource.data.userId == request.auth.uid;
-
-  allow write: if false;
-}
+    match /artifacts/{artifactId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
 
     match /projects/{projectId} {
-      allow read:
-        if signedIn()
-        && (
-          resource.data.ownerId ==
-          request.auth.uid
-          ||
-          resource.data.visibility == "public"
-        );
-
-      allow create:
-        if signedIn()
-        && request.resource.data.ownerId ==
-           request.auth.uid;
-
-      allow update, delete:
-        if isProjectOwner();
+      allow read: if signedIn() && (resource.data.ownerId == request.auth.uid || resource.data.visibility == 'public');
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.visibility in ['private', 'public'];
+      allow update: if projectOwnerAfterUpdate();
+      allow delete: if projectOwner();
     }
 
     match /projects/{projectId}/members/{memberId} {
-      allow read:
-        if signedIn();
-
-      allow write:
-        if signedIn()
-        && get(
-          /databases/$(database)/documents/projects/$(projectId)
-        ).data.ownerId == request.auth.uid;
+      allow read: if signedIn() && (memberId == request.auth.uid || get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid);
+      allow create, update, delete: if signedIn() && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
     }
 
     match /skills/{skillId} {
-      allow read:
-        if signedIn()
-        && (
-          resource.data.visibility == "public"
-          ||
-          resource.data.ownerId == request.auth.uid
-        );
-
-      allow create:
-        if signedIn()
-        && (
-          request.resource.data.ownerId ==
-          request.auth.uid
-        );
-
-      allow update, delete:
-        if signedIn()
-        && resource.data.ownerId ==
-           request.auth.uid;
+      allow read: if signedIn() && (resource.data.visibility == 'public' || resource.data.ownerId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     match /agents/{agentId} {
-      allow read:
-        if signedIn()
-        && resource.data.ownerId ==
-           request.auth.uid;
-
-      allow create:
-        if signedIn()
-        && request.resource.data.ownerId ==
-           request.auth.uid;
-
-      allow update, delete:
-        if signedIn()
-        && resource.data.ownerId ==
-           request.auth.uid;
+      allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     match /executions/{executionId} {
-      allow read:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow create:
-        if signedIn()
-        && request.resource.data.userId ==
-           request.auth.uid;
-
-      allow update:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow delete:
-        if false;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
     }
 
     match /researchJobs/{jobId} {
-      allow read:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow create:
-        if signedIn()
-        && request.resource.data.userId ==
-           request.auth.uid;
-
-      allow update:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow delete:
-        if false;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow delete: if false;
     }
 
     match /documents/{documentId} {
-      allow read:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow create:
-        if signedIn()
-        && request.resource.data.userId ==
-           request.auth.uid;
-
-      allow update:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow delete:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && request.resource.data.userId == resource.data.userId;
+      allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
 
     match /deployments/{deploymentId} {
-      allow read:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow create:
-        if signedIn()
-        && request.resource.data.userId ==
-           request.auth.uid;
-
-      allow update:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow delete:
-        if false;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && request.resource.data.userId == resource.data.userId;
+      allow delete: if false;
     }
 
     match /usage/{usageId} {
-      allow read:
-        if signedIn()
-        && resource.data.userId ==
-           request.auth.uid;
-
-      allow write:
-        if false;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
+    match /userWallets/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+    match /walletLedger/{entryId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /executionIdempotency/{entryId} {
+      allow read, write: if false;
+    }
+    match /securityAuditEvents/{eventId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /toolAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /emergencyStops/{stopId} {
+      allow read: if isOwner(stopId) || isAdmin();
+      allow write: if false;
+    }
     match /system/{document=**} {
-      allow read:
-        if signedIn();
-      allow write:
-        if false;
+      allow read, write: if false;
     }
-  match /toolAuditLogs/{logId} {
-  allow read: if isAdmin();
-  allow write: if false;
-}
-}
+  }
 }
