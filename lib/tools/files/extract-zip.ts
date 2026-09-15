@@ -8,12 +8,11 @@ import { getArtifactRecord } from "@/lib/documents/artifact-repository";
 import { downloadFromR2 } from "@/lib/storage/r2";
 import { sanitizeArchivePath } from "@/lib/documents/zip/path-security";
 import { assertWorkspaceOwner } from "@/lib/execution/workspace-registry";
-
-const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
-const MAX_FILES = 10_000;
-const MAX_TOTAL_UNCOMPRESSED = 500 * 1024 * 1024;
-const MAX_SINGLE_FILE = 100 * 1024 * 1024;
-const MAX_COMPRESSION_RATIO = 200;
+import {
+  ARCHIVE_LIMITS,
+  validateArchiveEntryCount,
+  validateArchiveEntrySize,
+} from "@/lib/security/archive-security";
 
 const inputSchema = z.object({
   artifactId: z.string().min(1).max(128),
@@ -28,6 +27,10 @@ function validateDestination(destination: string): string {
 function isSymlink(entry: yauzl.Entry): boolean {
   const mode = (entry.externalFileAttributes >>> 16) & 0xffff;
   return (mode & 0xf000) === 0xa000;
+}
+
+function isEncrypted(entry: yauzl.Entry): boolean {
+  return (entry.generalPurposeBitFlag & 0x0001) !== 0;
 }
 
 function streamEntryToFile(
@@ -45,9 +48,7 @@ function streamEntryToFile(
 
       const output = createWriteStream(target, { flags: "wx", mode: 0o600 });
       let settled = false;
-      const cleanup = () => {
-        signal?.removeEventListener("abort", onAbort);
-      };
+      const cleanup = () => signal?.removeEventListener("abort", onAbort);
       const fail = (reason: Error) => {
         if (settled) return;
         settled = true;
@@ -91,7 +92,7 @@ async function assertNoSymlinkComponents(root: string, relativePath: string): Pr
 export const extractZipTool: ToolDefinition = {
   id: "zip.extract",
   name: "zip.extract",
-  description: "Securely extract an owned ZIP artifact into an owned execution workspace with traversal, symlink, duplicate-path, size and ZIP-bomb protections.",
+  description: "Securely extract an owned ZIP artifact into an owned execution workspace with traversal, symlink, encryption, duplicate-path, size and ZIP-bomb protections.",
   category: "files",
   risk: "medium",
   inputSchema,
@@ -102,10 +103,10 @@ export const extractZipTool: ToolDefinition = {
 
     if (!artifact || artifact.ownerId !== context.userId) throw new Error("Artifact not found");
     if (artifact.mimeType !== "application/zip") throw new Error("Artifact is not a ZIP archive");
-    if (artifact.size > MAX_ARCHIVE_BYTES) throw new Error("ZIP artifact exceeds 100 MiB");
+    if (artifact.size > ARCHIVE_LIMITS.maxArchiveBytes) throw new Error("ZIP artifact exceeds 100 MiB");
 
-    const archive = await downloadFromR2(artifact.storageKey, MAX_ARCHIVE_BYTES);
-    if (archive.length > MAX_ARCHIVE_BYTES) throw new Error("ZIP archive exceeds 100 MiB");
+    const archive = await downloadFromR2(artifact.storageKey, ARCHIVE_LIMITS.maxArchiveBytes);
+    if (archive.length > ARCHIVE_LIMITS.maxArchiveBytes) throw new Error("ZIP archive exceeds 100 MiB");
 
     const destination = validateDestination(parsed.destination);
     const extractionId = `zip-${randomUUID()}`;
@@ -150,20 +151,16 @@ export const extractZipTool: ToolDefinition = {
               const safePath = sanitizeArchivePath(entry.fileName);
               if (seen.has(safePath)) throw new Error(`Duplicate ZIP path: ${safePath}`);
               seen.add(safePath);
+              if (isEncrypted(entry)) throw new Error(`Encrypted ZIP entry is not allowed: ${entry.fileName}`);
               if (isSymlink(entry)) throw new Error(`Symlink entry is not allowed: ${entry.fileName}`);
 
               count += 1;
-              if (count > MAX_FILES) throw new Error(`ZIP contains more than ${MAX_FILES} entries`);
+              validateArchiveEntryCount(count);
 
               const size = entry.uncompressedSize;
               const compressedSize = entry.compressedSize;
-              if (size > MAX_SINGLE_FILE) throw new Error(`File exceeds maximum size: ${safePath}`);
-              if (compressedSize === 0 && size > 0) throw new Error(`Invalid compression metadata: ${safePath}`);
-              if (compressedSize > 0 && size / compressedSize > MAX_COMPRESSION_RATIO) {
-                throw new Error(`Compression ratio too high: ${safePath}`);
-              }
+              validateArchiveEntrySize(size, compressedSize, total + size);
               total += size;
-              if (total > MAX_TOTAL_UNCOMPRESSED) throw new Error("ZIP exceeds maximum uncompressed size");
 
               const target = path.resolve(extractionRoot, safePath);
               if (!(target === extractionRoot || target.startsWith(`${extractionRoot}${path.sep}`))) {
