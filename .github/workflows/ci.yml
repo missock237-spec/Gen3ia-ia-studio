@@ -10,14 +10,13 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: "1"
       GEN3IA_WALLET_CURRENCY: EUR
-      GEN3IA_ADS_TOKEN_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+      GEN3IA_ADS_TOKEN_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
+      - run: npm install
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --passWithNoTests
