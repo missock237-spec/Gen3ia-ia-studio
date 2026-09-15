@@ -1,9 +1,6 @@
 import { ExecutionPolicy, Permission, ToolRisk, assertPermission, assertToolAllowed } from "./execution-policy";
 
-export interface ToolSecurityDefinition {
-  name: string; risk: ToolRisk; requiredPermissions: Permission[]; network?: boolean;
-  filesystemRead?: boolean; filesystemWrite?: boolean; destructive?: boolean; externalApp?: boolean;
-}
+export interface ToolSecurityDefinition { name: string; risk: ToolRisk; requiredPermissions: Permission[]; network?: boolean; filesystemRead?: boolean; filesystemWrite?: boolean; destructive?: boolean; externalApp?: boolean; }
 
 const TOOL_SECURITY: Record<string, ToolSecurityDefinition> = {
   "web.search": { name: "web.search", risk: "read", requiredPermissions: ["tool.read", "network.read"], network: true },
@@ -22,16 +19,11 @@ const TOOL_SECURITY: Record<string, ToolSecurityDefinition> = {
   "memory.read": { name: "memory.read", risk: "read", requiredPermissions: ["tool.read", "memory.read"] },
   "memory.write": { name: "memory.write", risk: "write", requiredPermissions: ["tool.write", "memory.write"] },
   "camera.capture": { name: "camera.capture", risk: "external", requiredPermissions: ["tool.external", "camera.capture"], externalApp: true },
-  "ads.read": { name: "ads.read", risk: "read", requiredPermissions: ["tool.read", "ads.read"] },
+  "ads.read": { name: "ads.read", risk: "read", requiredPermissions: ["tool.read", "ads.read", "network.read"], network: true, externalApp: true },
   "ads.publish": { name: "ads.publish", risk: "external", requiredPermissions: ["tool.external", "tool.write", "ads.write", "network.write"], network: true, externalApp: true },
 };
 
-export function getToolSecurityDefinition(toolName: string): ToolSecurityDefinition {
-  const definition = TOOL_SECURITY[toolName];
-  if (!definition) throw new Error(`Unknown tool security definition: ${toolName}`);
-  return definition;
-}
-
+export function getToolSecurityDefinition(toolName: string): ToolSecurityDefinition { const definition = TOOL_SECURITY[toolName]; if (!definition) throw new Error(`Unknown tool security definition: ${toolName}`); return definition; }
 export function authorizeTool(policy: ExecutionPolicy, toolName: string): ToolSecurityDefinition {
   assertToolAllowed(policy, toolName);
   const definition = getToolSecurityDefinition(toolName);
