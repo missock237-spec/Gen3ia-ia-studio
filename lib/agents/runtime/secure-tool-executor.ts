@@ -3,6 +3,7 @@ import { ExecutionPolicy, DEFAULT_EXECUTION_POLICY } from "@/lib/security/execut
 import { authorizeTool } from "@/lib/security/tool-permissions";
 import { assertSafeToolInput, assertSafeToolOutput } from "@/lib/security/guardrails";
 import { assertAutonomousActionAllowed } from "@/lib/security/autonomy-guard";
+import { assertExecutionNotStopped } from "@/lib/security/emergency-stop";
 import { claimExecutionIdempotency, completeExecutionIdempotency, failExecutionIdempotency } from "@/lib/security/execution-idempotency";
 import { assertExecutionInputSize, assertOutputSize } from "./execution-limits";
 import { executeSandbox } from "@/lib/sandbox/client";
@@ -16,6 +17,7 @@ import { reserveToolExecution, settleToolExecution, releaseToolExecution } from 
 export interface SecureToolExecutionOptions {
   userId: string;
   executionId: string;
+  agentId?: string;
   toolName: string;
   input: Record<string, unknown>;
   policy?: ExecutionPolicy;
@@ -53,10 +55,9 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
   const definition = authorizeTool(policy, options.toolName);
   assertSafeToolInput(options.input);
   await assertAutonomousActionAllowed({ userId: options.userId, toolName: options.toolName, input: options.input, approvalId: options.approvalId });
+  await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
   if (options.signal?.aborted) throw new Error("Execution cancelled");
 
-  // Mutating integrations are single-shot by design. The approval ID is the
-  // stable retry key; direct callers must reuse executionId to retry safely.
   const idempotencyRequired = definition.risk === "external" || definition.risk === "destructive";
   let idempotencyKey: string | undefined;
   if (idempotencyRequired) {
@@ -72,6 +73,7 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
   let settlementAttempted = false;
 
   try {
+    await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
     executionStarted = true;
     let result: unknown;
     if (options.toolName === "ads.publish") {
@@ -109,6 +111,7 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
       }
     }
 
+    await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
     assertOutputSize(result, policy.maxOutputBytes);
     assertSafeToolOutput(result);
     settlementAttempted = true;
