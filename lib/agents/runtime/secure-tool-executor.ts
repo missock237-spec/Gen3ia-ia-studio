@@ -14,6 +14,7 @@ import { recall, remember } from "@/lib/memory/user-memory";
 import { requestCameraCapture } from "@/lib/camera/agent-camera";
 import { executeAdsTool, type AdsProvider } from "@/lib/integrations/composio/ads";
 import { assertAdsSpendPolicy } from "@/lib/security/ads-spend-guard";
+import { commitAdsDailySpend, releaseAdsDailySpend, reserveAdsDailySpend, type AdsSpendReservation } from "@/lib/security/ads-spend-budget";
 import { reserveToolExecution, settleToolExecution, releaseToolExecution } from "@/lib/billing/tool-meter";
 
 export interface SecureToolExecutionOptions {
@@ -56,7 +57,14 @@ function parseAdsExecutionInput(input: Record<string, unknown>) {
   if (typeof accountId !== "string" || !accountId.trim() || accountId.length > 256) throw new Error("Ads execution requires an explicit connected account ID.");
   if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Ads execution requires an arguments object.");
   assertAdsSpendPolicy(input);
-  return { provider: provider as AdsProvider, toolSlug, connectedAccountId: accountId, arguments: args as Record<string, unknown> };
+  return {
+    provider: provider as AdsProvider,
+    toolSlug,
+    connectedAccountId: accountId,
+    arguments: args as Record<string, unknown>,
+    maxAdSpendMinor: input.maxAdSpendMinor as number,
+    requestedDailyLimitMinor: typeof input.dailyAdSpendLimitMinor === "number" ? input.dailyAdSpendLimitMinor : undefined,
+  };
 }
 
 export async function executeToolSecurely(options: SecureToolExecutionOptions): Promise<unknown> {
@@ -82,18 +90,24 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
   const reservation = await reserveToolExecution({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, input: { ...options.input, risk: definition.risk } });
   let executionStarted = false;
   let settlementAttempted = false;
+  let adsReservation: (AdsSpendReservation & { userId: string; provider: AdsProvider; accountId: string }) | undefined;
+  let adsSpendCommitted = false;
 
   try {
     await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
     await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "started", risk: definition.risk, approvalId: options.approvalId });
     executionStarted = true;
+
+    const adsInput = (options.toolName === "ads.publish" || (options.toolName === "composio.execute" && isAdsComposioTool(options.input))) ? parseAdsExecutionInput(options.input) : undefined;
+    if (adsInput) {
+      const budget = await reserveAdsDailySpend({ userId: options.userId, provider: adsInput.provider, accountId: adsInput.connectedAccountId, amountMinor: adsInput.maxAdSpendMinor, requestedDailyLimitMinor: adsInput.requestedDailyLimitMinor });
+      adsReservation = { ...budget, userId: options.userId, provider: adsInput.provider, accountId: adsInput.connectedAccountId };
+      await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "ads_spend_reserved", risk: definition.risk, approvalId: options.approvalId, result: { provider: adsInput.provider, accountId: adsInput.connectedAccountId, amountMinor: adsInput.maxAdSpendMinor, dailyLimitMinor: budget.dailyLimitMinor } }).catch(() => undefined);
+    }
+
     let result: unknown;
-    if (options.toolName === "ads.publish") {
-      const ads = parseAdsExecutionInput(options.input);
-      result = await executeAdsTool({ userId: options.userId, provider: ads.provider, toolSlug: ads.toolSlug, connectedAccountId: ads.connectedAccountId, arguments: ads.arguments, signal: options.signal });
-    } else if (options.toolName === "composio.execute" && isAdsComposioTool(options.input)) {
-      const ads = parseAdsExecutionInput(options.input);
-      result = await executeAdsTool({ userId: options.userId, provider: ads.provider, toolSlug: ads.toolSlug, connectedAccountId: ads.connectedAccountId, arguments: ads.arguments, signal: options.signal });
+    if (adsInput) {
+      result = await executeAdsTool({ userId: options.userId, provider: adsInput.provider, toolSlug: adsInput.toolSlug, connectedAccountId: adsInput.connectedAccountId, arguments: adsInput.arguments, signal: options.signal });
     } else if (options.toolName === "terminal.execute") {
       const runtime = options.input.runtime === "python" ? "python" : "node";
       if (typeof options.input.command !== "string") throw new Error("terminal.execute requires command");
@@ -129,6 +143,13 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
     assertOutputSize(result, policy.maxOutputBytes);
     assertSafeToolOutput(result);
+
+    if (adsReservation) {
+      await commitAdsDailySpend(adsReservation);
+      adsSpendCommitted = true;
+      await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "ads_spend_committed", risk: definition.risk, approvalId: options.approvalId, result: { amountMinor: adsReservation.amountMinor, provider: adsReservation.provider, accountId: adsReservation.accountId } }).catch(() => undefined);
+    }
+
     settlementAttempted = true;
     try {
       await settleToolExecution({ userId: options.userId, toolName: options.toolName, input: options.input, durationMs: Date.now() - startedAt, reference: reservation.reference, reserveMinor: reservation.reserveMinor });
@@ -144,6 +165,7 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     const stopped = message.includes("emergency stop");
     await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: stopped ? "stopped" : "failed", risk: definition.risk, approvalId: options.approvalId, error: message }).catch(() => undefined);
     if (idempotencyKey) await failExecutionIdempotency({ key: idempotencyKey, error: message }).catch(() => undefined);
+    if (adsReservation && !adsSpendCommitted) await releaseAdsDailySpend(adsReservation).catch(() => undefined);
     const ambiguousSideEffect = executionStarted && (definition.risk === "external" || definition.risk === "destructive");
     if (!ambiguousSideEffect && !settlementAttempted) {
       await releaseToolExecution({ userId: options.userId, reference: reservation.reference, reserveMinor: reservation.reserveMinor }).catch(() => undefined);
