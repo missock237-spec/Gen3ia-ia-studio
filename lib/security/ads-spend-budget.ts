@@ -1,4 +1,5 @@
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { randomUUID } from "node:crypto";
+import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 
 const COLLECTION = "adsSpendBudgets";
@@ -42,7 +43,7 @@ export async function reserveAdsDailySpend(params: {
   const date = todayUtc();
   const id = bucketId(params.userId, params.provider, params.accountId, date);
   const ref = adminDb.collection(COLLECTION).doc(id);
-  const reservationRef = `${id}_${crypto.randomUUID()}`;
+  const reservationRef = `${id}_${randomUUID()}`;
 
   await adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -50,9 +51,7 @@ export async function reserveAdsDailySpend(params: {
     const reservedMinor = Number(data.reservedMinor ?? 0);
     const committedMinor = Number(data.committedMinor ?? 0);
     const total = reservedMinor + committedMinor + params.amountMinor;
-    if (!Number.isSafeInteger(reservedMinor) || !Number.isSafeInteger(committedMinor) || total > requested) {
-      throw new Error("Ads daily spend limit would be exceeded.");
-    }
+    if (!Number.isSafeInteger(reservedMinor) || !Number.isSafeInteger(committedMinor) || total > requested) throw new Error("Ads daily spend limit would be exceeded.");
 
     const payload = {
       userId: params.userId,
@@ -104,9 +103,4 @@ export async function releaseAdsDailySpend(params: AdsSpendReservation & { userI
 
 export function getAdsDailyLimitMinor(): number {
   return dailyLimitFromEnv();
-}
-
-export function toDateKey(value: unknown): string {
-  if (value instanceof Timestamp) return value.toDate().toISOString().slice(0, 10);
-  return todayUtc();
 }
