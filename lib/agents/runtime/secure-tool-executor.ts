@@ -28,6 +28,11 @@ export interface SecureToolExecutionOptions {
 }
 
 const DEFAULT_SANDBOX_LIMITS: SandboxLimits = { timeoutMs: 30_000, memoryMb: 512, cpu: 1, maxOutputBytes: 1_000_000 };
+const ADS_TOOL_PREFIXES = [/^GOOGLEADS_/i, /^METAADS_/i, /^TIKTOK_ADS_/i];
+
+function isAdsComposioTool(input: Record<string, unknown>): boolean {
+  return typeof input.toolSlug === "string" && ADS_TOOL_PREFIXES.some((prefix) => prefix.test(input.toolSlug as string));
+}
 
 function parseSandboxInput(input: Record<string, unknown>) {
   const runtime = input.runtime;
@@ -45,9 +50,9 @@ function parseAdsExecutionInput(input: Record<string, unknown>) {
   const provider = input.provider;
   const toolSlug = input.toolSlug;
   const args = input.arguments;
-  if (provider !== "google_ads" && provider !== "meta_ads" && provider !== "tiktok_ads") throw new Error("ads.publish requires a supported Ads provider.");
-  if (typeof toolSlug !== "string" || toolSlug.length > 200) throw new Error("ads.publish requires a Composio toolSlug.");
-  if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("ads.publish requires an arguments object.");
+  if (provider !== "google_ads" && provider !== "meta_ads" && provider !== "tiktok_ads") throw new Error("Ads execution requires a supported Ads provider.");
+  if (typeof toolSlug !== "string" || toolSlug.length > 200) throw new Error("Ads execution requires a Composio toolSlug.");
+  if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("Ads execution requires an arguments object.");
   assertAdsSpendPolicy(input);
   return { provider: provider as AdsProvider, toolSlug, arguments: args as Record<string, unknown> };
 }
@@ -84,6 +89,10 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     if (options.toolName === "ads.publish") {
       const ads = parseAdsExecutionInput(options.input);
       result = await executeAdsTool({ userId: options.userId, provider: ads.provider, toolSlug: ads.toolSlug, arguments: ads.arguments, signal: options.signal });
+    } else if (options.toolName === "composio.execute" && isAdsComposioTool(options.input)) {
+      parseAdsExecutionInput(options.input);
+      const ads = options.input.provider as AdsProvider;
+      result = await executeAdsTool({ userId: options.userId, provider: ads, toolSlug: options.input.toolSlug as string, arguments: options.input.arguments as Record<string, unknown>, signal: options.signal });
     } else if (options.toolName === "terminal.execute") {
       const runtime = options.input.runtime === "python" ? "python" : "node";
       if (typeof options.input.command !== "string") throw new Error("terminal.execute requires command");
