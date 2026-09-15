@@ -4,6 +4,7 @@ import { authorizeTool } from "@/lib/security/tool-permissions";
 import { assertSafeToolInput, assertSafeToolOutput } from "@/lib/security/guardrails";
 import { assertAutonomousActionAllowed } from "@/lib/security/autonomy-guard";
 import { assertExecutionNotStopped } from "@/lib/security/emergency-stop";
+import { appendSecurityAuditEvent } from "@/lib/security/security-audit";
 import { claimExecutionIdempotency, completeExecutionIdempotency, failExecutionIdempotency } from "@/lib/security/execution-idempotency";
 import { assertExecutionInputSize, assertOutputSize } from "./execution-limits";
 import { executeSandbox } from "@/lib/sandbox/client";
@@ -56,6 +57,7 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
   assertSafeToolInput(options.input);
   await assertAutonomousActionAllowed({ userId: options.userId, toolName: options.toolName, input: options.input, approvalId: options.approvalId });
   await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
+  await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "authorized", risk: definition.risk, approvalId: options.approvalId });
   if (options.signal?.aborted) throw new Error("Execution cancelled");
 
   const idempotencyRequired = definition.risk === "external" || definition.risk === "destructive";
@@ -74,6 +76,7 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
 
   try {
     await assertExecutionNotStopped({ userId: options.userId, executionId: options.executionId, agentId: options.agentId ?? (typeof options.input.agentId === "string" ? options.input.agentId : undefined) });
+    await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "started", risk: definition.risk, approvalId: options.approvalId });
     executionStarted = true;
     let result: unknown;
     if (options.toolName === "ads.publish") {
@@ -115,11 +118,19 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     assertOutputSize(result, policy.maxOutputBytes);
     assertSafeToolOutput(result);
     settlementAttempted = true;
-    await settleToolExecution({ userId: options.userId, toolName: options.toolName, input: options.input, durationMs: Date.now() - startedAt, reference: reservation.reference, reserveMinor: reservation.reserveMinor });
+    try {
+      await settleToolExecution({ userId: options.userId, toolName: options.toolName, input: options.input, durationMs: Date.now() - startedAt, reference: reservation.reference, reserveMinor: reservation.reserveMinor });
+    } catch (billingError) {
+      await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "billing_failed", risk: definition.risk, approvalId: options.approvalId, error: billingError instanceof Error ? billingError.message : "Billing settlement failed" }).catch(() => undefined);
+      throw billingError;
+    }
+    await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: "completed", risk: definition.risk, approvalId: options.approvalId, result: { success: true } }).catch(() => undefined);
     if (idempotencyKey) await completeExecutionIdempotency({ key: idempotencyKey, result });
     return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Tool execution failed.";
+    const stopped = message.includes("emergency stop");
+    await appendSecurityAuditEvent({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, event: stopped ? "stopped" : "failed", risk: definition.risk, approvalId: options.approvalId, error: message }).catch(() => undefined);
     if (idempotencyKey) await failExecutionIdempotency({ key: idempotencyKey, error: message }).catch(() => undefined);
     const ambiguousSideEffect = executionStarted && (definition.risk === "external" || definition.risk === "destructive");
     if (!ambiguousSideEffect && !settlementAttempted) {
