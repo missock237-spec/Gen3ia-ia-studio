@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { generate } from "@/lib/ai/router";
+import { generateForUser } from "@/lib/billing/ai-execution";
+import { getWallet, WALLET_CURRENCY } from "@/lib/billing/wallet";
 import { executeToolSecurely } from "./secure-tool-executor";
 import { ExecutionPolicy, DEFAULT_EXECUTION_POLICY } from "@/lib/security/execution-policy";
 import { RuntimeExecutionState, RuntimePlan, RuntimeStep } from "./types";
@@ -23,12 +24,19 @@ export class AgentRuntime {
     this.policy = options.policy ?? DEFAULT_EXECUTION_POLICY;
     this.scheduler = new RuntimeScheduler(options.plan.maxConcurrency);
     this.startedAtMs = Date.now();
-    this.state = { executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective, status: "pending", plan: options.plan, observations: [], evaluations: [], outputs: {}, iteration: 0, totalRetries: 0, maxTotalRetries: 15 };
+    this.state = {
+      executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective,
+      status: "pending", plan: options.plan, observations: [], evaluations: [], outputs: {}, iteration: 0,
+      totalRetries: 0, maxTotalRetries: 15,
+      billing: { currency: WALLET_CURRENCY, totalChargeMinor: 0, totalProviderCostEur: 0, llmInputTokens: 0, llmOutputTokens: 0 },
+    };
   }
 
   async run(): Promise<RuntimeExecutionState> {
     this.state.status = "running";
     this.state.startedAt = new Date().toISOString();
+    const wallet = await getWallet(this.state.userId);
+    if (wallet.availableMinor <= 0) throw new Error(`Insufficient wallet balance. Add funds before starting an AI execution.`);
     await createCheckpoint(this.state);
     try {
       while (this.state.iteration < this.state.plan.maxIterations) {
@@ -94,11 +102,25 @@ export class AgentRuntime {
   private async executeLLM(step: RuntimeStep): Promise<unknown> {
     const dependencyContext = this.getDependencyOutputs(step);
     const role = step.agentRole ?? "general";
-    const response = await generate({ task: "agent", messages: [
-      { role: "system", content: `You are the ${role} agent inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. Be factual, operational and explicit about uncertainty. Never invent external results, credentials, customer data, transactions or completed actions. Do not perform side effects unless a separately authorized tool step executes them.` },
-      { role: "user", content: JSON.stringify({ objective: this.state.objective, agentRole: role, step: { id: step.id, name: step.name, description: step.description, input: step.input }, dependencies: dependencyContext }) },
-    ] });
-    return response.text;
+    const complexity = role === "analytics" ? 1.35 : role === "orchestrator" ? 1.25 : 1;
+    const billed = await generateForUser({
+      userId: this.state.userId,
+      executionId: this.state.executionId,
+      complexity,
+      request: {
+        task: step.type === "document" ? "document" : "agent",
+        messages: [
+          { role: "system", content: `You are the ${role} agent inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. Be factual, operational and explicit about uncertainty. Never invent external results, credentials, customer data, transactions or completed actions. Do not perform side effects unless a separately authorized tool step executes them.` },
+          { role: "user", content: JSON.stringify({ objective: this.state.objective, agentRole: role, step: { id: step.id, name: step.name, description: step.description, input: step.input }, dependencies: dependencyContext }) },
+        ],
+        maxTokens: 4096,
+      },
+    });
+    this.state.billing.totalChargeMinor += billed.chargeMinor;
+    this.state.billing.totalProviderCostEur += billed.providerCostEur;
+    this.state.billing.llmInputTokens += billed.response.usage.inputTokens;
+    this.state.billing.llmOutputTokens += billed.response.usage.outputTokens;
+    return billed.response.text;
   }
 
   private async executeTool(step: RuntimeStep): Promise<unknown> {
