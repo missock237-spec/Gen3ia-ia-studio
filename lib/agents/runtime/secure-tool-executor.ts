@@ -4,10 +4,12 @@ import { authorizeTool } from "@/lib/security/tool-permissions";
 import { assertExecutionInputSize, assertOutputSize } from "./execution-limits";
 import { executeSandbox } from "@/lib/sandbox/client";
 import type { SandboxRuntime, SandboxLimits } from "@/lib/sandbox/types";
+import { executeAgentTerminal } from "./agent-terminal";
 import { reserveToolExecution, settleToolExecution, releaseToolExecution } from "@/lib/billing/tool-meter";
 
 export interface SecureToolExecutionOptions { userId: string; executionId: string; toolName: string; input: Record<string, unknown>; policy?: ExecutionPolicy; signal?: AbortSignal; }
 const DEFAULT_SANDBOX_LIMITS: SandboxLimits = { timeoutMs: 30_000, memoryMb: 512, cpu: 1, maxOutputBytes: 1_000_000 };
+
 function parseSandboxInput(input: Record<string, unknown>) {
   const runtime = input.runtime; const code = input.code; const providedLimits = input.limits;
   if (runtime !== "node" && runtime !== "python") throw new Error("code.execute requires runtime 'node' or 'python'");
@@ -20,13 +22,18 @@ function parseSandboxInput(input: Record<string, unknown>) {
 
 export async function executeToolSecurely(options: SecureToolExecutionOptions): Promise<unknown> {
   const policy = options.policy ?? DEFAULT_EXECUTION_POLICY;
-  assertExecutionInputSize(options.input, policy.maxInputBytes); authorizeTool(policy, options.toolName);
+  assertExecutionInputSize(options.input, policy.maxInputBytes);
+  authorizeTool(policy, options.toolName);
   if (options.signal?.aborted) throw new Error("Execution cancelled");
   const startedAt = Date.now();
   const reservation = await reserveToolExecution({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, input: options.input });
   try {
     let result: unknown;
-    if (options.toolName === "code.execute") {
+    if (options.toolName === "terminal.execute") {
+      const runtime = options.input.runtime === "python" ? "python" : "node";
+      if (typeof options.input.command !== "string") throw new Error("terminal.execute requires command");
+      result = await executeAgentTerminal({ userId: options.userId, executionId: options.executionId, runtime, command: options.input.command, cwd: typeof options.input.cwd === "string" ? options.input.cwd : undefined, timeoutMs: typeof options.input.timeoutMs === "number" ? options.input.timeoutMs : undefined, memoryMb: typeof options.input.memoryMb === "number" ? options.input.memoryMb : undefined });
+    } else if (options.toolName === "code.execute") {
       if (!policy.allowCodeExecution) throw new Error("Code execution is disabled by the execution policy");
       const sandbox = parseSandboxInput(options.input);
       result = await executeSandbox({ executionId: options.executionId, userId: options.userId, runtime: sandbox.runtime, code: sandbox.code, input: sandbox.input, limits: sandbox.limits, network: "none" });
