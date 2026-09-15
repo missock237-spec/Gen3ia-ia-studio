@@ -3,6 +3,7 @@ import { ExecutionPolicy, DEFAULT_EXECUTION_POLICY } from "@/lib/security/execut
 import { authorizeTool } from "@/lib/security/tool-permissions";
 import { assertSafeToolInput, assertSafeToolOutput } from "@/lib/security/guardrails";
 import { assertAutonomousActionAllowed } from "@/lib/security/autonomy-guard";
+import { claimExecutionIdempotency, completeExecutionIdempotency, failExecutionIdempotency } from "@/lib/security/execution-idempotency";
 import { assertExecutionInputSize, assertOutputSize } from "./execution-limits";
 import { executeSandbox } from "@/lib/sandbox/client";
 import type { SandboxRuntime, SandboxLimits } from "@/lib/sandbox/types";
@@ -22,12 +23,7 @@ export interface SecureToolExecutionOptions {
   approvalId?: string;
 }
 
-const DEFAULT_SANDBOX_LIMITS: SandboxLimits = {
-  timeoutMs: 30_000,
-  memoryMb: 512,
-  cpu: 1,
-  maxOutputBytes: 1_000_000,
-};
+const DEFAULT_SANDBOX_LIMITS: SandboxLimits = { timeoutMs: 30_000, memoryMb: 512, cpu: 1, maxOutputBytes: 1_000_000 };
 
 function parseSandboxInput(input: Record<string, unknown>) {
   const runtime = input.runtime;
@@ -59,14 +55,19 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
   await assertAutonomousActionAllowed({ userId: options.userId, toolName: options.toolName, input: options.input, approvalId: options.approvalId });
   if (options.signal?.aborted) throw new Error("Execution cancelled");
 
-  const startedAt = Date.now();
-  const reservation = await reserveToolExecution({
-    userId: options.userId,
-    executionId: options.executionId,
-    toolName: options.toolName,
-    input: { ...options.input, risk: definition.risk },
-  });
+  // Mutating integrations are single-shot by design. The approval ID is the
+  // stable retry key; direct callers must reuse executionId to retry safely.
+  const idempotencyRequired = definition.risk === "external" || definition.risk === "destructive";
+  let idempotencyKey: string | undefined;
+  if (idempotencyRequired) {
+    const claim = await claimExecutionIdempotency({ userId: options.userId, toolName: options.toolName, key: options.approvalId ?? options.executionId, input: options.input });
+    idempotencyKey = claim.key;
+    if (claim.state === "completed") return claim.result;
+    if (claim.state === "failed") throw new Error(claim.error ?? "This action was already finalized as failed and cannot be replayed.");
+  }
 
+  const startedAt = Date.now();
+  const reservation = await reserveToolExecution({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, input: { ...options.input, risk: definition.risk } });
   let executionStarted = false;
   let settlementAttempted = false;
 
@@ -112,12 +113,11 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     assertSafeToolOutput(result);
     settlementAttempted = true;
     await settleToolExecution({ userId: options.userId, toolName: options.toolName, input: options.input, durationMs: Date.now() - startedAt, reference: reservation.reference, reserveMinor: reservation.reserveMinor });
+    if (idempotencyKey) await completeExecutionIdempotency({ key: idempotencyKey, result });
     return result;
   } catch (error) {
-    // For external/destructive actions, an exception can be ambiguous: the provider
-    // may have committed the side effect before the network/SDK failed. Never release
-    // the reservation automatically in that state; keeping funds reserved prevents a
-    // second execution from spending the same money while the outcome is reconciled.
+    const message = error instanceof Error ? error.message : "Tool execution failed.";
+    if (idempotencyKey) await failExecutionIdempotency({ key: idempotencyKey, error: message }).catch(() => undefined);
     const ambiguousSideEffect = executionStarted && (definition.risk === "external" || definition.risk === "destructive");
     if (!ambiguousSideEffect && !settlementAttempted) {
       await releaseToolExecution({ userId: options.userId, reference: reservation.reference, reserveMinor: reservation.reserveMinor }).catch(() => undefined);
