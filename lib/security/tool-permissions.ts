@@ -1,20 +1,8 @@
-import {
-  ExecutionPolicy,
-  Permission,
-  ToolRisk,
-  assertPermission,
-  assertToolAllowed,
-} from "./execution-policy";
+import { ExecutionPolicy, Permission, ToolRisk, assertPermission, assertToolAllowed } from "./execution-policy";
 
 export interface ToolSecurityDefinition {
-  name: string;
-  risk: ToolRisk;
-  requiredPermissions: Permission[];
-  network?: boolean;
-  filesystemRead?: boolean;
-  filesystemWrite?: boolean;
-  destructive?: boolean;
-  externalApp?: boolean;
+  name: string; risk: ToolRisk; requiredPermissions: Permission[]; network?: boolean;
+  filesystemRead?: boolean; filesystemWrite?: boolean; destructive?: boolean; externalApp?: boolean;
 }
 
 const TOOL_SECURITY: Record<string, ToolSecurityDefinition> = {
@@ -30,6 +18,12 @@ const TOOL_SECURITY: Record<string, ToolSecurityDefinition> = {
   "artifact.download": { name: "artifact.download", risk: "read", requiredPermissions: ["tool.read", "file.read"] },
   "composio.execute": { name: "composio.execute", risk: "external", requiredPermissions: ["tool.external", "tool.write", "network.write"], network: true, externalApp: true },
   "code.execute": { name: "code.execute", risk: "destructive", requiredPermissions: ["code.execute"] },
+  "terminal.execute": { name: "terminal.execute", risk: "destructive", requiredPermissions: ["terminal.execute"] },
+  "memory.read": { name: "memory.read", risk: "read", requiredPermissions: ["tool.read", "memory.read"] },
+  "memory.write": { name: "memory.write", risk: "write", requiredPermissions: ["tool.write", "memory.write"] },
+  "camera.capture": { name: "camera.capture", risk: "external", requiredPermissions: ["tool.external", "camera.capture"], externalApp: true },
+  "ads.read": { name: "ads.read", risk: "read", requiredPermissions: ["tool.read", "ads.read"] },
+  "ads.publish": { name: "ads.publish", risk: "external", requiredPermissions: ["tool.external", "tool.write", "ads.write", "network.write"], network: true, externalApp: true },
 };
 
 export function getToolSecurityDefinition(toolName: string): ToolSecurityDefinition {
@@ -45,7 +39,9 @@ export function authorizeTool(policy: ExecutionPolicy, toolName: string): ToolSe
   if (definition.network && !policy.allowNetwork) throw new Error(`Network access denied for tool: ${toolName}`);
   if (definition.externalApp && !policy.allowExternalApps) throw new Error(`External application access denied: ${toolName}`);
   if (definition.filesystemWrite && !policy.allowFileWrite) throw new Error(`Filesystem write denied: ${toolName}`);
-  if (definition.destructive && !policy.allowFileDelete && toolName !== "code.execute") throw new Error(`Destructive operation denied: ${toolName}`);
+  if (definition.destructive && !policy.allowFileDelete && !["code.execute", "terminal.execute"].includes(toolName)) throw new Error(`Destructive operation denied: ${toolName}`);
   if (toolName === "code.execute" && !policy.allowCodeExecution) throw new Error("Code execution denied by policy");
+  if (toolName === "terminal.execute" && !policy.allowAgentTerminal) throw new Error("Agent terminal denied by policy");
+  if (toolName === "camera.capture" && !policy.allowCamera) throw new Error("Camera access denied by policy");
   return definition;
 }
