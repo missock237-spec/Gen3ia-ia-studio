@@ -13,6 +13,7 @@ import { executeAgentTerminal } from "./agent-terminal";
 import { recall, remember } from "@/lib/memory/user-memory";
 import { requestCameraCapture } from "@/lib/camera/agent-camera";
 import { executeAdsTool, type AdsProvider } from "@/lib/integrations/composio/ads";
+import { assertAdsSpendPolicy } from "@/lib/security/ads-spend-guard";
 import { reserveToolExecution, settleToolExecution, releaseToolExecution } from "@/lib/billing/tool-meter";
 
 export interface SecureToolExecutionOptions {
@@ -47,6 +48,7 @@ function parseAdsExecutionInput(input: Record<string, unknown>) {
   if (provider !== "google_ads" && provider !== "meta_ads" && provider !== "tiktok_ads") throw new Error("ads.publish requires a supported Ads provider.");
   if (typeof toolSlug !== "string" || toolSlug.length > 200) throw new Error("ads.publish requires a Composio toolSlug.");
   if (!args || typeof args !== "object" || Array.isArray(args)) throw new Error("ads.publish requires an arguments object.");
+  assertAdsSpendPolicy(input);
   return { provider: provider as AdsProvider, toolSlug, arguments: args as Record<string, unknown> };
 }
 
