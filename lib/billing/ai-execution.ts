@@ -47,7 +47,7 @@ export async function generateForUser(params: {
   try {
     const response = await generate(params.request);
     const actual = costFromAIResponse(params.request, response);
-    const walletAfter = await settleReservation({
+    await settleReservation({
       userId: params.userId,
       reference,
       reservedMinor: reserveEstimate.reserveMinor,
