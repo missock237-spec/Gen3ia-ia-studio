@@ -57,7 +57,7 @@ service cloud.firestore {
     match /researchJobs/{jobId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow update: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == resource.data.userId;
       allow delete: if false;
     }
 
@@ -101,6 +101,10 @@ service cloud.firestore {
     }
     match /emergencyStops/{stopId} {
       allow read: if isOwner(stopId) || isAdmin();
+      allow write: if false;
+    }
+    match /adsSpendBudgets/{budgetId} {
+      allow read: if isAdmin();
       allow write: if false;
     }
     match /system/{document=**} {
