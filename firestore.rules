@@ -110,5 +110,77 @@ service cloud.firestore {
     match /system/{document=**} {
       allow read, write: if false;
     }
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Helpers ----
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isTeamMember(teamId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
+    }
+
+    function getTeamRole(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role;
+    }
+
+    function isTeamOwner(teamId) {
+      return isTeamMember(teamId) && getTeamRole(teamId) == 'owner';
+    }
+
+    function isTeamAdmin(teamId) {
+      return isTeamMember(teamId) && (getTeamRole(teamId) == 'owner' || getTeamRole(teamId) == 'admin');
+    }
+
+    function canEditTeam(teamId) {
+      return isTeamMember(teamId) && getTeamRole(teamId) in ['owner', 'admin', 'editor'];
+    }
+
+    // ---- Teams ----
+    match /teams/{teamId} {
+      allow read: if isTeamMember(teamId);
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isTeamAdmin(teamId);
+      allow delete: if isTeamOwner(teamId);
+
+      // Members subcollection
+      match /members/{memberId} {
+        allow read: if isTeamMember(teamId);
+        allow create: if isAuthenticated() && (
+          // Le créateur (owner) peut s'ajouter lui-même
+          (memberId == request.auth.uid && request.resource.data.role == 'owner') ||
+          // Un admin/owner peut ajouter des membres
+          isTeamAdmin(teamId)
+        );
+        allow update: if isTeamAdmin(teamId) || request.auth.uid == memberId;
+        allow delete: if isTeamAdmin(teamId) || request.auth.uid == memberId;
+      }
+    }
+
+    // ---- Invitations ----
+    match /invitations/{invitationId} {
+      // Tout le monde peut lire une invitation par son token (pour accepter)
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        isTeamAdmin(request.resource.data.teamId);
+      allow update: if isAuthenticated() && (
+        isTeamAdmin(resource.data.teamId) ||
+        // L'invité peut accepter/refuser
+        (request.auth.token.email == resource.data.invitedEmail &&
+         request.resource.data.status in ['accepted', 'declined'])
+      );
+      allow delete: if isTeamAdmin(resource.data.teamId);
+    }
+
+    // ---- User teams index (pour retrouver ses équipes rapidement) ----
+    match /userTeams/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+  }
+}
   }
 }
