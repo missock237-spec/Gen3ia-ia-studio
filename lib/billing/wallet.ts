@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebase/admin";
 export const WALLET_CURRENCY = (process.env.GEN3IA_WALLET_CURRENCY ?? "EUR").toUpperCase();
 const WALLET_COLLECTION = "userWallets";
 const LEDGER_COLLECTION = "walletLedger";
+const WELCOME_AMOUNT_MINOR = 500; // 5.00 EUR, granted once when the wallet is first initialized.
 
 export const WalletTransactionTypeSchema = z.enum([
   "topup",
@@ -13,6 +14,7 @@ export const WalletTransactionTypeSchema = z.enum([
   "refund",
   "release",
   "adjustment",
+  "welcome_grant",
 ]);
 export type WalletTransactionType = z.infer<typeof WalletTransactionTypeSchema>;
 
@@ -23,6 +25,7 @@ export interface WalletSnapshot {
   reservedMinor: number;
   availableMinor: number;
   updatedAt: number;
+  welcomeGranted: boolean;
 }
 
 function walletRef(userId: string) {
@@ -44,12 +47,47 @@ function toMillis(value: unknown): number {
   return Date.now();
 }
 
+/**
+ * Creates the wallet lazily on the first authenticated use.
+ * The 5 EUR demonstration balance is a one-time grant and is protected by
+ * a deterministic ledger document, so retries/concurrent requests cannot grant it twice.
+ */
+async function ensureWallet(userId: string): Promise<void> {
+  const wallet = walletRef(userId);
+  const welcomeLedger = adminDb.collection(LEDGER_COLLECTION).doc(`welcome_${userId}`);
+
+  await adminDb.runTransaction(async (tx) => {
+    const [walletSnap, welcomeSnap] = await Promise.all([tx.get(wallet), tx.get(welcomeLedger)]);
+    if (walletSnap.exists) return;
+    if (welcomeSnap.exists) throw new Error("Wallet initialization is inconsistent.");
+
+    tx.create(wallet, {
+      userId,
+      currency: WALLET_CURRENCY,
+      balanceMinor: WELCOME_AMOUNT_MINOR,
+      reservedMinor: 0,
+      welcomeGranted: true,
+      welcomeAmountMinor: WELCOME_AMOUNT_MINOR,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    tx.create(welcomeLedger, {
+      userId,
+      type: "welcome_grant",
+      amountMinor: WELCOME_AMOUNT_MINOR,
+      currency: WALLET_CURRENCY,
+      provider: "gen3ia",
+      reference: `welcome_${userId}`,
+      metadata: { reason: "one-time demonstration balance for new account" },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
 export async function getWallet(userId: string): Promise<WalletSnapshot> {
+  await ensureWallet(userId);
   const ref = walletRef(userId);
   const snap = await ref.get();
-  if (!snap.exists) {
-    return { userId, currency: WALLET_CURRENCY, balanceMinor: 0, reservedMinor: 0, availableMinor: 0, updatedAt: Date.now() };
-  }
+  if (!snap.exists) throw new Error("Wallet could not be initialized.");
   const data = snap.data() ?? {};
   const balanceMinor = Number(data.balanceMinor ?? 0);
   const reservedMinor = Number(data.reservedMinor ?? 0);
@@ -60,7 +98,20 @@ export async function getWallet(userId: string): Promise<WalletSnapshot> {
     reservedMinor,
     availableMinor: Math.max(0, balanceMinor - reservedMinor),
     updatedAt: toMillis(data.updatedAt),
+    welcomeGranted: Boolean(data.welcomeGranted),
   };
+}
+
+export function assertWalletActive(wallet: WalletSnapshot): void {
+  if (wallet.availableMinor <= 0) {
+    throw new Error("AI agents are stopped because the wallet balance is 0. Recharge your Gen3ia wallet to resume all agents.");
+  }
+}
+
+export async function assertUserWalletActive(userId: string): Promise<WalletSnapshot> {
+  const wallet = await getWallet(userId);
+  assertWalletActive(wallet);
+  return wallet;
 }
 
 export async function applyTopup(params: {
@@ -112,6 +163,7 @@ export async function reserveFunds(params: {
 }): Promise<WalletSnapshot> {
   assertMinorAmount(params.amountMinor);
   if (!params.reference.trim()) throw new Error("Reservation reference is required.");
+  await ensureWallet(params.userId);
   const wallet = walletRef(params.userId);
   const ledger = adminDb.collection(LEDGER_COLLECTION).doc(`reservation_${params.reference}`);
 
@@ -120,7 +172,10 @@ export async function reserveFunds(params: {
     if (ledgerSnap.exists) return;
     const balance = Number(walletSnap.exists ? walletSnap.get("balanceMinor") ?? 0 : 0);
     const reserved = Number(walletSnap.exists ? walletSnap.get("reservedMinor") ?? 0 : 0);
-    if (balance - reserved < params.amountMinor) throw new Error("Insufficient wallet balance.");
+    if (balance - reserved < params.amountMinor) {
+      if (balance - reserved <= 0) throw new Error("AI agents are stopped because the wallet balance is 0. Recharge your Gen3ia wallet to resume all agents.");
+      throw new Error("Insufficient wallet balance for this execution.");
+    }
     tx.set(wallet, {
       userId: params.userId,
       currency: WALLET_CURRENCY,
