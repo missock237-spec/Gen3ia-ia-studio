@@ -1,13 +1,14 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { randomUUID } from "node:crypto";
 import { adminDb } from "@/lib/firebase/admin";
+import { redactSensitiveContent } from "@/lib/security/guardrails";
 
 const COLLECTION = "securityAuditEvents";
 const MAX_JSON_CHARS = 50_000;
 
 function safeJson(value: unknown): string {
   try {
-    const text = JSON.stringify(value);
+    const text = JSON.stringify(redactSensitiveContent(value));
     return text.length > MAX_JSON_CHARS ? `${text.slice(0, MAX_JSON_CHARS)}...[truncated]` : text;
   } catch {
     return "[unserializable]";
@@ -38,7 +39,7 @@ export async function appendSecurityAuditEvent(params: {
     approvalId: params.approvalId ?? null,
     input: params.input ? safeJson(params.input) : null,
     result: params.result === undefined ? null : safeJson(params.result),
-    error: params.error ? params.error.slice(0, 4_000) : null,
+    error: params.error ? String(redactSensitiveContent(params.error)).slice(0, 4_000) : null,
     metadata: params.metadata ?? {},
     createdAt: FieldValue.serverTimestamp(),
   });
