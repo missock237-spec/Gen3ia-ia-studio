@@ -3,6 +3,7 @@ import { AgentRuntime } from "@/lib/agents/runtime/runner";
 import type { RuntimePlan, RuntimeStep } from "@/lib/agents/runtime/types";
 import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
 import { getCustomerContext } from "@/lib/agents/memory/customer-context";
+import { assertUserWalletActive } from "@/lib/billing/wallet";
 
 export type AgentRole = "customer_service" | "sales" | "content" | "admin" | "analytics";
 export interface AgentDefinition { id: AgentRole; name: string; mission: string; capabilities: string[]; policy: ExecutionPolicy; }
@@ -71,6 +72,11 @@ export function createOrchestratorPlan(task: OrchestratorTask): { executionId: s
 export async function runOrchestrator(task: OrchestratorTask): Promise<OrchestratorResult> {
   if (!task.userId?.trim()) throw new Error("Orchestrator requires userId");
   if (!task.objective?.trim()) throw new Error("Orchestrator requires objective");
+
+  // Authoritative wallet gate: no new agent execution may start at zero balance.
+  // AgentRuntime and every billable tool/LLM operation enforce the same gate while running.
+  await assertUserWalletActive(task.userId);
+
   const persistedCustomer = task.customerId ? await getCustomerContext(task.userId, task.customerId) : null;
   const effectiveTask: OrchestratorTask = {
     ...task,
