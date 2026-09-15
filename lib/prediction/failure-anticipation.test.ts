@@ -1,19 +1,28 @@
-import { describe, expect, it } from 'vitest';
-import { anticipateFailures } from './failure-anticipation';
+import { describe, expect, it, vi } from 'vitest';
 
-describe('failure anticipation', () => {
-  it('flags high-risk execution characteristics', () => {
-    const result = anticipateFailures({
-      steps: [{ id: 'publish', type: 'tool', timeoutMs: 120000, maxRetries: 4, sideEffect: true, requiresApproval: false }],
+vi.mock('@/lib/team/feature-access', () => ({ requireTeamFeatureAccess: vi.fn().mockResolvedValue(undefined) }));
+
+import { anticipateTeamFailures } from './failure-anticipation';
+
+describe('team failure anticipation', () => {
+  const base = { userId: 'user-1', teamId: 'team-1' };
+
+  it('flags high-risk execution characteristics', async () => {
+    const result = await anticipateTeamFailures({
+      ...base,
+      steps: [{ id: 'publish', type: 'tool', timeoutMs: 120000, maxRetries: 4, sideEffect: true, requiresApproval: false, toolName: 'ads.publish' }],
     });
-    expect(result.risks.length).toBeGreaterThan(0);
-    expect(result.risks.some((risk: { level: string }) => ['high', 'critical'].includes(risk.level))).toBe(true);
+    expect(result.predictions.length).toBe(1);
+    expect(result.predictions[0].severity).toBe('critical');
+    expect(result.blocked).toBe(true);
   });
 
-  it('does not report a healthy simple step as critical', () => {
-    const result = anticipateFailures({
-      steps: [{ id: 'read', type: 'llm', timeoutMs: 30000, maxRetries: 1, sideEffect: false, requiresApproval: false }],
+  it('does not mark a healthy simple step as critical', async () => {
+    const result = await anticipateTeamFailures({
+      ...base,
+      steps: [{ id: 'read', type: 'llm', timeoutMs: 30000, maxRetries: 1, sideEffect: false, requiresApproval: false, toolName: 'file.read' }],
     });
-    expect(result.risks.some((risk: { level: string }) => risk.level === 'critical')).toBe(false);
+    expect(result.predictions[0].severity).not.toBe('critical');
+    expect(result.blocked).toBe(false);
   });
 });
