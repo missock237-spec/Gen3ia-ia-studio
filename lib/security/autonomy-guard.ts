@@ -11,7 +11,11 @@ const CRITICAL_TOOLS = new Set(["ads.publish", "file.delete"]);
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, canonicalize(v)]));
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, item]) => [key, canonicalize(item)]),
+    );
   }
   return value;
 }
@@ -48,25 +52,25 @@ export async function assertAutonomousActionAllowed(params: {
   if (!requiresPersistedApproval(params.toolName)) {
     throw new Error(`Human approval is required for high-risk tool: ${params.toolName}`);
   }
-
   if (!params.approvalId) {
     throw new Error(`Human approval is required before executing ${params.toolName}.`);
   }
 
   const approval = await getActionApproval(params.userId, params.approvalId);
-  if (approval.status !== "executing") {
-    throw new Error("The persisted approval is not in an executable state.");
-  }
-  if (approval.toolSlug !== params.toolName && !(params.toolName === "composio.execute" && approval.toolSlug)) {
-    throw new Error("The persisted approval does not match the requested tool.");
+  if (approval.status !== "executing") throw new Error("The persisted approval is not in an executable state.");
+
+  if (params.toolName === "composio.execute") {
+    if (!approval.toolSlug || approval.toolSlug !== params.input.toolSlug) {
+      throw new Error("The persisted approval does not match the requested external tool.");
+    }
+    const approvedHash = hashArguments({ toolSlug: approval.toolSlug, arguments: approval.arguments });
+    const requestedHash = hashArguments({ toolSlug: params.input.toolSlug, arguments: params.input.arguments });
+    if (approvedHash !== requestedHash) throw new Error("The execution arguments do not match the approved action.");
+    return;
   }
 
-  const approvedHash = hashArguments(approval.arguments);
-  const requestedHash = params.toolName === "composio.execute"
-    ? hashArguments({ toolSlug: params.input.toolSlug, arguments: params.input.arguments })
-    : hashArguments(params.input);
-
-  if (approvedHash !== requestedHash && !(params.toolName === "composio.execute" && approvedHash === hashArguments(params.input.arguments ?? {}))) {
+  if (approval.toolSlug !== params.toolName) throw new Error("The persisted approval does not match the requested tool.");
+  if (hashArguments(approval.arguments) !== hashArguments(params.input)) {
     throw new Error("The execution arguments do not match the approved action.");
   }
 }
