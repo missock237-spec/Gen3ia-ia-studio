@@ -1,0 +1,208 @@
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { z } from "zod";
+import { adminDb } from "@/lib/firebase/admin";
+
+export const WALLET_CURRENCY = (process.env.GEN3IA_WALLET_CURRENCY ?? "EUR").toUpperCase();
+const WALLET_COLLECTION = "userWallets";
+const LEDGER_COLLECTION = "walletLedger";
+
+export const WalletTransactionTypeSchema = z.enum([
+  "topup",
+  "reservation",
+  "charge",
+  "refund",
+  "release",
+  "adjustment",
+]);
+export type WalletTransactionType = z.infer<typeof WalletTransactionTypeSchema>;
+
+export interface WalletSnapshot {
+  userId: string;
+  currency: string;
+  balanceMinor: number;
+  reservedMinor: number;
+  availableMinor: number;
+  updatedAt: number;
+}
+
+function walletRef(userId: string) {
+  if (!userId?.trim()) throw new Error("Wallet requires a userId.");
+  return adminDb.collection(WALLET_COLLECTION).doc(userId);
+}
+
+function assertMinorAmount(amountMinor: number) {
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+    throw new Error("Amount must be a positive integer in minor currency units.");
+  }
+}
+
+function toMillis(value: unknown): number {
+  if (value instanceof Timestamp) return value.toMillis();
+  if (value && typeof (value as { toMillis?: unknown }).toMillis === "function") {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  return Date.now();
+}
+
+export async function getWallet(userId: string): Promise<WalletSnapshot> {
+  const ref = walletRef(userId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    return { userId, currency: WALLET_CURRENCY, balanceMinor: 0, reservedMinor: 0, availableMinor: 0, updatedAt: Date.now() };
+  }
+  const data = snap.data() ?? {};
+  const balanceMinor = Number(data.balanceMinor ?? 0);
+  const reservedMinor = Number(data.reservedMinor ?? 0);
+  return {
+    userId,
+    currency: String(data.currency ?? WALLET_CURRENCY),
+    balanceMinor,
+    reservedMinor,
+    availableMinor: Math.max(0, balanceMinor - reservedMinor),
+    updatedAt: toMillis(data.updatedAt),
+  };
+}
+
+export async function applyTopup(params: {
+  userId: string;
+  amountMinor: number;
+  currency: string;
+  providerReference: string;
+  metadata?: Record<string, string>;
+}): Promise<WalletSnapshot> {
+  assertMinorAmount(params.amountMinor);
+  const currency = params.currency.toUpperCase();
+  if (currency !== WALLET_CURRENCY) throw new Error(`Wallet currency mismatch: expected ${WALLET_CURRENCY}, received ${currency}.`);
+  if (!params.providerReference.trim()) throw new Error("Provider reference is required.");
+
+  const wallet = walletRef(params.userId);
+  const ledger = adminDb.collection(LEDGER_COLLECTION).doc(`chariow_${params.providerReference}`);
+
+  await adminDb.runTransaction(async (tx) => {
+    const [walletSnap, ledgerSnap] = await Promise.all([tx.get(wallet), tx.get(ledger)]);
+    if (ledgerSnap.exists) return;
+    const current = walletSnap.exists ? Number(walletSnap.get("balanceMinor") ?? 0) : 0;
+    tx.set(wallet, {
+      userId: params.userId,
+      currency: WALLET_CURRENCY,
+      balanceMinor: current + params.amountMinor,
+      reservedMinor: walletSnap.exists ? Number(walletSnap.get("reservedMinor") ?? 0) : 0,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    tx.create(ledger, {
+      userId: params.userId,
+      type: "topup",
+      amountMinor: params.amountMinor,
+      currency,
+      provider: "chariow",
+      providerReference: params.providerReference,
+      metadata: params.metadata ?? {},
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  return getWallet(params.userId);
+}
+
+export async function reserveFunds(params: {
+  userId: string;
+  amountMinor: number;
+  reference: string;
+  metadata?: Record<string, string>;
+}): Promise<WalletSnapshot> {
+  assertMinorAmount(params.amountMinor);
+  if (!params.reference.trim()) throw new Error("Reservation reference is required.");
+  const wallet = walletRef(params.userId);
+  const ledger = adminDb.collection(LEDGER_COLLECTION).doc(`reservation_${params.reference}`);
+
+  await adminDb.runTransaction(async (tx) => {
+    const [walletSnap, ledgerSnap] = await Promise.all([tx.get(wallet), tx.get(ledger)]);
+    if (ledgerSnap.exists) return;
+    const balance = Number(walletSnap.exists ? walletSnap.get("balanceMinor") ?? 0 : 0);
+    const reserved = Number(walletSnap.exists ? walletSnap.get("reservedMinor") ?? 0 : 0);
+    if (balance - reserved < params.amountMinor) throw new Error("Insufficient wallet balance.");
+    tx.set(wallet, {
+      userId: params.userId,
+      currency: WALLET_CURRENCY,
+      balanceMinor: balance,
+      reservedMinor: reserved + params.amountMinor,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    tx.create(ledger, {
+      userId: params.userId,
+      type: "reservation",
+      amountMinor: params.amountMinor,
+      currency: WALLET_CURRENCY,
+      reference: params.reference,
+      metadata: params.metadata ?? {},
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return getWallet(params.userId);
+}
+
+export async function settleReservation(params: {
+  userId: string;
+  reference: string;
+  reservedMinor: number;
+  actualChargeMinor: number;
+  metadata?: Record<string, string>;
+}): Promise<WalletSnapshot> {
+  if (!Number.isSafeInteger(params.reservedMinor) || params.reservedMinor <= 0) throw new Error("Invalid reserved amount.");
+  if (!Number.isSafeInteger(params.actualChargeMinor) || params.actualChargeMinor < 0) throw new Error("Invalid actual charge.");
+  const wallet = walletRef(params.userId);
+  const settlement = adminDb.collection(LEDGER_COLLECTION).doc(`settlement_${params.reference}`);
+
+  await adminDb.runTransaction(async (tx) => {
+    const [walletSnap, settlementSnap] = await Promise.all([tx.get(wallet), tx.get(settlement)]);
+    if (settlementSnap.exists) return;
+    if (!walletSnap.exists) throw new Error("Wallet not found.");
+    const balance = Number(walletSnap.get("balanceMinor") ?? 0);
+    const reserved = Number(walletSnap.get("reservedMinor") ?? 0);
+    if (reserved < params.reservedMinor) throw new Error("Wallet reservation is inconsistent.");
+    if (balance < params.actualChargeMinor) throw new Error("Wallet balance cannot cover actual execution cost.");
+    tx.update(wallet, {
+      balanceMinor: balance - params.actualChargeMinor,
+      reservedMinor: reserved - params.reservedMinor,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    tx.create(settlement, {
+      userId: params.userId,
+      type: "charge",
+      amountMinor: params.actualChargeMinor,
+      reservedMinor: params.reservedMinor,
+      currency: WALLET_CURRENCY,
+      reference: params.reference,
+      metadata: params.metadata ?? {},
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return getWallet(params.userId);
+}
+
+export async function releaseReservation(params: {
+  userId: string;
+  reference: string;
+  reservedMinor: number;
+}): Promise<WalletSnapshot> {
+  if (!Number.isSafeInteger(params.reservedMinor) || params.reservedMinor <= 0) throw new Error("Invalid reserved amount.");
+  const wallet = walletRef(params.userId);
+  const release = adminDb.collection(LEDGER_COLLECTION).doc(`release_${params.reference}`);
+  await adminDb.runTransaction(async (tx) => {
+    const [walletSnap, releaseSnap] = await Promise.all([tx.get(wallet), tx.get(release)]);
+    if (releaseSnap.exists) return;
+    if (!walletSnap.exists) throw new Error("Wallet not found.");
+    const reserved = Number(walletSnap.get("reservedMinor") ?? 0);
+    if (reserved < params.reservedMinor) throw new Error("Wallet reservation is inconsistent.");
+    tx.update(wallet, { reservedMinor: reserved - params.reservedMinor, updatedAt: FieldValue.serverTimestamp() });
+    tx.create(release, {
+      userId: params.userId,
+      type: "release",
+      amountMinor: params.reservedMinor,
+      currency: WALLET_CURRENCY,
+      reference: params.reference,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return getWallet(params.userId);
+}
