@@ -1,35 +1,45 @@
 import { getComposio } from "./client";
 
-export type AdsComposioToolkit = "googleads" | "metaads" | "tiktok_ads";
+export type AdsProvider = "google_ads" | "meta_ads" | "tiktok_ads";
 
-export const ADS_COMPOSIO_TOOLKITS: Record<string, AdsComposioToolkit> = {
+export const ADS_COMPOSIO_TOOLKITS: Record<AdsProvider, string> = {
   google_ads: "googleads",
   meta_ads: "metaads",
   tiktok_ads: "tiktok_ads",
 };
 
-export function getAdsToolkit(provider: string): AdsComposioToolkit {
-  const toolkit = ADS_COMPOSIO_TOOLKITS[provider];
+export function getAdsToolkit(provider: string): string {
+  const toolkit = ADS_COMPOSIO_TOOLKITS[provider as AdsProvider];
   if (!toolkit) throw new Error(`Unsupported Ads provider: ${provider}`);
   return toolkit;
+}
+
+function assertAdsToolSlug(provider: AdsProvider, toolSlug: string) {
+  if (!/^[A-Z0-9_:-]{3,200}$/i.test(toolSlug)) {
+    throw new Error("Invalid Ads Composio tool slug.");
+  }
+  const expectedPrefixes: Record<AdsProvider, RegExp> = {
+    google_ads: /^GOOGLEADS_/i,
+    meta_ads: /^METAADS_/i,
+    tiktok_ads: /^TIKTOK_ADS_/i,
+  };
+  if (!expectedPrefixes[provider].test(toolSlug)) {
+    throw new Error(`Tool ${toolSlug} does not belong to ${provider}.`);
+  }
 }
 
 export async function authorizeAdsProvider(userId: string, provider: string) {
   if (!userId) throw new Error("userId is required.");
   const toolkit = getAdsToolkit(provider);
-  const composio = getComposio();
-  return composio.toolkits.authorize(userId, toolkit);
+  return getComposio().toolkits.authorize(userId, toolkit);
 }
 
 export async function listAdsConnections(userId: string) {
   if (!userId) throw new Error("userId is required.");
-  const composio = getComposio();
-  const result = await composio.connectedAccounts.list({ userIds: [userId] });
+  const result = await getComposio().connectedAccounts.list({ userIds: [userId] });
   return result.items
     .filter((account) =>
-      (Object.values(ADS_COMPOSIO_TOOLKITS) as string[]).includes(
-        account.toolkit?.slug ?? "",
-      ),
+      (Object.values(ADS_COMPOSIO_TOOLKITS) as string[]).includes(account.toolkit?.slug ?? ""),
     )
     .map((account) => ({
       id: account.id,
@@ -44,7 +54,39 @@ export async function listAdsConnections(userId: string) {
 
 export async function getAdsTools(userId: string, provider: string) {
   if (!userId) throw new Error("userId is required.");
-  const toolkit = getAdsToolkit(provider);
+  return getComposio().tools.get(userId, { toolkits: [getAdsToolkit(provider)] });
+}
+
+export async function executeAdsTool(params: {
+  userId: string;
+  provider: AdsProvider;
+  toolSlug: string;
+  arguments: Record<string, unknown>;
+  signal?: AbortSignal;
+}) {
+  if (!params.userId) throw new Error("userId is required.");
+  assertAdsToolSlug(params.provider, params.toolSlug);
+
   const composio = getComposio();
-  return composio.tools.get(userId, { toolkits: [toolkit] });
+  const tools = await composio.tools.get(params.userId, {
+    toolkits: [getAdsToolkit(params.provider)],
+    search: params.toolSlug,
+    limit: 20,
+  });
+  const matchingTool = Array.isArray(tools)
+    ? tools.find((tool) => (tool as { slug?: string }).slug === params.toolSlug)
+    : undefined;
+  if (!matchingTool) throw new Error("The requested Ads tool is not available for this connected account.");
+
+  return composio.tools.execute(
+    params.toolSlug,
+    {
+      userId: params.userId,
+      arguments: params.arguments,
+    },
+    {
+      dangerouslySkipVersionCheck: true,
+      signal: params.signal,
+    },
+  );
 }
