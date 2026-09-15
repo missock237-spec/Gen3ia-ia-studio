@@ -1,18 +1,9 @@
 import yauzl from "yauzl";
 import type { ArtifactFileEntry, ZipAnalysisResult } from "../types";
-import { sanitizeArchivePath } from "./path-security";
+import { validateArchiveEntryCount, validateArchiveEntrySize, validateArchivePath } from "@/lib/security/archive-security";
 
-const MAX_FILES = 10_000;
-const MAX_TOTAL_UNCOMPRESSED = 500 * 1024 * 1024;
-const MAX_SINGLE_FILE = 100 * 1024 * 1024;
 const MAX_TEXT_EXTRACTION = 10 * 1024 * 1024;
-const MAX_COMPRESSION_RATIO = 200;
-
-const TEXT_EXTENSIONS = new Set([
-  ".txt", ".md", ".markdown", ".json", ".csv", ".ts", ".tsx", ".js", ".jsx",
-  ".mjs", ".cjs", ".py", ".java", ".go", ".rs", ".cpp", ".c", ".h", ".css",
-  ".scss", ".html", ".xml", ".yaml", ".yml", ".env.example",
-]);
+const TEXT_EXTENSIONS = new Set([".txt", ".md", ".markdown", ".json", ".csv", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py", ".java", ".go", ".rs", ".cpp", ".c", ".h", ".css", ".scss", ".html", ".xml", ".yaml", ".yml", ".env.example"]);
 
 function isTextFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -25,13 +16,10 @@ function isSymlink(entry: yauzl.Entry): boolean {
 }
 
 export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
+  if (data.length > 100 * 1024 * 1024) throw new Error("ZIP input exceeds 100 MiB.");
   return new Promise((resolve, reject) => {
     yauzl.fromBuffer(data, { lazyEntries: true, decodeStrings: true }, (error, zipFile) => {
-      if (error || !zipFile) {
-        reject(error ?? new Error("Unable to open ZIP archive."));
-        return;
-      }
-
+      if (error || !zipFile) return reject(error ?? new Error("Unable to open ZIP archive."));
       const files: ArtifactFileEntry[] = [];
       const textFiles: Array<{ path: string; content: string }> = [];
       const warnings: string[] = [];
@@ -40,7 +28,6 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
       let totalUncompressed = 0;
       let fileCount = 0;
       let finished = false;
-
       const finishUnsafe = (message: string) => {
         if (finished) return;
         finished = true;
@@ -48,84 +35,41 @@ export async function analyzeZip(data: Buffer): Promise<ZipAnalysisResult> {
         try { zipFile.close(); } catch {}
         resolve({ safe: false, fileCount, totalUncompressedBytes: totalUncompressed, files, textFiles, warnings, errors });
       };
-
-      zipFile.on("error", (zipError) => {
-        if (!finished) reject(zipError);
-      });
-
+      zipFile.on("error", (zipError) => { if (!finished) reject(zipError); });
       zipFile.on("end", () => {
         if (finished) return;
         finished = true;
         resolve({ safe: errors.length === 0, fileCount, totalUncompressedBytes: totalUncompressed, files, textFiles, warnings, errors });
       });
-
       zipFile.on("entry", (entry) => {
         if (finished) return;
         const filename = entry.fileName;
         let safePath: string;
-        try {
-          safePath = sanitizeArchivePath(filename);
-        } catch {
-          return finishUnsafe(`Unsafe ZIP path: ${filename}`);
-        }
-
+        try { safePath = validateArchivePath(filename); } catch { return finishUnsafe(`Unsafe ZIP path: ${filename}`); }
         if (isSymlink(entry)) return finishUnsafe(`Symlink entry is not allowed: ${filename}`);
         if (seenPaths.has(safePath)) return finishUnsafe(`Duplicate ZIP path: ${safePath}`);
         seenPaths.add(safePath);
-
         fileCount += 1;
-        if (fileCount > MAX_FILES) return finishUnsafe(`ZIP contains more than ${MAX_FILES} entries.`);
-
+        try { validateArchiveEntryCount(fileCount); } catch { return finishUnsafe(`ZIP contains too many entries.`); }
         const isDirectory = filename.endsWith("/");
         const size = entry.uncompressedSize;
         const compressedSize = entry.compressedSize;
-
-        if (size > MAX_SINGLE_FILE) return finishUnsafe(`File exceeds maximum size: ${filename}`);
-        if (compressedSize === 0 && size > 0) return finishUnsafe(`Invalid compression metadata: ${filename}`);
-        if (compressedSize > 0 && size / compressedSize > MAX_COMPRESSION_RATIO) {
-          return finishUnsafe(`Compression ratio too high: ${filename}`);
-        }
-
+        try { validateArchiveEntrySize(size, compressedSize, totalUncompressed + size); } catch (entryError) { return finishUnsafe(entryError instanceof Error ? entryError.message : "Unsafe ZIP entry."); }
         totalUncompressed += size;
-        if (totalUncompressed > MAX_TOTAL_UNCOMPRESSED) {
-          return finishUnsafe("ZIP exceeds maximum uncompressed size.");
-        }
-
-        files.push({
-          path: safePath,
-          type: isDirectory ? "directory" : isTextFile(filename) ? "text" : "binary",
-          sizeBytes: size,
-          compressedSizeBytes: compressedSize,
-          isDirectory,
-        });
-
+        files.push({ path: safePath, type: isDirectory ? "directory" : isTextFile(filename) ? "text" : "binary", sizeBytes: size, compressedSizeBytes: compressedSize, isDirectory });
         if (!isDirectory && isTextFile(filename) && size <= MAX_TEXT_EXTRACTION) {
           zipFile.openReadStream(entry, (streamError, stream) => {
             if (finished) return;
-            if (streamError || !stream) {
-              warnings.push(`Could not read ${filename}`);
-              zipFile.readEntry();
-              return;
-            }
+            if (streamError || !stream) { warnings.push(`Could not read ${filename}`); zipFile.readEntry(); return; }
             const chunks: Buffer[] = [];
             stream.on("data", (chunk: Buffer) => chunks.push(chunk));
-            stream.on("end", () => {
-              if (finished) return;
-              textFiles.push({ path: safePath, content: Buffer.concat(chunks).toString("utf8") });
-              zipFile.readEntry();
-            });
-            stream.on("error", () => {
-              if (finished) return;
-              warnings.push(`Could not extract ${filename}`);
-              zipFile.readEntry();
-            });
+            stream.on("end", () => { if (!finished) { textFiles.push({ path: safePath, content: Buffer.concat(chunks).toString("utf8") }); zipFile.readEntry(); } });
+            stream.on("error", () => { if (!finished) { warnings.push(`Could not extract ${filename}`); zipFile.readEntry(); } });
           });
           return;
         }
-
         zipFile.readEntry();
       });
-
       zipFile.readEntry();
     });
   });
