@@ -26,6 +26,7 @@
     "@huggingface/inference": "^4.0.0",
     "@langchain/core": "^0.3.0",
     "@langchain/langgraph": "^0.4.0",
+    "@tailwindcss/postcss": "^4.3.3",
     "archiver": "^7.0.1",
     "date-fns": "^4.1.0",
     "docx": "^9.0.0",
@@ -42,7 +43,9 @@
     "pptxgenjs": "^3.12.0",
     "sanitize-html": "^2.17.0",
     "server-only": "^0.0.1",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.20.3",
+    "typescript": "^5.9.0",
     "uuid": "^11.0.0",
     "ws": "^8.18.3",
     "yauzl": "^3.2.0",
@@ -50,7 +53,6 @@
     "zod-to-json-schema": "^3.24.0"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.3",
     "@types/archiver": "^6.0.3",
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
@@ -60,8 +62,6 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.0.0",
     "prettier": "^3.6.0",
-    "tailwindcss": "^4.3.3",
-    "typescript": "^5.9.0",
     "vitest": "^3.2.0"
   }
 }
