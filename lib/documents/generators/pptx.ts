@@ -114,7 +114,16 @@ export async function generatePptx(
         ];
 
         if (rows.length > 0) {
-          slide.addTable(rows, {
+          const tableRows = rows.map(
+            (row) =>
+              row.map(
+                (cell) => ({
+                  text: cell,
+                }),
+              ),
+          );
+
+          slide.addTable(tableRows, {
             x: 0.7,
             y,
             w: 12,

@@ -25,7 +25,7 @@ export class AgentExecutor {
       );
     }
 
-    const nextState = {
+    const nextState: AgentExecutionState = {
       ...state,
       status: "executing" as const
     };

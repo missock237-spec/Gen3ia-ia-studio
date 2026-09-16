@@ -19,7 +19,7 @@ export async function appendSecurityAuditEvent(params: {
   userId: string;
   executionId: string;
   toolName: string;
-  event: "authorized" | "started" | "completed" | "failed" | "blocked" | "stopped" | "billing_failed";
+  event: "authorized" | "started" | "completed" | "failed" | "blocked" | "stopped" | "billing_failed" | "ads_spend_reserved" | "ads_spend_committed";
   risk?: string;
   approvalId?: string;
   input?: Record<string, unknown>;

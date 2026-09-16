@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
   requireUser,
@@ -9,15 +9,14 @@ import {
 } from "@/lib/documents/repository";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
 ) {
   try {
     const user =
       await requireUser(request);
 
     const projectId =
-      new URL(request.url)
-        .searchParams
+      request.nextUrl.searchParams
         .get("projectId") ??
       undefined;
 

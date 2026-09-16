@@ -50,8 +50,9 @@ export async function downloadFromR2(key: string, maxBytes = 100 * 1024 * 1024):
   const { bucket } = getConfig();
   const response = await getClient().send(new GetObjectCommand({ Bucket: bucket, Key: key }));
   if (!response.Body) throw new Error("R2 object has no body");
+  const destroyBody = () => (response.Body as unknown as { destroy?: () => void }).destroy?.();
   if (typeof response.ContentLength === "number" && response.ContentLength > maxBytes) {
-    response.Body.destroy?.();
+    destroyBody();
     throw new Error("R2 object exceeds configured read limit");
   }
 
@@ -62,7 +63,7 @@ export async function downloadFromR2(key: string, maxBytes = 100 * 1024 * 1024):
     const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     total += bytes.byteLength;
     if (total > maxBytes) {
-      response.Body.destroy?.();
+      destroyBody();
       throw new Error("R2 object exceeds configured read limit");
     }
     chunks.push(bytes);

@@ -1,7 +1,7 @@
 // app/team/join/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
@@ -10,6 +10,14 @@ import { useTeam } from '@/lib/team/useTeam';
 import type { TeamInvitation } from '@/lib/team/types';
 
 export default function JoinTeamPage() {
+  return (
+    <Suspense fallback={<div className="p-8">Chargement...</div>}>
+      <JoinTeamContent />
+    </Suspense>
+  );
+}
+
+function JoinTeamContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const { user, loading: authLoading } = useAuth();

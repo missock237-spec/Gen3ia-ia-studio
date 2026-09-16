@@ -20,6 +20,10 @@ import {
 } from "@/lib/security/agent-policy";
 
 import {
+  executeTool,
+} from "@/lib/tools";
+
+import {
   randomUUID,
 } from "crypto";
 
@@ -93,6 +97,11 @@ export async function POST(
       );
     }
 
+    const resolvedExecutionId =
+      typeof executionId === "string" && executionId
+        ? executionId
+        : randomUUID();
+
     const policy =
       createAgentPolicy(
         "standard",
@@ -102,33 +111,47 @@ export async function POST(
       await executeThroughGateway({
         userId,
 
-        executionId:
-          executionId ??
-          randomUUID(),
+        executionId: resolvedExecutionId,
 
-        type: "tool",
-
-        name:
-          toolName,
+        toolName,
 
         input:
           input ?? {},
 
         policy,
 
+        execute: async () => {
+          const toolResult =
+            await executeTool({
+              userId,
+
+              executionId: resolvedExecutionId,
+
+              toolName,
+
+              input:
+                input ?? {},
+
+              policy,
+            });
+
+          if (!toolResult.success) {
+            throw new Error(
+              toolResult.error ??
+                `Tool ${toolName} failed.`,
+            );
+          }
+
+          return toolResult.output;
+        },
       });
 
-    if (!result.success) {
-      return NextResponse.json(
-        result,
-        {
-          status: 403,
-        },
-      );
-    }
-
     return NextResponse.json(
-      result,
+      {
+        success: true,
+
+        result,
+      },
       {
         status: 200,
       },
@@ -144,7 +167,13 @@ export async function POST(
             : "Internal error",
       },
       {
-        status: 500,
+        status:
+          error instanceof Error &&
+          /permission|policy|denied|not allowed|disabled/i.test(
+            error.message,
+          )
+            ? 403
+            : 500,
       },
     );
   }

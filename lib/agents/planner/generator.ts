@@ -1,6 +1,7 @@
 import { generate } from "@/lib/ai/router";
 import {
   DynamicPlan,
+  DynamicPlanSchema,
 } from "./schema";
 
 export interface PlanGenerationInput {
@@ -69,7 +70,7 @@ Return ONLY valid JSON.
 `;
 
   const response = await generate({
-    taskType: "reasoning",
+    task: "reasoning",
 
     messages: [
       {
@@ -88,7 +89,7 @@ Return ONLY valid JSON.
 
   try {
     parsed = JSON.parse(
-      response.content,
+      response.text,
     );
   } catch {
     throw new Error(

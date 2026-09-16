@@ -23,3 +23,29 @@ export const MIME_TYPES = {
   html: "text/html",
   zip: "application/zip",
 } as const;
+
+export type ArtifactFormatKey = keyof typeof EXTENSIONS;
+
+const FORMAT_BY_EXTENSION = new Map<string, ArtifactFormatKey>(
+  Object.entries(EXTENSIONS).map(([format, extension]) => [extension, format as ArtifactFormatKey]),
+);
+
+/**
+ * Resolves the supported artifact format from a filename extension.
+ * Returns null for unknown or unsupported extensions.
+ */
+export function formatFromFilename(
+  filename: string,
+): ArtifactFormatKey | null {
+  const extension =
+    filename
+      .split(".")
+      .pop()
+      ?.toLowerCase() ?? "";
+
+  return FORMAT_BY_EXTENSION.get(extension) ?? null;
+}
+
+export function getMimeType(format: ArtifactFormatKey): string {
+  return MIME_TYPES[format];
+}

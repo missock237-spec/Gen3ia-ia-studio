@@ -80,7 +80,10 @@ export function validateGeneratedPlan(
   const runtimePlan = {
     executionId: "validation",
     objective: plan.objective,
-    steps: plan.steps,
+    steps: plan.steps.map((step) => ({
+      ...step,
+      status: "pending" as const,
+    })),
     maxConcurrency:
       plan.maxConcurrency,
     maxIterations:

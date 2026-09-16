@@ -16,7 +16,7 @@ const CONTENT_SECURITY_POLICY = [
   "worker-src 'self' blob:",
 ].join('; ');
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   response.headers.set("X-Content-Type-Options", "nosniff");

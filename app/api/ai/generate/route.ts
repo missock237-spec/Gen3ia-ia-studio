@@ -19,21 +19,6 @@ import {
   recordAIUsage,
 } from "@/lib/ai/usage"; 
 
-const response =
-  await generate({
-    ...input,
-
-    metadata: {
-      userId: user.uid,
-    },
-  });
-
-await recordAIUsage({
-  userId: user.uid,
-  task: input.task,
-  response,
-});
-
 const RequestSchema =
   z.object({
     task: z.enum([
@@ -110,6 +95,12 @@ export async function POST(
           userId: user.uid,
         },
       });
+
+    await recordAIUsage({
+      userId: user.uid,
+      task: input.task,
+      response,
+    }).catch(() => undefined);
 
     return NextResponse.json({
       response,

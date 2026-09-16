@@ -81,9 +81,9 @@ export async function executeAdsTool(params: {
       userId: params.userId,
       connectedAccountId: params.connectedAccountId,
       arguments: params.arguments,
+      dangerouslySkipVersionCheck: true,
     },
     {
-      dangerouslySkipVersionCheck: true,
       signal: params.signal,
     },
   );

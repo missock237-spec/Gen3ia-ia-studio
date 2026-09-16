@@ -127,7 +127,7 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           else if (initiallyPaused) send(socket, { type: "pause", reason: "Live session is paused" });
           return;
         }
-        if (!state || message.sessionId !== state.sessionId || message.deviceId !== state.deviceId) throw new Error("Unauthenticated live connection");
+        if (!state || message.sessionId !== state.sessionId || ("deviceId" in message && message.deviceId !== state.deviceId)) throw new Error("Unauthenticated live connection");
         if (!(await synchronizeConnection(state))) return;
         if (state.pausedByServer && message.type === "frame") return;
         if (message.type === "heartbeat") {

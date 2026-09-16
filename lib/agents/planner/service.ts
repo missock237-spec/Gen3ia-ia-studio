@@ -79,7 +79,14 @@ export async function createAgentPlan(
 
     objective,
 
-    steps: generated.steps,
+    steps: generated.steps.map(
+      (step) => ({
+        ...step,
+
+        status:
+          "pending" as const,
+      }),
+    ),
 
     maxConcurrency:
       generated.maxConcurrency,

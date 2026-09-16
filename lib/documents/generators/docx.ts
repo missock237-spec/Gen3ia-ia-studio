@@ -11,7 +11,9 @@ import {
 
 import type { DocumentPlan } from "../types";
 
-function getHeadingLevel(level: number): HeadingLevel {
+type DocxHeadingLevel = (typeof HeadingLevel)[keyof typeof HeadingLevel];
+
+function getHeadingLevel(level: number): DocxHeadingLevel {
   const levels = [
     HeadingLevel.HEADING_1,
     HeadingLevel.HEADING_2,

@@ -21,6 +21,14 @@ export async function analyzeStoredZip(
     );
 
   if (
+    !artifact
+  ) {
+    throw new Error(
+      "Artifact not found.",
+    );
+  }
+
+  if (
     artifact.format !== "zip" &&
     artifact.mimeType !==
       "application/zip"

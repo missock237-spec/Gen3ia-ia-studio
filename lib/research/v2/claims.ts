@@ -50,7 +50,7 @@ export async function extractClaims(
 
   const response =
     await generate({
-      taskType: "research",
+      task: "research",
 
       messages: [
         {
@@ -74,7 +74,7 @@ export async function extractClaims(
   try {
     parsed =
       JSON.parse(
-        response.content,
+        response.text,
       );
   } catch {
     throw new Error(

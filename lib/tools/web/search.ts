@@ -235,3 +235,20 @@ export const webSearchTool:
     execute:
       executeSearch,
   };
+
+/**
+ * Standalone search helper for server modules (research engine, planners)
+ * that need raw results without going through the tool registry.
+ */
+export async function searchWeb(
+  query: string,
+  maxResults = 10,
+): Promise<SearchResult[]> {
+  const parsed =
+    SearchInput.parse({ query, maxResults });
+
+  const response =
+    await executeSearch(parsed);
+
+  return response.results;
+}

@@ -1,6 +1,6 @@
 import {
   generateResearchQueries,
-} from "./query-planner";
+} from "./quercy-planner";
 
 import {
   normalizeSearchResult,

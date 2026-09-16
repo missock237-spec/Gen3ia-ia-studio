@@ -75,7 +75,8 @@ export async function getAvailableSkills(userId: string) {
 
   return skills.filter(
     (skill) =>
-      skill.visibility === "public" ||
-      skill.ownerId === userId,
+      skill.visibility === "system" ||
+      skill.visibility === "marketplace" ||
+      skill.authorId === userId,
   );
 }

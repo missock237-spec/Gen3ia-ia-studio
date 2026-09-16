@@ -37,9 +37,13 @@ export interface ExecutionEvent {
 
 export class ExecutionTracer {
   private readonly events: ExecutionEvent[] = [];
-  private readonly log = executionLogger({ executionId: this.executionId });
+  private readonly log: ReturnType<typeof executionLogger>;
 
-  constructor(private readonly executionId: string) {}
+  constructor(
+    private readonly executionId: string,
+  ) {
+    this.log = executionLogger({ executionId: this.executionId });
+  }
 
   emit(
     event: Omit<ExecutionEvent, "id" | "executionId" | "timestamp">,

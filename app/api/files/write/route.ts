@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import {
@@ -24,7 +24,7 @@ const RequestSchema = z.object({
 export const runtime = "nodejs";
 
 export async function POST(
-  request: Request
+  request: NextRequest
 ) {
   const guard =
     await protectRoute(request);

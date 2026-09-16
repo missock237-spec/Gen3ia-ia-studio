@@ -5,6 +5,7 @@ import {
 
 import type {
   AIProvider,
+  AIMessage,
   AIRequest,
   AIResponse,
   TaskType,
@@ -144,6 +145,20 @@ export function selectProvider(
     (a, b) =>
       b.score - a.score,
   );
+}
+
+/**
+ * Picks the best available model for a request.
+ * Returns the highest-scored routing decision, or null when no
+ * configured provider can serve the task.
+ */
+export function selectModel(
+  request: Omit<AIRequest, "messages"> & { messages?: AIMessage[] },
+): RoutingDecision | null {
+  const decisions =
+    selectProvider({ ...request, messages: request.messages ?? [] });
+
+  return decisions[0] ?? null;
 }
 
 export async function generate(

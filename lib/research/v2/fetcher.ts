@@ -13,10 +13,10 @@ export async function fetchSources(
   const selected =
     sources.slice(0, limit);
 
-  const results =
+  const results: PromiseSettledResult<ResearchSource>[] =
     await Promise.allSettled(
       selected.map(
-        async (source) => {
+        async (source): Promise<ResearchSource> => {
           const content =
             await openWebPage(
               source.url,

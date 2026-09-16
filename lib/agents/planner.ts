@@ -3,6 +3,10 @@ import type {
   AgentTask
 } from "./types";
 
+import type {
+  TaskType,
+} from "@/lib/ai/models";
+
 import { TaskAnalyzer } from "./task-analyzer";
 
 import {
@@ -21,7 +25,7 @@ export class AgentPlanner {
         task.objective
       );
 
-    const steps = [];
+    const steps: AgentPlan["steps"] = [];
 
     let order = 1;
 
@@ -52,7 +56,7 @@ export class AgentPlanner {
       objective:
         "Analyze the available information and determine the best solution.",
       taskType:
-        analysis.taskType,
+        analysis.taskType as TaskType,
       requiredSkills: [
         "task-analysis"
       ],
@@ -163,7 +167,7 @@ export class AgentPlanner {
     const model =
       selectModel({
         task:
-          analysis.taskType,
+          analysis.taskType as TaskType,
         requiresTools:
           analysis.requiresTools,
         requiresStructuredOutput:
@@ -175,7 +179,9 @@ export class AgentPlanner {
       objective: task.objective,
       steps,
       reasoningSummary:
-        `Plan generated using ${model.provider}/${model.model}.`,
+        model
+          ? `Plan generated using ${model.provider}/${model.model}.`
+          : "Plan generated with the default model configuration.",
       createdAt:
         new Date().toISOString()
     };

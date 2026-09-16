@@ -87,7 +87,7 @@ Required format:
 
   const response =
     await generate({
-      taskType: "reasoning",
+      task: "reasoning",
 
       messages: [
         {
@@ -106,7 +106,7 @@ Required format:
 
   try {
     parsed = JSON.parse(
-      response.content,
+      response.text,
     );
   } catch {
     throw new Error(

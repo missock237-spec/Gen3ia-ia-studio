@@ -128,3 +128,23 @@ export const webOpenTool:
       };
     },
   };
+
+/**
+ * Standalone page-fetch helper for server modules (research fetcher).
+ * Returns the extracted plain text of a public web page.
+ */
+export async function openWebPage(
+  url: string,
+  maxCharacters = 20000,
+): Promise<string> {
+  const parsed =
+    OpenInput.parse({ url, maxCharacters });
+
+  const result =
+    await webOpenTool.execute(
+      parsed,
+      { userId: "system" },
+    );
+
+  return result.text;
+}

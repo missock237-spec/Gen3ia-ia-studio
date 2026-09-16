@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
   requireUser,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/documents/repository";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   context: {
     params: Promise<{
       artifactId: string;

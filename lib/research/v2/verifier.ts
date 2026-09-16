@@ -48,7 +48,7 @@ export async function verifyClaims(
 
         const response =
           await generate({
-            taskType:
+            task:
               "reasoning",
 
             messages: [
@@ -74,7 +74,7 @@ export async function verifyClaims(
         try {
           const result =
             JSON.parse(
-              response.content,
+              response.text,
             );
 
           return {

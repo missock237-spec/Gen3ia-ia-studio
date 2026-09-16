@@ -10,18 +10,37 @@ import {
   SkillEvaluation,
 } from "./schema";
 
-const skillsCollection = adminDb.collection("skills");
+// Collection references are created lazily so that importing this module
+// never triggers Firebase Admin initialization (build-time safety).
+let skillsCollection: FirebaseFirestore.CollectionReference | undefined;
+let versionsCollection: FirebaseFirestore.CollectionReference | undefined;
+let evaluationsCollection: FirebaseFirestore.CollectionReference | undefined;
 
-const versionsCollection =
-  adminDb.collection("skillVersions");
+function getSkillsCollection() {
+  if (!skillsCollection) {
+    skillsCollection = adminDb.collection("skills");
+  }
+  return skillsCollection;
+}
 
-const evaluationsCollection =
-  adminDb.collection("skillEvaluations");
+function getVersionsCollection() {
+  if (!versionsCollection) {
+    versionsCollection = adminDb.collection("skillVersions");
+  }
+  return versionsCollection;
+}
+
+function getEvaluationsCollection() {
+  if (!evaluationsCollection) {
+    evaluationsCollection = adminDb.collection("skillEvaluations");
+  }
+  return evaluationsCollection;
+}
 
 export async function getSkill(
   skillId: string,
 ): Promise<SkillDefinitionInput | null> {
-  const snapshot = await skillsCollection
+  const snapshot = await getSkillsCollection()
     .doc(skillId)
     .get();
 
@@ -41,7 +60,7 @@ export async function listSkills(params?: {
   status?: string;
 }) {
   let query:
-    FirebaseFirestore.Query = skillsCollection;
+    FirebaseFirestore.Query = getSkillsCollection();
 
   if (params?.visibility) {
     query = query.where(
@@ -83,7 +102,7 @@ export async function createSkill(
   const validated =
     SkillDefinitionSchema.parse(skill);
 
-  const ref = skillsCollection.doc(validated.id);
+  const ref = getSkillsCollection().doc(validated.id);
 
   await ref.create({
     ...validated,
@@ -93,7 +112,7 @@ export async function createSkill(
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  await versionsCollection
+  await getVersionsCollection()
     .doc(`${validated.id}:v${validated.version}`)
     .set({
       skillId: validated.id,
@@ -112,14 +131,14 @@ export async function updateSkill(
   const validated =
     SkillDefinitionSchema.parse(skill);
 
-  const ref = skillsCollection.doc(skillId);
+  const ref = getSkillsCollection().doc(skillId);
 
   await ref.update({
     ...validated,
     updatedAt: FieldValue.serverTimestamp(),
   });
 
-  await versionsCollection
+  await getVersionsCollection()
     .doc(`${skillId}:v${validated.version}`)
     .set({
       skillId,
@@ -135,7 +154,7 @@ export async function saveSkillEvaluation(
   evaluation: SkillEvaluation,
 ) {
   const ref =
-    evaluationsCollection.doc();
+    getEvaluationsCollection().doc();
 
   await ref.set({
     ...evaluation,

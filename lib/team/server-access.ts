@@ -1,5 +1,5 @@
 import 'server-only';
-import { getAdminDb } from '@/lib/firebase/admin';
+import { adminDb } from '@/lib/firebase/admin';
 
 export type TeamAccess = { teamId: string; userId: string; role: string };
 
@@ -7,7 +7,7 @@ export async function requireTeamMembership(userId: string, teamId: string): Pro
   if (!userId?.trim() || !teamId?.trim() || teamId.length > 200 || /[/.#\[\]]/.test(teamId)) {
     throw new Error('Accès équipe invalide');
   }
-  const db = getAdminDb();
+  const db = adminDb;
   const snap = await db.collection('teams').doc(teamId).get();
   if (!snap.exists || snap.data()?.isArchived === true) throw new Error('Équipe introuvable');
   const member = await db.collection('teams').doc(teamId).collection('members').doc(userId).get();

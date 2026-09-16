@@ -98,6 +98,24 @@ export type ArtifactValidation = z.infer<
   typeof ArtifactValidationSchema
 >;
 
+export interface DocumentRequest {
+  title: string;
+
+  content: string;
+
+  format: "docx" | "pdf" | "txt" | "md";
+}
+
+export interface GeneratedDocument {
+  filename: string;
+
+  mimeType: string;
+
+  buffer: Buffer;
+
+  size: number;
+}
+
 export interface GeneratedArtifact {
   artifactId: string;
 

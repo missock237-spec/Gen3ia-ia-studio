@@ -1,9 +1,20 @@
 import { DecodedIdToken } from "firebase-admin/auth";
 import { getAuth } from "firebase-admin/auth";
 
-import "./admin";
+import { getAdminApp } from "./admin";
 
-const adminAuth = getAuth();
+/**
+ * Lazily resolved Admin Auth instance: `getAuth()` is only called on first
+ * use so importing this module never initializes Firebase Admin.
+ */
+let cachedAuth: ReturnType<typeof getAuth> | undefined;
+
+function getAdminAuth() {
+  if (!cachedAuth) {
+    cachedAuth = getAuth(getAdminApp());
+  }
+  return cachedAuth;
+}
 
 export async function verifyFirebaseToken(
   authorizationHeader: string | null
@@ -23,7 +34,7 @@ export async function verifyFirebaseToken(
   }
 
   try {
-    return await adminAuth.verifyIdToken(token, true);
+    return await getAdminAuth().verifyIdToken(token, true);
   } catch {
     throw new Error("Invalid or revoked Firebase ID token.");
   }

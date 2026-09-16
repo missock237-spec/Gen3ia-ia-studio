@@ -21,7 +21,7 @@ export async function synthesizeResearch(
 
   const response =
     await generate({
-      taskType: "research",
+      task: "research",
 
       messages: [
         {
@@ -69,5 +69,5 @@ Rules:
       ],
     });
 
-  return response.content;
+  return response.text;
 }

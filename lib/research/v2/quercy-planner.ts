@@ -19,7 +19,7 @@ export async function generateResearchQueries(
 ): Promise<string[]> {
   const response =
     await generate({
-      taskType: "research",
+      task: "research",
 
       messages: [
         {
@@ -59,7 +59,7 @@ Only generate the queries.
   try {
     parsed =
       JSON.parse(
-        response.content,
+        response.text,
       );
   } catch {
     throw new Error(

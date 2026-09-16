@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import {
   protectRoute,
@@ -15,7 +15,7 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(
-  request: Request
+  request: NextRequest
 ) {
   const guard =
     await protectRoute(request);

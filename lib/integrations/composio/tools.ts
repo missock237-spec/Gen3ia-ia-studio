@@ -20,9 +20,9 @@ export async function getComposioTools(
 
   return composio.tools.get(
     userId,
-    {
-      toolkits,
-    },
+    toolkits && toolkits.length > 0
+      ? { toolkits }
+      : { toolkits: [] },
   );
 }
 
@@ -72,11 +72,11 @@ export async function executeComposioTool(
 
       arguments:
         params.arguments,
-    },
-    {
+
       dangerouslySkipVersionCheck:
         true,
-
+    },
+    {
       signal:
         params.signal,
     },

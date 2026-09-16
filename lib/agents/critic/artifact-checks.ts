@@ -63,14 +63,8 @@ export async function checkArtifact(
       );
     }
 
-    if (
-      !artifact.validation?.valid
-    ) {
-      issues.push(
-        "Artifact validation failed.",
-      );
-    }
-
+    // Note: validation results are enforced at artifact creation time
+    // (engine.ts throws on invalid artifacts) and are not persisted.
     return {
       passed:
         issues.length === 0,

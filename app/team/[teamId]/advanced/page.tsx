@@ -46,6 +46,6 @@ export default function TeamAdvancedPage() {
     <section className="space-y-4 rounded-xl border p-6"><h2 className="text-xl font-semibold">Réduction de la charge cognitive</h2><p className="text-sm text-gray-500">Déduplication, priorisation et compression du contexte avant transmission aux agents.</p><button disabled={busy} onClick={() => void call('memory', { objective: safeObjective, memories: [], recentMessages: [], decisions: [], constraints: [] })} className="rounded-lg border px-4 py-2 disabled:opacity-50">Optimiser le contexte</button></section>
     <section className="space-y-4 rounded-xl border p-6"><h2 className="text-xl font-semibold">Anticipation des échecs</h2><p className="text-sm text-gray-500">Détection préventive des risques liés aux effets de bord, retries, délais, réseau, terminal et actions à fort impact.</p><button disabled={busy} onClick={() => void call('prediction', { steps: [{ id: 'team-objective', type: 'llm', timeoutMs: 120000, maxRetries: 2, sideEffect: false, requiresApproval: false }] })} className="rounded-lg border px-4 py-2 disabled:opacity-50">Analyser les risques</button></section>
     {error && <div role="alert" className="rounded-lg border border-red-300 p-4 text-red-700">{error}</div>}
-    {result && <pre className="max-h-[32rem] overflow-auto rounded-xl bg-gray-950 p-5 text-xs text-white">{JSON.stringify(result, null, 2)}</pre>}
+    {result !== null && <pre className="max-h-[32rem] overflow-auto rounded-xl bg-gray-950 p-5 text-xs text-white">{JSON.stringify(result, null, 2)}</pre>}
   </main>;
 }
