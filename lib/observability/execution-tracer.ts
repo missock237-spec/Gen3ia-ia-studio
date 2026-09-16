@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { executionLogger } from "./logger";
+
 export type ExecutionEventType =
   | "execution.started"
   | "execution.completed"
@@ -21,55 +23,50 @@ export interface ExecutionEvent {
   executionId: string;
   type: ExecutionEventType;
   timestamp: string;
-
   agentId?: string;
   stepId?: string;
   toolName?: string;
   model?: string;
-
   durationMs?: number;
   inputTokens?: number;
   outputTokens?: number;
   estimatedCostUsd?: number;
-
-  metadata: Record<
-    string,
-    unknown
-  >;
+  metadata: Record<string, unknown>;
 }
 
 export class ExecutionTracer {
-  private readonly events: ExecutionEvent[] =
-    [];
+  private readonly events: ExecutionEvent[] = [];
+  private readonly log = executionLogger({ executionId: this.executionId });
 
-  constructor(
-    private readonly executionId: string,
-  ) {}
+  constructor(private readonly executionId: string) {}
 
   emit(
-    event: Omit<
-      ExecutionEvent,
-      "id" |
-        "executionId" |
-        "timestamp"
-    >,
+    event: Omit<ExecutionEvent, "id" | "executionId" | "timestamp">,
   ): ExecutionEvent {
     const result: ExecutionEvent = {
       ...event,
-
       id: randomUUID(),
-
-      executionId:
-        this.executionId,
-
-      timestamp:
-        new Date().toISOString(),
-
-      metadata:
-        event.metadata ?? {},
+      executionId: this.executionId,
+      timestamp: new Date().toISOString(),
+      metadata: event.metadata ?? {},
     };
 
     this.events.push(result);
+
+    const level = result.type.endsWith(".failed") ? "error" : "info";
+    this.log[level]({
+      event: result.type,
+      eventId: result.id,
+      agentId: result.agentId,
+      stepId: result.stepId,
+      toolName: result.toolName,
+      model: result.model,
+      durationMs: result.durationMs,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      estimatedCostUsd: result.estimatedCostUsd,
+      metadata: result.metadata,
+    });
 
     return result;
   }
@@ -79,44 +76,22 @@ export class ExecutionTracer {
   }
 
   getTotalDuration(): number {
-    const started =
-      this.events.find(
+    const started = this.events.find((event) => event.type === "execution.started");
+    const completed = [...this.events]
+      .reverse()
+      .find(
         (event) =>
-          event.type ===
-          "execution.started",
+          event.type === "execution.completed" || event.type === "execution.failed",
       );
 
-    const completed =
-      [...this.events]
-        .reverse()
-        .find(
-          (event) =>
-            event.type ===
-              "execution.completed" ||
-            event.type ===
-              "execution.failed",
-        );
+    if (!started || !completed) return 0;
 
-    if (!started || !completed) {
-      return 0;
-    }
-
-    return (
-      new Date(
-        completed.timestamp,
-      ).getTime() -
-      new Date(
-        started.timestamp,
-      ).getTime()
-    );
+    return new Date(completed.timestamp).getTime() - new Date(started.timestamp).getTime();
   }
 
   getEstimatedCost(): number {
     return this.events.reduce(
-      (total, event) =>
-        total +
-        (event.estimatedCostUsd ??
-          0),
+      (total, event) => total + (event.estimatedCostUsd ?? 0),
       0,
     );
   }
