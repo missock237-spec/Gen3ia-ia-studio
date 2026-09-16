@@ -2,9 +2,29 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
-import { createLiveSession } from "@/lib/live/repository";
+import { detectDeviceFromHeaders } from "@/lib/device/detect";
+import { createLiveSession, listLiveSessions } from "@/lib/live/repository";
 import { createPairingToken, hashPairingToken } from "@/lib/live/security";
 import { LivePermissionSchema } from "@/lib/live/types";
+
+const PC_ONLY_MESSAGE =
+  "L'agent Live est reserve aux ordinateurs (Windows/Linux/macOS) : il exige la capture d'ecran et le controle clavier/souris.";
+
+/**
+ * Garde serveur PC-only : l'agent Live pilote un vrai ordinateur via
+ * capture d'ecran + controle clavier/souris. Toute session doit etre creee
+ * depuis un desktop (navigateur PC ou app Gen3ia Desktop).
+ */
+function pcOnlyGuard(request: Request): NextResponse | null {
+  const device = detectDeviceFromHeaders(request.headers);
+  if (!device.isLiveCapable) {
+    return NextResponse.json(
+      { error: PC_ONLY_MESSAGE, code: "LIVE_PC_ONLY", device: device.type, os: device.os },
+      { status: 403 },
+    );
+  }
+  return null;
+}
 
 const CreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -19,6 +39,8 @@ function unauthorized(error: unknown) {
 
 export async function POST(request: Request) {
   try {
+    const pcOnly = pcOnlyGuard(request);
+    if (pcOnly) return pcOnly;
     const token = await verifyFirebaseToken(request.headers.get("authorization"));
     const body = CreateSchema.parse(await request.json());
     const pairingToken = createPairingToken();
@@ -32,6 +54,17 @@ export async function POST(request: Request) {
       pairingTokenHash: hashPairingToken(pairingToken),
     });
     return NextResponse.json({ session, pairingToken }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && /authorization|token|revoked|scheme/i.test(error.message)) return unauthorized(error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid request" }, { status: 400 });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const sessions = await listLiveSessions(token.uid);
+    return NextResponse.json({ sessions });
   } catch (error) {
     if (error instanceof Error && /authorization|token|revoked|scheme/i.test(error.message)) return unauthorized(error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid request" }, { status: 400 });

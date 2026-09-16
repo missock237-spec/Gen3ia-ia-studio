@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { detectDeviceFromHeaders } from "@/lib/device/detect";
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -17,8 +19,17 @@ const CONTENT_SECURITY_POLICY = [
 ].join('; ');
 
 export function proxy(request: NextRequest) {
-  const response = NextResponse.next();
+  // Detection automatique d'appareils : le resultat est expose aux pages
+  // serveur et aux routes API via les en-tetes x-gen3ia-device-*.
+  const device = detectDeviceFromHeaders(request.headers);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-gen3ia-device", device.type);
+  requestHeaders.set("x-gen3ia-device-os", device.os);
+  requestHeaders.set("x-gen3ia-device-app", device.isDesktopApp ? "desktop-app" : "web");
 
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+
+  response.headers.set("X-Gen3ia-Device", device.type);
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");

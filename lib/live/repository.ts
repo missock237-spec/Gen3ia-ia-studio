@@ -194,3 +194,17 @@ export async function clearPendingLiveAction(id: string, actionId: string) {
 export async function recordLiveEvent(id: string, event: Record<string, unknown>) {
   await ref(id).collection("events").add({ ...event, createdAt: Date.now() });
 }
+
+export async function listLiveSessions(ownerId: string, limit = 20): Promise<LiveSession[]> {
+  const snap = await adminDb
+    .collection(COLLECTION)
+    .where("ownerId", "==", ownerId)
+    .orderBy("createdAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((doc) => {
+    const data = doc.data() as LiveSession & { pairingTokenHash?: string };
+    const { pairingTokenHash: _pairingTokenHash, ...publicSession } = data;
+    return publicSession;
+  });
+}
