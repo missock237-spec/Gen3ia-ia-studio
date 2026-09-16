@@ -4,6 +4,8 @@ import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { applyTopup, WALLET_CURRENCY } from "@/lib/billing/wallet";
 
+const CREDITABLE_STATUSES = new Set(["completed", "settled"]);
+
 function verifySignature(raw: string, received: string | null): boolean {
   const secret = process.env.CHARIOW_PULSE_SECRET?.trim();
   if (!secret || !received?.startsWith("sha256=")) return false;
@@ -13,9 +15,25 @@ function verifySignature(raw: string, received: string | null): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+/**
+ * A sale credits the wallet when it matches the configured top-up product
+ * OR when it was created through our own checkout API (tagged with
+ * custom_metadata.gen3ia_product = "wallet_topup"). Storefront purchases
+ * of unrelated products never touch wallets.
+ */
+function isTopupSale(payload: any): boolean {
+  const configuredProductId = process.env.CHARIOW_TOPUP_PRODUCT_ID?.trim();
+  if (configuredProductId && String(payload?.product?.id ?? "") === configuredProductId) {
+    return true;
+  }
+  return String(payload?.sale?.custom_metadata?.gen3ia_product ?? "") === "wallet_topup";
+}
+
 export async function POST(request: Request) {
   const raw = await request.text();
-  if (!verifySignature(raw, request.headers.get("x-chariow-signature"))) return new Response("Invalid signature", { status: 401 });
+  if (!verifySignature(raw, request.headers.get("x-chariow-signature"))) {
+    return new Response("Invalid signature", { status: 401 });
+  }
 
   const deliveryId = request.headers.get("x-pulse-delivery-id");
   const event = request.headers.get("x-pulse-event");
@@ -23,7 +41,9 @@ export async function POST(request: Request) {
 
   let payload: any;
   try { payload = JSON.parse(raw); } catch { return new Response("Invalid JSON", { status: 400 }); }
-  if (event && event !== "successful.sale" && payload.event !== "successful.sale") return Response.json({ received: true, ignored: true });
+  if (event && event !== "successful.sale" && payload.event !== "successful.sale") {
+    return Response.json({ received: true, ignored: true });
+  }
 
   const deliveryRef = adminDb.collection("chariowPulseDeliveries").doc(deliveryId);
   const claimed = await adminDb.runTransaction(async (tx) => {
@@ -35,11 +55,8 @@ export async function POST(request: Request) {
   if (!claimed) return Response.json({ received: true, duplicate: true });
 
   try {
-    const productId = String(payload.product?.id ?? "");
-    const configuredProductId = process.env.CHARIOW_TOPUP_PRODUCT_ID?.trim();
-    if (!configuredProductId) throw new Error("CHARIOW_TOPUP_PRODUCT_ID is not configured.");
-    if (productId !== configuredProductId) {
-      await deliveryRef.update({ status: "ignored", reason: "not_gen3ia_topup_product", processedAt: new Date() });
+    if (!isTopupSale(payload)) {
+      await deliveryRef.update({ status: "ignored", reason: "not_a_wallet_topup_sale", processedAt: new Date() });
       return Response.json({ received: true, ignored: true });
     }
 
@@ -47,12 +64,44 @@ export async function POST(request: Request) {
     const amount = Number(payload.sale?.amount?.value);
     const currency = String(payload.sale?.amount?.currency ?? "").toUpperCase();
     const saleId = String(payload.sale?.id ?? "");
-    if (!customerEmail || !saleId || !Number.isFinite(amount) || amount <= 0) throw new Error("Chariow successful sale payload is missing required wallet fields.");
-    if (currency !== WALLET_CURRENCY) throw new Error(`Top-up currency ${currency} does not match wallet currency ${WALLET_CURRENCY}.`);
+    const saleStatus = String(payload.sale?.status ?? "completed").toLowerCase();
+    if (!customerEmail || !saleId || !Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Chariow successful sale payload is missing required wallet fields.");
+    }
+    if (!CREDITABLE_STATUSES.has(saleStatus)) {
+      throw new Error(`Sale status ${saleStatus} is not creditable.`);
+    }
+    if (currency !== WALLET_CURRENCY) {
+      throw new Error(`Top-up currency ${currency} does not match wallet currency ${WALLET_CURRENCY}.`);
+    }
 
-    const user = await getAuth(getApps()[0]!).getUserByEmail(customerEmail);
+    let user;
+    try {
+      user = await getAuth(getApps()[0]!).getUserByEmail(customerEmail);
+    } catch {
+      // Permanent condition: no point asking Chariow to retry for hours.
+      await deliveryRef.update({
+        status: "failed",
+        reason: "firebase_user_not_found",
+        customerEmail,
+        saleId,
+        failedAt: new Date(),
+      });
+      return Response.json({ received: true, credited: false, reason: "user_not_found" });
+    }
+
     const amountMinor = Math.round(amount * 100);
-    const wallet = await applyTopup({ userId: user.uid, amountMinor, currency, providerReference: saleId, metadata: { customerEmail, productId } });
+    const wallet = await applyTopup({
+      userId: user.uid,
+      amountMinor,
+      currency,
+      providerReference: saleId,
+      metadata: {
+        customerEmail,
+        productId: String(payload.product?.id ?? ""),
+        source: "pulse_webhook",
+      },
+    });
     await deliveryRef.update({ status: "processed", userId: user.uid, saleId, amountMinor, processedAt: new Date() });
     return Response.json({ received: true, credited: true, wallet });
   } catch (error) {

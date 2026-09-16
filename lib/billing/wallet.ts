@@ -2,10 +2,12 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase/admin";
 
-export const WALLET_CURRENCY = (process.env.GEN3IA_WALLET_CURRENCY ?? "EUR").toUpperCase();
+export const WALLET_CURRENCY = (process.env.GEN3IA_WALLET_CURRENCY ?? "XAF").toUpperCase();
 const WALLET_COLLECTION = "userWallets";
 const LEDGER_COLLECTION = "walletLedger";
-const WELCOME_AMOUNT_MINOR = 500;
+// Must match the Chariow store currency (XAF). Amounts are stored in minor
+// units (value x 100) across the billing stack, so 300000 = 3 000 FCFA.
+const WELCOME_AMOUNT_MINOR = 300000;
 
 export const WalletTransactionTypeSchema = z.enum([
   "topup",
@@ -26,6 +28,7 @@ export interface WalletSnapshot {
   availableMinor: number;
   updatedAt: number;
   welcomeGranted: boolean;
+  welcomeAmountMinor: number;
 }
 
 function walletRef(userId: string) {
@@ -93,6 +96,7 @@ export async function getWallet(userId: string): Promise<WalletSnapshot> {
     availableMinor: Math.max(0, balanceMinor - reservedMinor),
     updatedAt: toMillis(data.updatedAt),
     welcomeGranted: Boolean(data.welcomeGranted),
+    welcomeAmountMinor: Number(data.welcomeAmountMinor ?? WELCOME_AMOUNT_MINOR),
   };
 }
 
