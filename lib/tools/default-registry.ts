@@ -10,6 +10,10 @@ import { extractZipTool } from "./files/extract-zip";
 import { createComposioTool } from "@/lib/integrations/composio/adapter";
 import { adsReadTool } from "@/lib/integrations/composio/ads-tool";
 import { githubCreateRepositoryTool } from "@/lib/integrations/github/tools";
+import {
+  voiceListTool,
+  voiceSpeakTool,
+} from "@/lib/integrations/elevenlabs/tools";
 
 export function createDefaultToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
@@ -26,5 +30,9 @@ export function createDefaultToolRegistry(): ToolRegistry {
   ]) registry.register(tool);
   if (process.env.COMPOSIO_API_KEY) registry.register(createComposioTool());
   if (process.env.GITHUB_TOKEN) registry.register(githubCreateRepositoryTool);
+  if (process.env.ELEVENLABS_API_KEY) {
+    registry.register(voiceSpeakTool);
+    registry.register(voiceListTool);
+  }
   return registry;
 }

@@ -66,11 +66,76 @@ async function executeSearch(
         apiKey,
       );
 
+    case "serpapi":
+      return searchSerpApi(
+        input.query,
+        input.maxResults,
+        apiKey,
+      );
+
     default:
       throw new Error(
         `Unsupported search provider: ${provider}`,
       );
   }
+}
+
+async function searchSerpApi(
+  query: string,
+  maxResults: number,
+  apiKey: string,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({
+    engine: "google",
+    q: query,
+    num: String(Math.min(maxResults, 20)),
+    api_key: apiKey,
+  });
+
+  const response = await fetch(
+    `https://serpapi.com/search?${params.toString()}`,
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `SerpApi returned ${response.status}.`,
+    );
+  }
+
+  const data =
+    (await response.json()) as {
+      organic_results?: Array<{
+        title?: string;
+        link?: string;
+        snippet?: string;
+        date?: string;
+      }>;
+    };
+
+  return {
+    results:
+      (data.organic_results ?? [])
+        .filter(
+          (item) =>
+            typeof item.link === "string" &&
+            item.link.length > 0,
+        )
+        .map(
+          (item) => ({
+            title:
+              item.title ?? "",
+
+            url:
+              item.link as string,
+
+            snippet:
+              item.snippet,
+
+            publishedAt:
+              item.date,
+          }),
+        ),
+  };
 }
 
 async function searchTavily(
@@ -221,7 +286,7 @@ export const webSearchTool:
       "Web Search",
 
     description:
-      "Search the public Internet for relevant information.",
+      "Search the public Internet for relevant information in real time (Google via SerpApi).",
 
     category:
       "web",
