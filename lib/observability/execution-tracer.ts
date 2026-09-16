@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { executionLogger } from "./logger";
+import { persistExecutionEvent } from "./execution-store";
 
 export type ExecutionEventType =
   | "execution.started"
@@ -66,6 +67,11 @@ export class ExecutionTracer {
       outputTokens: result.outputTokens,
       estimatedCostUsd: result.estimatedCostUsd,
       metadata: result.metadata,
+    });
+
+    // Telemetry persistence must never break the agent execution itself.
+    void persistExecutionEvent(result).catch((error) => {
+      this.log.warn({ err: error, eventId: result.id }, "failed to persist execution telemetry");
     });
 
     return result;
