@@ -90,16 +90,24 @@ function lazyService<T extends object>(create: () => T): T {
   });
 }
 
-export const adminDb: Firestore = lazyService(() =>
-  getFirestore(getAdminApp()),
-);
+export const adminDb: Firestore = lazyService(() => getAdminDb());
 
 export const adminStorage: Storage = lazyService(() =>
   getStorage(getAdminApp()),
 );
 
+/**
+ * Firestore admin. Le projet peut utiliser une base nommée (autre que
+ * "(default)") via FIREBASE_FIRESTORE_DATABASE_ID — ex. projet "gen3ia"
+ * dont l'unique base Firestore s'appelle "gen3ia".
+ */
 export function getAdminDb(): Firestore {
-  return getFirestore(getAdminApp());
+  const app = getAdminApp();
+  const databaseId = process.env.FIREBASE_FIRESTORE_DATABASE_ID?.trim();
+
+  return databaseId
+    ? getFirestore(app, databaseId)
+    : getFirestore(app);
 }
 
 export function getAdminStorage(): Storage {
