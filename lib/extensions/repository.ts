@@ -77,3 +77,133 @@ export async function recordExtensionExecution(params:{extensionId:string;versio
 export async function getUsageCounter(extensionId:string,userId:string,day:string){const snap=await adminDb.collection(COL.usage).doc(`${extensionId}__${userId}__${day}`).get();return snap.data()??null;}
 export async function listExecutions(extensionId:string,userId:string,limit=50){const snap=await adminDb.collection(COL.executions).where("extensionId","==",extensionId).where("userId","==",userId).orderBy("createdAt","desc").limit(Math.min(limit,100)).get();return snap.docs.map(d=>d.data());}
 export async function addDeveloperRevenue(params:{developerId:string;extensionId:string;purchaseId:string;grossAmountMinor:number;currency:string}){const split=computeRevenueSplit(params.grossAmountMinor);await adminDb.collection(COL.revenue).add({developerId:params.developerId,extensionId:params.extensionId,purchaseId:params.purchaseId,grossAmountMinor:split.grossAmountMinor,feeMinor:split.feeMinor,netAmountMinor:split.netAmountMinor,currency:params.currency,createdAt:now()});}
+
+// --- Fonctions restaurees (perdues lors de la reecriture d7a9046) ---
+
+export async function listExtensionExecutions(params: {
+  extensionId: string;
+  userId?: string;
+  limit?: number;
+}): Promise<Array<Record<string, unknown>>> {
+  let query: FirebaseFirestore.Query = adminDb
+    .collection(COL.executions)
+    .where("extensionId", "==", params.extensionId);
+  if (params.userId) query = query.where("userId", "==", params.userId);
+  const snap = await query.orderBy("createdAt", "desc").limit(Math.min(params.limit ?? 50, 200)).get();
+  return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+/** Consumes one execution slot from the daily counter; throws when exceeded. */
+export async function consumeExecutionQuota(params: {
+  userId: string;
+  extensionId: string;
+  maxPerDay: number;
+}): Promise<{ used: number }> {
+  const ref = adminDb
+    .collection(COL.usage)
+    .doc(`${params.userId}__${params.extensionId}__${new Date().toISOString().slice(0, 10)}`);
+  return adminDb.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const used = Number(snap.get("count") ?? 0);
+    if (used >= params.maxPerDay) {
+      throw new Error(`Daily execution quota reached for this extension (${params.maxPerDay}/day).`);
+    }
+    tx.set(ref, { count: used + 1, userId: params.userId, extensionId: params.extensionId }, { merge: true });
+    return { used: used + 1 };
+  });
+}
+
+export async function setExtensionSecret(extensionId: string, ref: string, value: string): Promise<void> {
+  await adminDb.collection(COL.secrets).doc(`${extensionId}__${ref}`).set({
+    extensionId,
+    ref,
+    value,
+    updatedAt: now(),
+  });
+}
+
+export async function getExtensionSecrets(extensionId: string): Promise<Record<string, string>> {
+  const snap = await adminDb.collection(COL.secrets).where("extensionId", "==", extensionId).get();
+  const secrets: Record<string, string> = {};
+  for (const doc of snap.docs) secrets[String(doc.get("ref"))] = String(doc.get("value") ?? "");
+  return secrets;
+}
+
+export async function listExtensionSecretRefs(extensionId: string): Promise<string[]> {
+  const snap = await adminDb.collection(COL.secrets).where("extensionId", "==", extensionId).get();
+  return snap.docs.map((doc) => String(doc.get("ref")));
+}
+
+export async function deleteExtensionSecret(extensionId: string, ref: string): Promise<void> {
+  await adminDb.collection(COL.secrets).doc(`${extensionId}__${ref}`).delete();
+}
+
+export async function getDeveloperRevenueSummary(developerId: string): Promise<{
+  totalGrossMinor: number;
+  totalFeeMinor: number;
+  totalNetMinor: number;
+  currency: string;
+  entries: number;
+}> {
+  const snap = await adminDb
+    .collection(COL.revenue)
+    .where("developerId", "==", developerId)
+    .orderBy("createdAt", "desc")
+    .limit(500)
+    .get();
+  let totalGrossMinor = 0;
+  let totalFeeMinor = 0;
+  let totalNetMinor = 0;
+  let currency = "XAF";
+  for (const doc of snap.docs) {
+    totalGrossMinor += Number(doc.get("grossAmountMinor") ?? 0);
+    totalFeeMinor += Number(doc.get("feeMinor") ?? 0);
+    totalNetMinor += Number(doc.get("netAmountMinor") ?? 0);
+    currency = String(doc.get("currency") ?? currency);
+  }
+  return { totalGrossMinor, totalFeeMinor, totalNetMinor, currency, entries: snap.size };
+}
+
+export async function createDeveloperApiKey(params: {
+  userId: string;
+  keyHash: string;
+  prefix: string;
+  name: string;
+}): Promise<void> {
+  await adminDb.collection(COL.apiKeys).doc(params.keyHash).create({
+    keyHash: params.keyHash,
+    prefix: params.prefix,
+    name: params.name.slice(0, 100),
+    userId: params.userId,
+    status: "active",
+    createdAt: now(),
+    lastUsedAt: null,
+    revokedAt: null,
+  });
+}
+
+export async function getDeveloperApiKey(keyHash: string) {
+  const snap = await adminDb.collection(COL.apiKeys).doc(keyHash).get();
+  if (!snap.exists) return null;
+  if (snap.get("status") !== "active" || snap.get("revokedAt")) return null;
+  return snap.data() as { userId: string; prefix: string; name: string };
+}
+
+export async function listDeveloperApiKeys(userId: string) {
+  const snap = await adminDb
+    .collection(COL.apiKeys)
+    .where("userId", "==", userId)
+    .orderBy("createdAt", "desc")
+    .limit(50)
+    .get();
+  return snap.docs.map((doc) => ({
+    prefix: String(doc.get("prefix")),
+    name: String(doc.get("name")),
+    status: String(doc.get("status")),
+    createdAt: Number(doc.get("createdAt")),
+  }));
+}
+
+export async function revokeDeveloperApiKey(keyHash: string, userId: string): Promise<void> {
+  await adminDb.collection(COL.apiKeys).doc(keyHash).update({ status: "revoked", revokedAt: now(), userId });
+}
