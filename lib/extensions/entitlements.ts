@@ -13,20 +13,20 @@ import {
   createLicense,
   getEntitlement,
   getExtension,
+  getExtensionPurchase,
   markPurchasePaid,
   upsertEntitlement,
 } from "./repository";
 import { canUseExtension, subscriptionExpiry, type PricingInfo } from "./pricing";
-import { getLatestApprovedVersion } from "./repository";
 
 /**
  * Extension billing (server-side only).
  *
  * The frontend is NEVER treated as proof of payment:
- * - free extensions install directly (entitlement source "free");
- * - paid extensions require an entitlement created either by a wallet
- *   settlement (immediate) or by the verified Chariow Pulse webhook;
- * - subscriptions get an expiry and must be renewed (re-payment extends it).
+ * - free extensions install directly;
+ * - paid extensions require an entitlement created by a verified payment;
+ * - paid marketplace checkout is Chariow-only;
+ * - subscriptions are extended from the later of now or the current expiry.
  */
 
 export interface PurchaseStartResult {
@@ -44,16 +44,22 @@ export async function assertExtensionUsable(userId: string, extension: Extension
   if (!decision.allowed) throw new Error(decision.reason ?? "This extension is not usable.");
 }
 
-/** Grants (or refreshes) the entitlement that unlocks an extension. */
+/** Grants or renews the entitlement that unlocks an extension. */
 export async function grantEntitlement(params: {
   userId: string;
   extension: ExtensionDoc;
   source: "free" | "purchase" | "subscription" | "grant";
   purchaseId?: string | null;
-}): Promise<void> {
+}): Promise<number | null> {
   const pricing = params.extension.pricing as PricingInfo;
-  const expiresAt =
-    pricing.model === "subscription" && pricing.interval ? subscriptionExpiry(pricing.interval) : null;
+  let expiresAt: number | null = null;
+
+  if (pricing.model === "subscription" && pricing.interval) {
+    const existing = await getEntitlement(params.extension.id, params.userId);
+    const existingExpiry = typeof existing?.expiresAt === "number" ? existing.expiresAt : Date.now();
+    expiresAt = subscriptionExpiry(pricing.interval, Math.max(Date.now(), existingExpiry));
+  }
+
   await upsertEntitlement({
     extensionId: params.extension.id,
     userId: params.userId,
@@ -61,6 +67,7 @@ export async function grantEntitlement(params: {
     purchaseId: params.purchaseId ?? null,
     expiresAt,
   });
+  return expiresAt;
 }
 
 function licenseKey(): string {
@@ -68,8 +75,9 @@ function licenseKey(): string {
 }
 
 /**
- * Purchases a paid extension with the Gen3ia wallet (Chariow-funded balance).
- * Reserves, charges, creates purchase + entitlement + license + revenue entry.
+ * Legacy internal wallet purchase path. Marketplace checkout routes no longer
+ * expose this path for paid extensions; it remains available to trusted
+ * server-side callers that explicitly use the Gen3ia wallet.
  */
 export async function purchaseWithWallet(params: {
   userId: string;
@@ -114,7 +122,7 @@ export async function purchaseWithWallet(params: {
   }
 
   await markPurchasePaid(purchase.id, `wallet:${params.reference}`);
-  await grantEntitlement({
+  const expiresAt = await grantEntitlement({
     userId: params.userId,
     extension: params.extension,
     source: pricing.model === "subscription" ? "subscription" : "purchase",
@@ -125,7 +133,7 @@ export async function purchaseWithWallet(params: {
     userId: params.userId,
     extensionId: params.extension.id,
     licenseKey: licenseKey(),
-    expiresAt: pricing.model === "subscription" && pricing.interval ? subscriptionExpiry(pricing.interval) : null,
+    expiresAt,
   });
   return { mode: "wallet", purchaseId: purchase.id, message: "Paiement effectué via le wallet Gen3ia." };
 }
@@ -140,8 +148,8 @@ async function adminUpdatePurchaseFailed(purchaseId: string, reason: string): Pr
 }
 
 /**
- * Starts a Chariow checkout for an extension purchase (external payment).
- * The entitlement is granted ONLY by the verified Pulse webhook.
+ * Starts a Chariow checkout for an extension purchase.
+ * Entitlement is granted ONLY by the verified Pulse webhook.
  */
 export async function startChariowPurchase(params: {
   userId: string;
@@ -156,17 +164,22 @@ export async function startChariowPurchase(params: {
 }): Promise<PurchaseStartResult> {
   const productId = process.env.CHARIOW_EXT_PRODUCT_ID?.trim();
   if (!productId) {
-    throw new Error("Achat direct Chariow non configuré pour les extensions — utilisez le wallet Gen3ia.");
+    throw new Error("Achat Chariow des extensions non configuré.");
   }
   const pricing = params.extension.pricing as PricingInfo;
   if (pricing.model !== "one_time" && pricing.model !== "subscription") {
     throw new Error("Ce modèle de tarification n'est pas achetable à l'unité.");
   }
+  const amountMinor = pricing.amountMinor ?? 0;
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
+    throw new Error("Invalid extension price.");
+  }
+
   const purchase = await createExtensionPurchase({
     userId: params.userId,
     extensionId: params.extension.id,
     provider: "chariow",
-    amountMinor: pricing.amountMinor ?? 0,
+    amountMinor,
     currency: pricing.currency ?? WALLET_CURRENCY,
     kind: pricing.model === "subscription" ? "subscription" : "one_time",
   });
@@ -190,20 +203,74 @@ export async function startChariowPurchase(params: {
 }
 
 /**
- * Webhook-side entitlement grant. Idempotent: replayed sales are ignored.
+ * Webhook-side entitlement settlement.
+ * Every payment attribute supplied by the trusted webhook is matched against
+ * the pending purchase before any entitlement is granted.
  */
 export async function settleChariowExtensionPurchase(params: {
   purchaseId: string;
   providerRef: string;
+  saleId?: string;
+  productId?: string;
+  userId?: string;
+  extensionId?: string;
+  amountMinor?: number;
+  currency?: string;
+  status?: string;
 }): Promise<{ granted: boolean }> {
-  const { getExtensionPurchase } = await import("./repository");
-  const purchase = await getExtensionPurchase(params.purchaseId);
+  const purchase: PurchaseDoc | null = await getExtensionPurchase(params.purchaseId);
   if (!purchase) throw new Error("Unknown extension purchase reference.");
-  if (purchase.status === "paid") return { granted: false };
+
+  if (purchase.provider !== "chariow") throw new Error("Purchase provider mismatch.");
+  if (purchase.status === "paid") {
+    if (params.providerRef && purchase.providerRef && purchase.providerRef !== params.providerRef) {
+      throw new Error("Provider reference does not match the settled purchase.");
+    }
+    return { granted: false };
+  }
+  if (purchase.status !== "pending") throw new Error(`Purchase is not payable: ${purchase.status}.`);
+
+  if (params.saleId && params.providerRef !== `chariow:${params.saleId}`) {
+    throw new Error("Invalid Chariow provider reference.");
+  }
+  if (params.userId && params.userId !== purchase.userId) throw new Error("Webhook user mismatch.");
+  if (params.extensionId && params.extensionId !== purchase.extensionId) throw new Error("Webhook extension mismatch.");
+  if (params.productId) {
+    const configuredProductId = process.env.CHARIOW_EXT_PRODUCT_ID?.trim();
+    if (!configuredProductId || params.productId !== configuredProductId) {
+      throw new Error("Chariow extension product mismatch.");
+    }
+  }
+  if (params.amountMinor !== undefined && params.amountMinor !== purchase.amountMinor) {
+    throw new Error("Chariow amount does not match the pending purchase.");
+  }
+  if (params.currency && params.currency.toUpperCase() !== purchase.currency.toUpperCase()) {
+    throw new Error("Chariow currency does not match the pending purchase.");
+  }
+  if (params.status && !["completed", "settled"].includes(params.status.toLowerCase())) {
+    throw new Error(`Sale status ${params.status} is not creditable.`);
+  }
+
   const extension = await getExtension(purchase.extensionId);
   if (!extension) throw new Error("Extension no longer exists.");
+  if (extension.status !== "approved" || extension.deletedAt) throw new Error("Extension is not currently approved.");
+
+  const pricing = extension.pricing as PricingInfo;
+  if (pricing.model !== purchase.kind) throw new Error("Purchase pricing model no longer matches the extension.");
+  const expectedAmount = pricing.amountMinor ?? 0;
+  const expectedCurrency = (pricing.currency ?? WALLET_CURRENCY).toUpperCase();
+  if (expectedAmount !== purchase.amountMinor) throw new Error("Extension price changed after checkout.");
+  if (expectedCurrency !== purchase.currency.toUpperCase()) throw new Error("Extension currency changed after checkout.");
+
+  // Re-read immediately before the write so a duplicate webhook cannot blindly
+  // create another entitlement after another request has already paid it.
+  const latestPurchase = await getExtensionPurchase(purchase.id);
+  if (!latestPurchase) throw new Error("Purchase disappeared during settlement.");
+  if (latestPurchase.status === "paid") return { granted: false };
+  if (latestPurchase.status !== "pending") throw new Error(`Purchase is not payable: ${latestPurchase.status}.`);
+
   await markPurchasePaid(purchase.id, params.providerRef);
-  await grantEntitlement({
+  const expiresAt = await grantEntitlement({
     userId: purchase.userId,
     extension,
     source: purchase.kind === "subscription" ? "subscription" : "purchase",
@@ -214,7 +281,7 @@ export async function settleChariowExtensionPurchase(params: {
     userId: purchase.userId,
     extensionId: purchase.extensionId,
     licenseKey: licenseKey(),
-    expiresAt: purchase.kind === "subscription" ? subscriptionExpiry("month") : null,
+    expiresAt,
   });
   return { granted: true };
 }
