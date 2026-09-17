@@ -227,8 +227,10 @@ export async function verifyFirebaseToken(
 
     return decoded;
   } catch (error) {
-    const cause = error instanceof Error ? error.message : String(error);
-    console.warn("[auth-server] ID token verification failed:", cause);
-    throw new Error(`Invalid or revoked Firebase ID token. [cause: ${cause}]`);
+    console.warn(
+      "[auth-server] ID token verification failed:",
+      error instanceof Error ? error.message : error
+    );
+    throw new Error("Invalid or revoked Firebase ID token.");
   }
 }
