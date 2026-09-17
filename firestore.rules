@@ -7,235 +7,114 @@ service cloud.firestore {
     function isAdmin() { return signedIn() && request.auth.token.admin == true; }
     function projectOwner() { return signedIn() && resource.data.ownerId == request.auth.uid; }
     function projectOwnerAfterUpdate() {
-      return projectOwner()
-        && request.resource.data.ownerId == resource.data.ownerId
-        && request.resource.data.visibility in ['private', 'public'];
+      return projectOwner() && request.resource.data.ownerId == resource.data.ownerId && request.resource.data.visibility in ['private', 'public'];
     }
+    function isTeamMember(teamId) {
+      return signedIn() && exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
+    }
+    function getTeamRole(teamId) {
+      return get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role;
+    }
+    function isTeamOwner(teamId) { return isTeamMember(teamId) && getTeamRole(teamId) == 'owner'; }
+    function isTeamAdmin(teamId) { return isTeamMember(teamId) && getTeamRole(teamId) in ['owner', 'admin']; }
+    function canEditTeam(teamId) { return isTeamMember(teamId) && getTeamRole(teamId) in ['owner', 'admin', 'editor']; }
 
     match /users/{userId} {
       allow read, update: if isOwner(userId);
       allow create: if isOwner(userId);
       allow delete: if false;
     }
-
-    match /artifacts/{artifactId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-
+    match /artifacts/{artifactId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
     match /projects/{projectId} {
       allow read: if signedIn() && (resource.data.ownerId == request.auth.uid || resource.data.visibility == 'public');
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid && request.resource.data.visibility in ['private', 'public'];
       allow update: if projectOwnerAfterUpdate();
       allow delete: if projectOwner();
     }
-
     match /projects/{projectId}/members/{memberId} {
       allow read: if signedIn() && (memberId == request.auth.uid || get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid);
       allow create, update, delete: if signedIn() && get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid;
     }
-
     match /skills/{skillId} {
       allow read: if signedIn() && (resource.data.visibility == 'public' || resource.data.ownerId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
-
     match /agents/{agentId} {
       allow read: if signedIn() && resource.data.ownerId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.ownerId == request.auth.uid;
     }
-
     match /executions/{executionId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if signedIn() && resource.data.userId == request.auth.uid;
       allow delete: if false;
     }
-
     match /researchJobs/{jobId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if signedIn() && resource.data.userId == request.auth.uid;
       allow delete: if false;
     }
-
     match /documents/{documentId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if signedIn() && request.resource.data.userId == resource.data.userId;
       allow delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
-
     match /deployments/{deploymentId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if signedIn() && request.resource.data.userId == resource.data.userId;
       allow delete: if false;
     }
+    match /usage/{usageId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
+    match /userWallets/{userId} { allow read: if isOwner(userId); allow write: if false; }
+    match /walletLedger/{entryId} { allow read: if isAdmin(); allow write: if false; }
+    match /executionIdempotency/{entryId} { allow read, write: if false; }
+    match /securityAuditEvents/{eventId} { allow read: if isAdmin(); allow write: if false; }
+    match /toolAuditLogs/{logId} { allow read: if isAdmin(); allow write: if false; }
+    match /emergencyStops/{stopId} { allow read: if isOwner(stopId) || isAdmin(); allow write: if false; }
+    match /adsSpendBudgets/{budgetId} { allow read: if isAdmin(); allow write: if false; }
 
-    match /usage/{usageId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-
-    match /userWallets/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if false;
-    }
-    match /walletLedger/{entryId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    match /executionIdempotency/{entryId} {
-      allow read, write: if false;
-    }
-    match /securityAuditEvents/{eventId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    match /toolAuditLogs/{logId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    match /emergencyStops/{stopId} {
-      allow read: if isOwner(stopId) || isAdmin();
-      allow write: if false;
-    }
-    match /adsSpendBudgets/{budgetId} {
-      allow read: if isAdmin();
-      allow write: if false;
-    }
-    match /system/{document=**} {
-      allow read, write: if false;
-    }
-service cloud.firestore {
-  match /databases/{database}/documents {
-
-    // ---- Helpers ----
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isTeamMember(teamId) {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid));
-    }
-
-    function getTeamRole(teamId) {
-      return get(/databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.uid)).data.role;
-    }
-
-    function isTeamOwner(teamId) {
-      return isTeamMember(teamId) && getTeamRole(teamId) == 'owner';
-    }
-
-    function isTeamAdmin(teamId) {
-      return isTeamMember(teamId) && (getTeamRole(teamId) == 'owner' || getTeamRole(teamId) == 'admin');
-    }
-
-    function canEditTeam(teamId) {
-      return isTeamMember(teamId) && getTeamRole(teamId) in ['owner', 'admin', 'editor'];
-    }
-
-    // ---- Teams ----
     match /teams/{teamId} {
       allow read: if isTeamMember(teamId);
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isTeamAdmin(teamId);
       allow delete: if isTeamOwner(teamId);
-
-      // Members subcollection
       match /members/{memberId} {
         allow read: if isTeamMember(teamId);
-        allow create: if isAuthenticated() && (
-          // Le créateur (owner) peut s'ajouter lui-même
-          (memberId == request.auth.uid && request.resource.data.role == 'owner') ||
-          // Un admin/owner peut ajouter des membres
-          isTeamAdmin(teamId)
-        );
+        allow create: if signedIn() && ((memberId == request.auth.uid && request.resource.data.role == 'owner') || isTeamAdmin(teamId));
         allow update: if isTeamAdmin(teamId) || request.auth.uid == memberId;
         allow delete: if isTeamAdmin(teamId) || request.auth.uid == memberId;
       }
     }
-
-    // ---- Invitations ----
     match /invitations/{invitationId} {
-      // Tout le monde peut lire une invitation par son token (pour accepter)
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() &&
-        isTeamAdmin(request.resource.data.teamId);
-      allow update: if isAuthenticated() && (
-        isTeamAdmin(resource.data.teamId) ||
-        // L'invité peut accepter/refuser
-        (request.auth.token.email == resource.data.invitedEmail &&
-         request.resource.data.status in ['accepted', 'declined'])
-      );
+      allow read: if signedIn();
+      allow create: if signedIn() && isTeamAdmin(request.resource.data.teamId);
+      allow update: if signedIn() && (isTeamAdmin(resource.data.teamId) || (request.auth.token.email == resource.data.invitedEmail && request.resource.data.status in ['accepted', 'declined']));
       allow delete: if isTeamAdmin(resource.data.teamId);
     }
-
-    // ---- User teams index (pour retrouver ses équipes rapidement) ----
     match /userTeams/{userId} {
-      allow read: if isAuthenticated() && request.auth.uid == userId;
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
     }
 
-    // ---- Extension Platform ----
-    // Toutes les mutations passent par l'Admin SDK (routes API sécurisées) :
-    // les écritures directes depuis le client sont interdites.
-    match /extensions/{extensionId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-    match /extensionVersions/{versionId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-    match /extensionInstallations/{installationId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-    match /extensionEntitlements/{entitlementId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-    match /extensionReviews/{reviewId} {
-      allow read: if isAuthenticated();
-      allow write: if false;
-    }
-    match /extensionReports/{reportId} {
-      allow read, write: if false;
-    }
-    match /extensionPurchases/{purchaseId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-    match /extensionLicenses/{licenseId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false;
-    }
-    match /extensionExecutions/{executionId} {
-      allow read, write: if false;
-    }
-    match /extensionUsageCounters/{counterId} {
-      allow read, write: if false;
-    }
-    match /extensionSecrets/{secretId} {
-      allow read, write: if false;
-    }
-    match /developers/{developerId} {
-      allow read: if isAuthenticated() && developerId == request.auth.uid;
-      allow write: if false;
-    }
-    match /developerRevenue/{entryId} {
-      allow read: if isAuthenticated() && resource.data.developerId == request.auth.uid;
-      allow write: if false;
-    }
-    match /developerApiKeys/{keyHash} {
-      allow read, write: if false;
-    }
-  }
-}
+    // Extension platform: all mutations are performed by trusted API/Admin SDK.
+    match /extensions/{extensionId} { allow read: if signedIn(); allow write: if false; }
+    match /extensionVersions/{versionId} { allow read: if signedIn(); allow write: if false; }
+    match /extensionInstallations/{installationId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
+    match /extensionEntitlements/{entitlementId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
+    match /extensionReviews/{reviewId} { allow read: if signedIn(); allow write: if false; }
+    match /extensionReports/{reportId} { allow read, write: if false; }
+    match /extensionPurchases/{purchaseId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
+    match /extensionLicenses/{licenseId} { allow read: if signedIn() && resource.data.userId == request.auth.uid; allow write: if false; }
+    match /extensionExecutions/{executionId} { allow read, write: if false; }
+    match /extensionUsageCounters/{counterId} { allow read, write: if false; }
+    match /extensionSecrets/{secretId} { allow read, write: if false; }
+    match /developers/{developerId} { allow read: if signedIn() && developerId == request.auth.uid; allow write: if false; }
+    match /developerRevenue/{entryId} { allow read: if signedIn() && resource.data.developerId == request.auth.uid; allow write: if false; }
+    match /developerApiKeys/{keyHash} { allow read, write: if false; }
+    match /system/{document=**} { allow read, write: if false; }
   }
 }
