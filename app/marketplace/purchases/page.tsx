@@ -39,7 +39,7 @@ function date(value: number) {
 
 export default function MarketplacePurchasesPage() {
   return (
-    <FeatureAuthGate feature="vos achats et licences">
+    <FeatureAuthGate feature="vos achats et licences" description="Connectez-vous pour retrouver vos achats d'extensions, vos licences actives et l'historique de vos transactions.">
       <PurchasesContent />
     </FeatureAuthGate>
   );
