@@ -35,7 +35,7 @@ export default function EmailAuthForm() {
     if (!response.ok) {
       throw new Error("Impossible d'etablir la session authentifiee.");
     }
-    window.location.href = "/studio";
+    window.location.href = "/dashboard";
   }
 
   function validate(): string | null {

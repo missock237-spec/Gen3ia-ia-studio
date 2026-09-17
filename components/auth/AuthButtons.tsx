@@ -35,7 +35,7 @@ export default function AuthButtons() {
       }
 
       window.location.href =
-        "/studio";
+        "/dashboard";
     } catch (error) {
       window.alert(traduireErreurAuth(error));
     }
