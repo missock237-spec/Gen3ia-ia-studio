@@ -146,7 +146,7 @@ export function LiveDashboard() {
       <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-[#0d1220] p-8 text-center">
         <h2 className="text-xl font-semibold">Connexion requise</h2>
         <p className="mt-2 text-sm text-white/60">
-          Connectez-vous pour créer et piloter des sessions d'agent Live.
+          Connectez-vous pour créer et piloter des sessions d’agent Live.
         </p>
         <Link href="/login" className="mt-6 inline-flex rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold hover:bg-violet-500">
           Se connecter
@@ -158,10 +158,10 @@ export function LiveDashboard() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
       <section className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-        <h2 className="text-xl font-semibold">Créer une session d'agent Live</h2>
+        <h2 className="text-xl font-semibold">Créer une session d’agent Live</h2>
         <p className="mt-2 text-sm text-white/55">
           Décrivez la mission. Le client PC se connectera à cette session avec
-          le jeton d'appairage, partagera l'écran et exécutera les actions
+          le jeton d’appairage, partagera l’écran et exécutera les actions
           approuvées.
         </p>
         <label className="mt-5 block text-xs uppercase tracking-widest text-white/45">Nom de la session</label>
@@ -212,7 +212,7 @@ export function LiveDashboard() {
           <div className="mt-5 rounded-2xl border border-emerald-400/25 bg-emerald-400/5 p-5">
             <div className="text-sm font-semibold text-emerald-300">Session créée — {created.session.name}</div>
             <div className="mt-1 text-xs text-white/50">ID : {created.session.id}</div>
-            <div className="mt-4 text-xs uppercase tracking-widest text-white/45">Jeton d'appairage (affiché une seule fois)</div>
+            <div className="mt-4 text-xs uppercase tracking-widest text-white/45">Jeton d’appairage (affiché une seule fois)</div>
             <div className="mt-2 flex items-center gap-2">
               <code className="flex-1 overflow-x-auto rounded-xl border border-white/10 bg-black/40 px-4 py-3 font-mono text-sm text-emerald-200">
                 {created.pairingToken}
@@ -222,7 +222,7 @@ export function LiveDashboard() {
               </button>
             </div>
             <p className="mt-3 text-xs leading-5 text-white/55">
-              Configurez le client PC puis lancez-le sur l'ordinateur à piloter
+              Configurez le client PC puis lancez-le sur l’ordinateur à piloter
               (voir les instructions à droite). La session expire au bout de 24 h
               si elle reste inactive.
             </p>
@@ -235,7 +235,7 @@ export function LiveDashboard() {
           <h2 className="text-lg font-semibold">Connecter un PC (client Live)</h2>
           <ol className="mt-4 space-y-3 text-sm leading-6 text-white/60">
             <li className="rounded-xl border border-white/10 bg-white/[.03] px-4 py-3">
-              1. Téléchargez l'app Gen3ia Desktop (Windows / Linux) ou
+              1. Téléchargez l’app Gen3ia Desktop (Windows / Linux) ou
               installez le client : <code className="font-mono text-xs text-violet-300">live-agent/</code>
             </li>
             <li className="rounded-xl border border-white/10 bg-white/[.03] px-4 py-3">
@@ -248,7 +248,7 @@ GEN3IA_LIVE_DEVICE_ID=<nom du PC>`}
               </code>
             </li>
             <li className="rounded-xl border border-white/10 bg-white/[.03] px-4 py-3">
-              3. Lancez le client : il partage l'écran et attend les actions
+              3. Lancez le client : il partage l’écran et attend les actions
               approuvées.
             </li>
           </ol>

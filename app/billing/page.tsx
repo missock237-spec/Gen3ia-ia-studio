@@ -65,8 +65,9 @@ export default function BillingPage() {
 
     window.history.replaceState({}, "", "/billing");
     if (!saleId) {
-      setNotice("Paiement terminé. Le crédit apparaît dès la confirmation Chariow.");
-      return;
+      // Differe d'un tick pour eviter un rendu en cascade synchrone (set-state-in-effect).
+      const timer = setTimeout(() => setNotice("Paiement terminé. Le crédit apparaît dès la confirmation Chariow."), 0);
+      return () => clearTimeout(timer);
     }
     (async () => {
       try {

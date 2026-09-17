@@ -50,7 +50,7 @@ export default function HomePage() {
 
         <p className="mt-6 text-sm opacity-50">
           Disponible sur le web (Android &amp; iOS — installable depuis le
-          navigateur) et sur PC avec l'application Gen3ia Desktop (Windows,
+          navigateur) et sur PC avec l’application Gen3ia Desktop (Windows,
           Linux). Étendez vos agents avec les extensions de la
           {" "}
           <Link href="/marketplace" className="underline">marketplace</Link>

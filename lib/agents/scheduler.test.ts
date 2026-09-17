@@ -17,21 +17,25 @@ const base: AgentSchedule = {
 };
 
 describe("agent scheduler", () => {
+  // Africa/Douala = UTC+1 : 08:00-18:00 local correspond a 07:00-17:00 UTC.
   it("activates inside the configured window and selected day", () => {
     expect(isScheduleActive(base, new Date("2026-09-14T10:00:00.000Z"))).toBe(true);
-    expect(isScheduleActive(base, new Date("2026-09-14T17:59:00.000Z"))).toBe(true);
-    expect(isScheduleActive(base, new Date("2026-09-14T18:00:00.000Z"))).toBe(false);
+    expect(isScheduleActive(base, new Date("2026-09-14T16:59:00.000Z"))).toBe(true);
+    expect(isScheduleActive(base, new Date("2026-09-14T17:00:00.000Z"))).toBe(false);
   });
 
   it("does not activate on an unselected day", () => {
     expect(isScheduleActive(base, new Date("2026-09-13T10:00:00.000Z"))).toBe(false);
   });
 
+  // Fenetre 22:00-06:00 local Douala = 21:00-05:00 UTC (chevauche minuit).
   it("supports windows crossing midnight", () => {
     const overnight = { ...base, startTime: "22:00", endTime: "06:00" };
-    expect(isScheduleActive(overnight, new Date("2026-09-14T21:59:00.000Z"))).toBe(false);
+    expect(isScheduleActive(overnight, new Date("2026-09-14T20:59:00.000Z"))).toBe(false);
+    expect(isScheduleActive(overnight, new Date("2026-09-14T21:00:00.000Z"))).toBe(true);
     expect(isScheduleActive(overnight, new Date("2026-09-14T23:00:00.000Z"))).toBe(true);
     expect(isScheduleActive(overnight, new Date("2026-09-15T03:00:00.000Z"))).toBe(true);
+    expect(isScheduleActive(overnight, new Date("2026-09-15T05:00:00.000Z"))).toBe(false);
   });
 
   it("treats equal start and end as a full-day window", () => {

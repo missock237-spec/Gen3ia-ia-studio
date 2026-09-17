@@ -27,7 +27,11 @@ function JoinTeamContent() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'joined' | 'error'>('loading');
 
   useEffect(() => {
-    if (!token) { setStatus('error'); return; }
+    if (!token) {
+      // Differe d'un tick pour eviter un rendu en cascade synchrone (set-state-in-effect).
+      const timer = setTimeout(() => setStatus('error'), 0);
+      return () => clearTimeout(timer);
+    }
     const fetchInvite = async () => {
       const q = query(collection(db, 'invitations'), where('token', '==', token), where('status', '==', 'pending'));
       const snap = await getDocs(q);
@@ -46,12 +50,12 @@ function JoinTeamContent() {
   };
 
   if (authLoading || status === 'loading') return <div className="p-8">Chargement...</div>;
-  if (!user) return <div className="p-8">Connectez-vous pour accepter l'invitation.</div>;
+  if (!user) return <div className="p-8">Connectez-vous pour accepter l’invitation.</div>;
   if (status === 'error') return <div className="p-8">Invitation invalide ou expirée.</div>;
 
   return (
     <div className="p-8 max-w-md mx-auto text-center">
-      <h1 className="text-2xl font-bold mb-4">Rejoindre l'équipe</h1>
+      <h1 className="text-2xl font-bold mb-4">Rejoindre l’équipe</h1>
       {invitation && (
         <>
           <p className="mb-2">Vous êtes invité à rejoindre :</p>

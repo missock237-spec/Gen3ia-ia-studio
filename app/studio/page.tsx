@@ -28,7 +28,7 @@ export default function StudioPage() {
 
   const connectAds = async (provider: Provider) => {
     if (!user) return; setBusy(true); setMessage("");
-    try { const token = await user.getIdToken(); const response = await fetch("/api/ads/connect", { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ provider }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); window.location.href = data.authorizationUrl; }
+    try { const token = await user.getIdToken(); const response = await fetch("/api/ads/connect", { method: "POST", headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ provider }) }); const data = await response.json(); if (!response.ok) throw new Error(data.error); window.location.assign(data.authorizationUrl); }
     catch (e) { setMessage(e instanceof Error ? e.message : "Connexion impossible"); setBusy(false); }
   };
 

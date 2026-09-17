@@ -202,7 +202,7 @@ export default function DeveloperPage() {
             <h2 className="text-xl font-semibold">Créer une extension (manifest)</h2>
             <p className="mt-2 text-sm text-white/55">
               Le manifest déclare tools, skills, workflows, permissions, secrets et prix.
-              Il est validé côté serveur à chaque étape. Aucun code tiers n'est exécuté :
+              Il est validé côté serveur à chaque étape. Aucun code tiers n’est exécuté :
               les tools sont des connecteurs HTTPS déclaratifs.
             </p>
             <textarea
@@ -212,14 +212,14 @@ export default function DeveloperPage() {
               spellCheck={false}
             />
             <button disabled={busy} onClick={createExtension} className="mt-4 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold disabled:opacity-40">
-              Créer l'extension
+              Créer l’extension
             </button>
           </div>
 
           <div className="space-y-5">
             <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
               <h2 className="text-lg font-semibold">Clés SDK / API</h2>
-              <p className="mt-1 text-xs text-white/45">Authentifie l'API développeur depuis vos outils CI (`Authorization: Bearer g3x_…`).</p>
+              <p className="mt-1 text-xs text-white/45">Authentifie l’API développeur depuis vos outils CI (`Authorization: Bearer g3x_…`).</p>
               {newKey && (
                 <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
                   <div className="text-xs text-emerald-300">Nouvelle clé (affichée une seule fois) :</div>

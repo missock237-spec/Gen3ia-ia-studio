@@ -43,15 +43,20 @@ export function useDevice(): DeviceInfo | null {
       userAgentData?: { mobile?: boolean; platform?: string };
     };
 
-    setDevice(
-      detectDevice({
-        userAgent,
-        mobileHint: nav.userAgentData?.mobile ? "?1" : null,
-        platformHint: nav.userAgentData?.platform ?? null,
-        desktopApp: isDesktopApp,
-        pwaStandalone,
-      }),
-    );
+    // Reporte la mise a jour d'un tick (requestAnimationFrame) : evite un
+    // rendu en cascade synchrone dans l'effet sans changer la detection.
+    const raf = requestAnimationFrame(() => {
+      setDevice(
+        detectDevice({
+          userAgent,
+          mobileHint: nav.userAgentData?.mobile ? "?1" : null,
+          platformHint: nav.userAgentData?.platform ?? null,
+          desktopApp: isDesktopApp,
+          pwaStandalone,
+        }),
+      );
+    });
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return device;

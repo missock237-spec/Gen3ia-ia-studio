@@ -58,13 +58,15 @@ export default function AgentSchedulesPage() {
   };
 
   useEffect(() => {
-    setTimezone(browserTimezone());
-    return onAuthStateChanged(auth, async (current) => {
+    // Differe d'un tick pour eviter un rendu en cascade synchrone (set-state-in-effect).
+    const timer = setTimeout(() => setTimezone(browserTimezone()), 0);
+    const unsubscribe = onAuthStateChanged(auth, async (current) => {
       setUser(current);
       if (current) {
         try { await load(current); } catch (error) { setMessage(error instanceof Error ? error.message : "Chargement impossible"); }
       } else setSchedules([]);
     });
+    return () => { clearTimeout(timer); unsubscribe(); };
   }, []);
 
   const summary = useMemo(() => {

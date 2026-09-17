@@ -18,7 +18,11 @@ export function useTeam(teamId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!teamId || !user) { setLoading(false); return; }
+    if (!teamId || !user) {
+      // Differe d'un tick pour eviter un rendu en cascade synchrone (set-state-in-effect).
+      const timer = setTimeout(() => setLoading(false), 0);
+      return () => clearTimeout(timer);
+    }
     const teamRef = doc(db, 'teams', teamId);
     const membersRef = collection(db, 'teams', teamId, 'members');
     const unsubTeam = onSnapshot(teamRef, (snap) => {

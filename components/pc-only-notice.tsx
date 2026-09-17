@@ -21,17 +21,17 @@ export function PcOnlyNotice({ deviceType }: { deviceType?: string }) {
         </div>
         <h1 className="mt-6 text-2xl font-bold">Agent Live — PC uniquement</h1>
         <p className="mt-3 text-sm leading-6 text-white/65">
-          Cette fonctionnalité n'est pas disponible depuis votre {appareil}.
-          L'agent Live observe l'écran et contrôle le clavier et la souris d'un
+          Cette fonctionnalité n’est pas disponible depuis votre {appareil}.
+          L’agent Live observe l’écran et contrôle le clavier et la souris d’un
           ordinateur : il nécessite Windows, Linux ou macOS.
         </p>
         <ul className="mx-auto mt-5 max-w-sm space-y-2 text-left text-sm text-white/55">
           <li className="rounded-xl border border-white/10 bg-white/[.03] px-4 py-2.5">
-            Sur Android / iPhone : utilisez le site web ou l'application
+            Sur Android / iPhone : utilisez le site web ou l’application
             installable depuis votre navigateur.
           </li>
           <li className="rounded-xl border border-white/10 bg-white/[.03] px-4 py-2.5">
-            Sur PC : ouvrez gen3ia.online, l'app Gen3ia Desktop, ou installez
+            Sur PC : ouvrez gen3ia.online, l’app Gen3ia Desktop, ou installez
             le client Live.
           </li>
         </ul>
@@ -48,7 +48,7 @@ export function PcOnlyNotice({ deviceType }: { deviceType?: string }) {
             rel="noreferrer"
             className="rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold transition hover:bg-violet-500"
           >
-            Télécharger l'app PC (Windows / Linux)
+            Télécharger l’app PC (Windows / Linux)
           </a>
         </div>
       </div>

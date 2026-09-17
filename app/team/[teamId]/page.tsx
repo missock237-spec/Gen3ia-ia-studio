@@ -33,7 +33,7 @@ export default function TeamPage() {
       </section>
 
       <section>
-        <h2 className="text-xl font-semibold mb-4">Membres de l'équipe</h2>
+        <h2 className="text-xl font-semibold mb-4">Membres de l’équipe</h2>
         <TeamMembersPanel teamId={teamId} />
       </section>
 
