@@ -16,18 +16,20 @@ function verifySignature(raw: string, received: string | null): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-/**
- * A sale credits the wallet when it matches the configured top-up product
- * OR when it was created through our own checkout API (tagged with
- * custom_metadata.gen3ia_product = "wallet_topup"). Storefront purchases
- * of unrelated products never touch wallets.
- */
 function isTopupSale(payload: any): boolean {
   const configuredProductId = process.env.CHARIOW_TOPUP_PRODUCT_ID?.trim();
-  if (configuredProductId && String(payload?.product?.id ?? "") === configuredProductId) {
-    return true;
-  }
+  if (configuredProductId && String(payload?.product?.id ?? "") === configuredProductId) return true;
   return String(payload?.sale?.custom_metadata?.gen3ia_product ?? "") === "wallet_topup";
+}
+
+function extensionSaleMetadata(payload: any) {
+  const metadata = payload?.sale?.custom_metadata ?? {};
+  return {
+    product: String(metadata.gen3ia_product ?? ""),
+    purchaseId: String(metadata.purchaseId ?? ""),
+    userId: String(metadata.userId ?? ""),
+    extensionId: String(metadata.extensionId ?? ""),
+  };
 }
 
 export async function POST(request: Request) {
@@ -41,7 +43,11 @@ export async function POST(request: Request) {
   if (!deliveryId) return new Response("Missing delivery id", { status: 400 });
 
   let payload: any;
-  try { payload = JSON.parse(raw); } catch { return new Response("Invalid JSON", { status: 400 }); }
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return new Response("Invalid JSON", { status: 400 });
+  }
   if (event && event !== "successful.sale" && payload.event !== "successful.sale") {
     return Response.json({ received: true, ignored: true });
   }
@@ -50,22 +56,60 @@ export async function POST(request: Request) {
   const claimed = await adminDb.runTransaction(async (tx) => {
     const snap = await tx.get(deliveryRef);
     if (snap.exists) return false;
-    tx.create(deliveryRef, { deliveryId, event: payload.event ?? event ?? null, receivedAt: new Date(), status: "processing" });
+    tx.create(deliveryRef, {
+      deliveryId,
+      event: payload.event ?? event ?? null,
+      receivedAt: new Date(),
+      status: "processing",
+    });
     return true;
   });
   if (!claimed) return Response.json({ received: true, duplicate: true });
 
   try {
-    // Extension purchases: the sale carries custom_metadata
-    // gen3ia_product = "extension_purchase" + purchaseId. The entitlement is
-    // granted here only — the webhook signature is the sole payment proof.
-    const metaProduct = String(payload?.sale?.custom_metadata?.gen3ia_product ?? "");
-    if (metaProduct === "extension_purchase") {
-      const purchaseId = String(payload?.sale?.custom_metadata?.purchaseId ?? "");
+    const meta = extensionSaleMetadata(payload);
+    if (meta.product === "extension_purchase") {
       const saleId = String(payload?.sale?.id ?? "");
-      if (!purchaseId || !saleId) throw new Error("Extension purchase payload is missing purchaseId or saleId.");
-      const result = await settleChariowExtensionPurchase({ purchaseId, providerRef: `chariow:${saleId}` });
-      await deliveryRef.update({ status: "processed", kind: "extension_purchase", purchaseId, saleId, granted: result.granted, processedAt: new Date() });
+      const saleStatus = String(payload?.sale?.status ?? "completed").toLowerCase();
+      const amountValue = Number(payload?.sale?.amount?.value);
+      const currency = String(payload?.sale?.amount?.currency ?? "").toUpperCase();
+      const productId = String(payload?.product?.id ?? "");
+
+      if (!meta.purchaseId || !meta.userId || !meta.extensionId || !saleId) {
+        throw new Error("Extension purchase payload is missing purchase, user, extension, or sale reference.");
+      }
+      if (!CREDITABLE_STATUSES.has(saleStatus)) {
+        throw new Error(`Sale status ${saleStatus} is not creditable.`);
+      }
+      if (!Number.isFinite(amountValue) || amountValue <= 0) {
+        throw new Error("Extension sale amount is invalid.");
+      }
+      if (!currency) throw new Error("Extension sale currency is missing.");
+      if (!productId) throw new Error("Extension sale product id is missing.");
+
+      const result = await settleChariowExtensionPurchase({
+        purchaseId: meta.purchaseId,
+        providerRef: `chariow:${saleId}`,
+        saleId,
+        productId,
+        userId: meta.userId,
+        extensionId: meta.extensionId,
+        amountMinor: Math.round(amountValue * 100),
+        currency,
+        status: saleStatus,
+      });
+
+      await deliveryRef.update({
+        status: "processed",
+        kind: "extension_purchase",
+        purchaseId: meta.purchaseId,
+        userId: meta.userId,
+        extensionId: meta.extensionId,
+        saleId,
+        productId,
+        granted: result.granted,
+        processedAt: new Date(),
+      });
       return Response.json({ received: true, kind: "extension_purchase", granted: result.granted });
     }
 
@@ -93,7 +137,6 @@ export async function POST(request: Request) {
     try {
       user = await getAuth(getApps()[0]!).getUserByEmail(customerEmail);
     } catch {
-      // Permanent condition: no point asking Chariow to retry for hours.
       await deliveryRef.update({
         status: "failed",
         reason: "firebase_user_not_found",
@@ -119,7 +162,11 @@ export async function POST(request: Request) {
     await deliveryRef.update({ status: "processed", userId: user.uid, saleId, amountMinor, processedAt: new Date() });
     return Response.json({ received: true, credited: true, wallet });
   } catch (error) {
-    await deliveryRef.update({ status: "failed", error: error instanceof Error ? error.message.slice(0, 1000) : "Wallet credit failed", failedAt: new Date() });
+    await deliveryRef.update({
+      status: "failed",
+      error: error instanceof Error ? error.message.slice(0, 1000) : "Wallet credit failed",
+      failedAt: new Date(),
+    });
     return new Response("Webhook processing failed", { status: 500 });
   }
 }
