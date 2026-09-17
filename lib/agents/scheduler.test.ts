@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+
+import { isScheduleActive, type AgentSchedule } from "@/lib/agents/scheduler";
+
+const base: AgentSchedule = {
+  id: "s1",
+  userId: "u1",
+  agentId: "a1",
+  name: "Test",
+  objective: "Run scheduled agent",
+  timezone: "Africa/Douala",
+  daysOfWeek: [1, 2, 3, 4, 5],
+  startTime: "08:00",
+  endTime: "18:00",
+  intervalMinutes: 0,
+  enabled: true,
+};
+
+describe("agent scheduler", () => {
+  it("activates inside the configured window and selected day", () => {
+    expect(isScheduleActive(base, new Date("2026-09-14T10:00:00.000Z"))).toBe(true);
+    expect(isScheduleActive(base, new Date("2026-09-14T17:59:00.000Z"))).toBe(true);
+    expect(isScheduleActive(base, new Date("2026-09-14T18:00:00.000Z"))).toBe(false);
+  });
+
+  it("does not activate on an unselected day", () => {
+    expect(isScheduleActive(base, new Date("2026-09-13T10:00:00.000Z"))).toBe(false);
+  });
+
+  it("supports windows crossing midnight", () => {
+    const overnight = { ...base, startTime: "22:00", endTime: "06:00" };
+    expect(isScheduleActive(overnight, new Date("2026-09-14T21:59:00.000Z"))).toBe(false);
+    expect(isScheduleActive(overnight, new Date("2026-09-14T23:00:00.000Z"))).toBe(true);
+    expect(isScheduleActive(overnight, new Date("2026-09-15T03:00:00.000Z"))).toBe(true);
+  });
+
+  it("treats equal start and end as a full-day window", () => {
+    const allDay = { ...base, startTime: "00:00", endTime: "00:00" };
+    expect(isScheduleActive(allDay, new Date("2026-09-14T23:59:00.000Z"))).toBe(true);
+  });
+});
