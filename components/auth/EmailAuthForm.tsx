@@ -1,24 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { signInWithEmail, signUpWithEmail, resetPassword, traduireErreurAuth, type SignupProfile } from "@/lib/firebase/auth-client";
 
-import {
-  resetPassword,
-  signInWithEmail,
-  signUpWithEmail,
-  traduireErreurAuth,
-} from "@/lib/firebase/auth-client";
+const inputClasses = "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-neutral-900 bg-transparent";
+const buttonClasses = "w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
 
 type Mode = "connexion" | "inscription";
 
-/**
- * Formulaire d'authentification par email et mot de passe.
- * Gere la connexion, l'inscription (avec nom complet) et la
- * reinitialisation du mot de passe, avec messages d'erreur en francais.
- */
 export default function EmailAuthForm() {
   const [mode, setMode] = useState<Mode>("connexion");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [country, setCountry] = useState("");
+  const [bio, setBio] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -28,199 +26,87 @@ export default function EmailAuthForm() {
 
   async function establishSession(user: import("firebase/auth").User) {
     const token = await user.getIdToken(true);
-    const response = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      throw new Error("Impossible d'etablir la session authentifiee.");
-    }
+    const response = await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error("Impossible d'etablir la session authentifiee.");
     window.location.href = "/dashboard";
   }
 
   function validate(): string | null {
-    if (!email.trim() || !email.includes("@")) {
-      return "Veuillez saisir une adresse email valide.";
-    }
-    if (password.length < 6) {
-      return "Le mot de passe doit contenir au moins 6 caracteres.";
-    }
-    if (mode === "inscription" && password !== confirmPassword) {
-      return "Les deux mots de passe ne correspondent pas.";
+    if (!email.trim() || !email.includes("@")) return "Veuillez saisir une adresse email valide.";
+    if (password.length < 6) return "Le mot de passe doit contenir au moins 6 caracteres.";
+    if (mode === "inscription") {
+      if (!firstName.trim() || !lastName.trim()) return "Le prenom et le nom sont obligatoires.";
+      if (!/^[a-zA-Z0-9._-]{3,32}$/.test(username.trim())) return "Choisissez un nom d'utilisateur de 3 a 32 caracteres.";
+      if (password !== confirmPassword) return "Les deux mots de passe ne correspondent pas.";
     }
     return null;
   }
 
   async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setInfo(null);
-
+    event.preventDefault(); setError(null); setInfo(null);
     const validationError = validate();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
+    if (validationError) { setError(validationError); return; }
     setPending(true);
     try {
       if (mode === "inscription") {
-        const user = await signUpWithEmail(email, password, fullName);
+        const profile: SignupProfile = { firstName, lastName, username, phoneNumber, country, bio, photo, language: "fr", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
+        const user = await signUpWithEmail(email, password, profile);
         await establishSession(user);
       } else {
         const user = await signInWithEmail(email, password);
         await establishSession(user);
       }
-    } catch (authError) {
-      setError(traduireErreurAuth(authError));
-    } finally {
-      setPending(false);
-    }
+    } catch (authError) { setError(traduireErreurAuth(authError)); } finally { setPending(false); }
   }
 
   async function handleReset(event: React.MouseEvent) {
-    event.preventDefault();
-    setError(null);
-    setInfo(null);
-
-    if (!email.trim() || !email.includes("@")) {
-      setError("Saisissez votre adresse email, puis cliquez a nouveau sur le lien.");
-      return;
-    }
-
+    event.preventDefault(); setError(null); setInfo(null);
+    if (!email.trim() || !email.includes("@")) { setError("Saisissez votre adresse email, puis cliquez a nouveau sur le lien."); return; }
     setPending(true);
-    try {
-      await resetPassword(email);
-      setInfo(
-        "Email de reinitialisation envoye. Consultez votre boite de reception (et vos spams)."
-      );
-    } catch (resetError) {
-      setError(traduireErreurAuth(resetError));
-    } finally {
-      setPending(false);
-    }
+    try { await resetPassword(email); setInfo("Email de reinitialisation envoye. Consultez votre boite de reception (et vos spams)."); }
+    catch (resetError) { setError(traduireErreurAuth(resetError)); }
+    finally { setPending(false); }
   }
-
-  const inputClasses =
-    "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-neutral-900 bg-transparent";
-  const buttonClasses =
-    "w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <div className="grid grid-cols-2 rounded-xl border p-1 text-sm">
-        <button
-          type="button"
-          onClick={() => {
-            setMode("connexion");
-            setError(null);
-            setInfo(null);
-          }}
-          className={
-            mode === "connexion"
-              ? "rounded-lg bg-neutral-900 px-3 py-2 font-medium text-white"
-              : "rounded-lg px-3 py-2 font-medium opacity-70 hover:opacity-100"
-          }
-        >
-          Se connecter
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMode("inscription");
-            setError(null);
-            setInfo(null);
-          }}
-          className={
-            mode === "inscription"
-              ? "rounded-lg bg-neutral-900 px-3 py-2 font-medium text-white"
-              : "rounded-lg px-3 py-2 font-medium opacity-70 hover:opacity-100"
-          }
-        >
-          S&apos;inscrire
-        </button>
+        <button type="button" onClick={() => { setMode("connexion"); setError(null); }} className={mode === "connexion" ? "rounded-lg bg-neutral-900 px-3 py-2 font-medium text-white" : "rounded-lg px-3 py-2 font-medium opacity-70"}>Se connecter</button>
+        <button type="button" onClick={() => { setMode("inscription"); setError(null); }} className={mode === "inscription" ? "rounded-lg bg-neutral-900 px-3 py-2 font-medium text-white" : "rounded-lg px-3 py-2 font-medium opacity-70"}>S'inscrire</button>
       </div>
 
       {mode === "inscription" && (
-        <input
-          type="text"
-          placeholder="Nom complet"
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
-          autoComplete="name"
-          className={inputClasses}
-        />
+        <>
+          <div className="flex justify-center">
+            <label className="group cursor-pointer text-center">
+              <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed bg-neutral-50 text-xs text-neutral-500">
+                {photo ? <img src={URL.createObjectURL(photo)} alt="Apercu de la photo de profil" className="h-full w-full object-cover" /> : "Photo"}
+              </div>
+              <span className="mt-2 block text-xs opacity-70">Ajouter une photo (5 Mo max)</span>
+              <input type="file" accept="image/*" className="sr-only" onChange={(event) => setPhoto(event.target.files?.[0] ?? null)} />
+            </label>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input className={inputClasses} placeholder="Prenom" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" required />
+            <input className={inputClasses} placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" required />
+          </div>
+          <input className={inputClasses} placeholder="Nom d'utilisateur" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} autoComplete="username" required maxLength={32} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input className={inputClasses} placeholder="Telephone (optionnel)" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" />
+            <input className={inputClasses} placeholder="Pays (optionnel)" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country-name" />
+          </div>
+          <textarea className={inputClasses} placeholder="Bio courte (optionnel)" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} rows={3} />
+          <p className="text-xs opacity-50">Langue et fuseau horaire sont detectes automatiquement. Tu pourras completer ton profil plus tard.</p>
+        </>
       )}
 
-      <input
-        type="email"
-        placeholder="Adresse email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        autoComplete="email"
-        required
-        className={inputClasses}
-      />
-
-      <input
-        type="password"
-        placeholder="Mot de passe"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        autoComplete={mode === "inscription" ? "new-password" : "current-password"}
-        required
-        minLength={6}
-        className={inputClasses}
-      />
-
-      {mode === "inscription" && (
-        <input
-          type="password"
-          placeholder="Confirmer le mot de passe"
-          value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          autoComplete="new-password"
-          required
-          minLength={6}
-          className={inputClasses}
-        />
-      )}
-
-      {error && (
-        <p
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {error}
-        </p>
-      )}
-
-      {info && (
-        <p
-          role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-        >
-          {info}
-        </p>
-      )}
-
-      <button type="submit" disabled={pending} className={buttonClasses}>
-        {pending
-          ? "Veuillez patienter..."
-          : mode === "connexion"
-            ? "Se connecter"
-            : "Creer mon compte"}
-      </button>
-
-      {mode === "connexion" && (
-        <a
-          href="#"
-          onClick={handleReset}
-          className="text-center text-xs opacity-60 transition hover:opacity-100"
-        >
-          Mot de passe oublie ?
-        </a>
-      )}
+      <input type="email" placeholder="Adresse email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required className={inputClasses} />
+      <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "inscription" ? "new-password" : "current-password"} required minLength={6} className={inputClasses} />
+      {mode === "inscription" && <input type="password" placeholder="Confirmer le mot de passe" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" required minLength={6} className={inputClasses} />}
+      {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
+      {info && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{info}</p>}
+      <button type="submit" disabled={pending} className={buttonClasses}>{pending ? "Creation du profil..." : mode === "connexion" ? "Se connecter" : "Creer mon compte"}</button>
+      {mode === "connexion" && <a href="#" onClick={handleReset} className="text-center text-xs opacity-60 hover:opacity-100">Mot de passe oublie ?</a>}
     </form>
   );
 }
