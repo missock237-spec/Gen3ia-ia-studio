@@ -9,18 +9,15 @@ import {
   installExtension,
   uninstallExtension,
 } from "@/lib/extensions/repository";
-import { purchaseWithWallet, startChariowPurchase } from "@/lib/extensions/entitlements";
+import { startChariowPurchase } from "@/lib/extensions/entitlements";
 
 type Params = { params: Promise<{ id: string }> };
 
 /**
- * POST /api/extensions/:id/install — install (or buy then install).
- * Body (optional): { provider?: "wallet" | "chariow", email?, redirectUrl? }
- *
- * Free extensions install immediately with a consent snapshot of permissions.
- * Paid extensions REQUIRE a valid entitlement; without one the route starts a
- * wallet purchase (default) or a Chariow checkout, and the entitlement is only
- * created by wallet settlement or the verified Pulse webhook — never by the UI.
+ * POST /api/extensions/:id/install.
+ * Free extensions install immediately. Paid extensions use Chariow only.
+ * Payment is never trusted from the browser: entitlement is created only by
+ * the verified Chariow Pulse webhook.
  */
 export async function POST(request: Request, { params }: Params) {
   try {
@@ -31,36 +28,28 @@ export async function POST(request: Request, { params }: Params) {
     if (extension.status !== "approved") {
       return NextResponse.json({ error: "Cette extension n'est pas disponible à l'installation." }, { status: 400 });
     }
+
     const version = await getLatestApprovedVersion(id);
     if (!version) return NextResponse.json({ error: "Aucune version approuvée." }, { status: 400 });
 
-    const body = (await request.json().catch(() => ({}))) as {
-      provider?: string;
-      email?: string;
-      redirectUrl?: string;
-    };
-
+    const body = (await request.json().catch(() => ({}))) as { email?: string; redirectUrl?: string };
     const pricing = version.manifest.pricing;
+
     if (pricing.model !== "free") {
       const existing = await getInstallation(id, token.uid);
-      const alreadyActive = existing?.status === "active";
-      const entitlementInstalled = await hasActiveEntitlement(id, token.uid);
-      if (!alreadyActive && !entitlementInstalled) {
-        if (body.provider === "chariow") {
+      const entitled = await hasActiveEntitlement(id, token.uid);
+      if (!existing || existing.status !== "active") {
+        if (!entitled) {
+          const email = body.email?.trim() || token.email?.trim();
+          if (!email) return NextResponse.json({ error: "Une adresse e-mail est requise pour démarrer le paiement Chariow." }, { status: 400 });
           const checkout = await startChariowPurchase({
             userId: token.uid,
             extension,
-            email: body.email ?? `${token.uid}@gen3ia.placeholder`,
+            email,
             redirectUrl: body.redirectUrl ?? "https://gen3ia.online/marketplace",
           });
-          return NextResponse.json({ status: "checkout_required", checkoutUrl: checkout.checkoutUrl, purchaseId: checkout.purchaseId }, { status: 202 });
+          return NextResponse.json({ status: "checkout_required", provider: "chariow", checkoutUrl: checkout.checkoutUrl, purchaseId: checkout.purchaseId }, { status: 202 });
         }
-        const purchase = await purchaseWithWallet({
-          userId: token.uid,
-          extension,
-          reference: `ext_${id}_${token.uid.slice(0, 8)}_${Date.now()}`,
-        });
-        return NextResponse.json({ status: "purchased", purchaseId: purchase.purchaseId, message: purchase.message });
       }
     }
 
@@ -71,6 +60,7 @@ export async function POST(request: Request, { params }: Params) {
       permissionsGranted: version.manifest.permissions,
       settings: Object.fromEntries((version.manifest.settings ?? []).map((setting) => [setting.key, setting.default])),
     });
+
     return NextResponse.json({
       installation: { extensionId: installation.extensionId, version: installation.version, status: installation.status },
       permissionsGranted: installation.permissionsGranted,
@@ -80,7 +70,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 }
 
-/** DELETE /api/extensions/:id/install — uninstall (soft delete + counter). */
+/** DELETE /api/extensions/:id/install — uninstall (soft delete). */
 export async function DELETE(request: Request, { params }: Params) {
   try {
     const token = await verifyFirebaseToken(request.headers.get("authorization"));
