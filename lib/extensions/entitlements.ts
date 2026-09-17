@@ -17,17 +17,8 @@ import {
   markPurchasePaid,
   upsertEntitlement,
 } from "./repository";
+import { adminDb } from "@/lib/firebase/admin";
 import { canUseExtension, subscriptionExpiry, type PricingInfo } from "./pricing";
-
-/**
- * Extension billing (server-side only).
- *
- * The frontend is NEVER treated as proof of payment:
- * - free extensions install directly;
- * - paid extensions require an entitlement created by a verified payment;
- * - paid marketplace checkout is Chariow-only;
- * - subscriptions are extended from the later of now or the current expiry.
- */
 
 export interface PurchaseStartResult {
   mode: "wallet" | "chariow";
@@ -74,11 +65,6 @@ function licenseKey(): string {
   return `g3lic_${randomBytes(24).toString("base64url")}`;
 }
 
-/**
- * Legacy internal wallet purchase path. Marketplace checkout routes no longer
- * expose this path for paid extensions; it remains available to trusted
- * server-side callers that explicitly use the Gen3ia wallet.
- */
 export async function purchaseWithWallet(params: {
   userId: string;
   extension: ExtensionDoc;
@@ -139,7 +125,6 @@ export async function purchaseWithWallet(params: {
 }
 
 async function adminUpdatePurchaseFailed(purchaseId: string, reason: string): Promise<void> {
-  const { adminDb } = await import("@/lib/firebase/admin");
   await adminDb.collection("extensionPurchases").doc(purchaseId).update({
     status: "failed",
     providerRef: `failed:${reason.slice(0, 200)}`,
@@ -147,10 +132,6 @@ async function adminUpdatePurchaseFailed(purchaseId: string, reason: string): Pr
   }).catch(() => undefined);
 }
 
-/**
- * Starts a Chariow checkout for an extension purchase.
- * Entitlement is granted ONLY by the verified Pulse webhook.
- */
 export async function startChariowPurchase(params: {
   userId: string;
   extension: ExtensionDoc;
@@ -163,17 +144,14 @@ export async function startChariowPurchase(params: {
   customerIp?: string;
 }): Promise<PurchaseStartResult> {
   const productId = process.env.CHARIOW_EXT_PRODUCT_ID?.trim();
-  if (!productId) {
-    throw new Error("Achat Chariow des extensions non configuré.");
-  }
+  if (!productId) throw new Error("Achat Chariow des extensions non configuré.");
+
   const pricing = params.extension.pricing as PricingInfo;
   if (pricing.model !== "one_time" && pricing.model !== "subscription") {
     throw new Error("Ce modèle de tarification n'est pas achetable à l'unité.");
   }
   const amountMinor = pricing.amountMinor ?? 0;
-  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) {
-    throw new Error("Invalid extension price.");
-  }
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0) throw new Error("Invalid extension price.");
 
   const purchase = await createExtensionPurchase({
     userId: params.userId,
@@ -196,16 +174,16 @@ export async function startChariowPurchase(params: {
     customerIp: params.customerIp,
     metadata: { purchaseId: purchase.id, userId: params.userId, extensionId: params.extension.id },
   });
-  if (!checkout.checkoutUrl) {
-    throw new Error(checkout.message ?? "Chariow n'a pas retourné d'URL de paiement.");
-  }
+  if (!checkout.checkoutUrl) throw new Error(checkout.message ?? "Chariow n'a pas retourné d'URL de paiement.");
   return { mode: "chariow", purchaseId: purchase.id, checkoutUrl: checkout.checkoutUrl };
 }
 
 /**
- * Webhook-side entitlement settlement.
- * Every payment attribute supplied by the trusted webhook is matched against
- * the pending purchase before any entitlement is granted.
+ * Atomically settles a verified Chariow sale.
+ *
+ * The purchase, entitlement and license are committed in one Firestore
+ * transaction. A duplicate delivery therefore cannot create a second license
+ * or re-grant access after the purchase has already been settled.
  */
 export async function settleChariowExtensionPurchase(params: {
   purchaseId: string;
@@ -218,10 +196,10 @@ export async function settleChariowExtensionPurchase(params: {
   currency?: string;
   status?: string;
 }): Promise<{ granted: boolean }> {
-  const purchase: PurchaseDoc | null = await getExtensionPurchase(params.purchaseId);
+  const purchase = await getExtensionPurchase(params.purchaseId);
   if (!purchase) throw new Error("Unknown extension purchase reference.");
-
   if (purchase.provider !== "chariow") throw new Error("Purchase provider mismatch.");
+
   if (purchase.status === "paid") {
     if (params.providerRef && purchase.providerRef && purchase.providerRef !== params.providerRef) {
       throw new Error("Provider reference does not match the settled purchase.");
@@ -229,17 +207,13 @@ export async function settleChariowExtensionPurchase(params: {
     return { granted: false };
   }
   if (purchase.status !== "pending") throw new Error(`Purchase is not payable: ${purchase.status}.`);
-
-  if (params.saleId && params.providerRef !== `chariow:${params.saleId}`) {
-    throw new Error("Invalid Chariow provider reference.");
-  }
+  if (params.saleId && params.providerRef !== `chariow:${params.saleId}`) throw new Error("Invalid Chariow provider reference.");
   if (params.userId && params.userId !== purchase.userId) throw new Error("Webhook user mismatch.");
   if (params.extensionId && params.extensionId !== purchase.extensionId) throw new Error("Webhook extension mismatch.");
+
   if (params.productId) {
     const configuredProductId = process.env.CHARIOW_EXT_PRODUCT_ID?.trim();
-    if (!configuredProductId || params.productId !== configuredProductId) {
-      throw new Error("Chariow extension product mismatch.");
-    }
+    if (!configuredProductId || params.productId !== configuredProductId) throw new Error("Chariow extension product mismatch.");
   }
   if (params.amountMinor !== undefined && params.amountMinor !== purchase.amountMinor) {
     throw new Error("Chariow amount does not match the pending purchase.");
@@ -262,26 +236,68 @@ export async function settleChariowExtensionPurchase(params: {
   if (expectedAmount !== purchase.amountMinor) throw new Error("Extension price changed after checkout.");
   if (expectedCurrency !== purchase.currency.toUpperCase()) throw new Error("Extension currency changed after checkout.");
 
-  // Re-read immediately before the write so a duplicate webhook cannot blindly
-  // create another entitlement after another request has already paid it.
-  const latestPurchase = await getExtensionPurchase(purchase.id);
-  if (!latestPurchase) throw new Error("Purchase disappeared during settlement.");
-  if (latestPurchase.status === "paid") return { granted: false };
-  if (latestPurchase.status !== "pending") throw new Error(`Purchase is not payable: ${latestPurchase.status}.`);
+  const purchaseRef = adminDb.collection("extensionPurchases").doc(purchase.id);
+  const entitlementRef = adminDb.collection("extensionEntitlements").doc(`${purchase.extensionId}__${purchase.userId}`);
+  const licenseRef = adminDb.collection("extensionLicenses").doc(licenseKey());
+  const extensionRef = adminDb.collection("extensions").doc(purchase.extensionId);
+  const now = Date.now();
 
-  await markPurchasePaid(purchase.id, params.providerRef);
-  const expiresAt = await grantEntitlement({
-    userId: purchase.userId,
-    extension,
-    source: purchase.kind === "subscription" ? "subscription" : "purchase",
-    purchaseId: purchase.id,
+  await adminDb.runTransaction(async (tx) => {
+    const [purchaseSnap, extensionSnap, entitlementSnap] = await Promise.all([
+      tx.get(purchaseRef),
+      tx.get(extensionRef),
+      tx.get(entitlementRef),
+    ]);
+
+    if (!purchaseSnap.exists) throw new Error("Purchase disappeared during settlement.");
+    const currentPurchase = purchaseSnap.data() as PurchaseDoc;
+    if (currentPurchase.status === "paid") return;
+    if (currentPurchase.status !== "pending") throw new Error(`Purchase is not payable: ${currentPurchase.status}.`);
+    if (!extensionSnap.exists) throw new Error("Extension disappeared during settlement.");
+
+    const currentExtension = extensionSnap.data() as ExtensionDoc;
+    if (currentExtension.status !== "approved" || currentExtension.deletedAt) {
+      throw new Error("Extension is not currently approved.");
+    }
+
+    const currentEntitlement = entitlementSnap.exists ? entitlementSnap.data() as {
+      createdAt?: number;
+      expiresAt?: number | null;
+    } : null;
+    let expiresAt: number | null = null;
+    if (currentPurchase.kind === "subscription" && pricing.interval) {
+      const existingExpiry = typeof currentEntitlement?.expiresAt === "number" ? currentEntitlement.expiresAt : now;
+      expiresAt = subscriptionExpiry(pricing.interval, Math.max(now, existingExpiry));
+    }
+
+    tx.update(purchaseRef, {
+      status: "paid",
+      providerRef: params.providerRef,
+      paidAt: now,
+    });
+
+    tx.set(entitlementRef, {
+      id: `${purchase.extensionId}__${purchase.userId}`,
+      extensionId: purchase.extensionId,
+      userId: purchase.userId,
+      status: "active",
+      source: currentPurchase.kind === "subscription" ? "subscription" : "purchase",
+      purchaseId: purchase.id,
+      expiresAt,
+      createdAt: typeof currentEntitlement?.createdAt === "number" ? currentEntitlement.createdAt : now,
+      updatedAt: now,
+    });
+
+    tx.create(licenseRef, {
+      licenseKey: licenseRef.id,
+      purchaseId: purchase.id,
+      userId: purchase.userId,
+      extensionId: purchase.extensionId,
+      status: "active",
+      expiresAt,
+      createdAt: now,
+    });
   });
-  await createLicense({
-    purchaseId: purchase.id,
-    userId: purchase.userId,
-    extensionId: purchase.extensionId,
-    licenseKey: licenseKey(),
-    expiresAt,
-  });
+
   return { granted: true };
 }
