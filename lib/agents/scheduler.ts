@@ -14,7 +14,7 @@ export const ScheduleSchema = z.object({
   daysOfWeek: z.array(z.number().int().min(0).max(6)).min(1).max(7),
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  intervalMinutes: z.number().int().min(1).max(1440).default(0),
+  intervalMinutes: z.number().int().min(0).max(1440).default(0),
   enabled: z.boolean().default(true),
 });
 
@@ -54,15 +54,7 @@ function localParts(now: Date, timezone: string) {
   }).formatToParts(now);
 
   const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
-  const weekdayMap: Record<string, number> = {
-    Sun: 0,
-    Mon: 1,
-    Tue: 2,
-    Wed: 3,
-    Thu: 4,
-    Fri: 5,
-    Sat: 6,
-  };
+  const weekdayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
 
   return {
     year: Number(get("year")),
@@ -76,11 +68,7 @@ function localParts(now: Date, timezone: string) {
 
 function previousCalendarDate(year: number, month: number, day: number) {
   const date = new Date(Date.UTC(year, month - 1, day) - 86_400_000);
-  return {
-    year: date.getUTCFullYear(),
-    month: date.getUTCMonth() + 1,
-    day: date.getUTCDate(),
-  };
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 }
 
 function calendarDate(local: ReturnType<typeof localParts>) {
@@ -97,7 +85,6 @@ export function isScheduleActive(schedule: AgentSchedule, now = new Date()) {
   if (start === end) return schedule.daysOfWeek.includes(local.weekday);
 
   if (start > end) {
-    // Before the end time, the active window belongs to yesterday's start day.
     if (current < end) {
       const previousWeekday = (local.weekday + 6) % 7;
       return schedule.daysOfWeek.includes(previousWeekday);
@@ -118,7 +105,6 @@ function slotFor(schedule: AgentSchedule, now = new Date()) {
 
   let date = calendarDate(local);
   let elapsed: number;
-
   if (start > end && current < end) {
     const previous = previousCalendarDate(local.year, local.month, local.day);
     date = `${String(previous.year).padStart(4, "0")}-${String(previous.month).padStart(2, "0")}-${String(previous.day).padStart(2, "0")}`;
@@ -134,9 +120,9 @@ function slotFor(schedule: AgentSchedule, now = new Date()) {
 export async function createSchedule(userId: string, input: unknown) {
   const parsed = ScheduleSchema.parse(input);
   assertTimezone(parsed.timezone);
-
   const id = randomUUID();
   const now = FieldValue.serverTimestamp();
+
   await adminDb.collection(COLLECTION).doc(id).set({
     ...parsed,
     userId,
@@ -162,7 +148,6 @@ export async function listSchedules(userId: string) {
 export async function updateSchedule(userId: string, id: string, input: unknown) {
   const parsed = ScheduleSchema.partial().parse(input);
   if (parsed.timezone) assertTimezone(parsed.timezone);
-
   const ref = adminDb.collection(COLLECTION).doc(id);
   const current = await ref.get();
   if (!current.exists || current.data()?.userId !== userId) return null;
@@ -172,7 +157,6 @@ export async function updateSchedule(userId: string, id: string, input: unknown)
     ...(parsed.daysOfWeek ? { daysOfWeek: [...new Set(parsed.daysOfWeek)].sort((a, b) => a - b) } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
-
   return getSchedule(userId, id);
 }
 
@@ -239,18 +223,12 @@ export async function runSchedule(schedule: AgentSchedule) {
     lastExecutionAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });
-
   return { executionId, status: state.status };
 }
 
 export function serializeSchedule(id: string, data: DocumentData): AgentSchedule {
   const toIso = (value: unknown) => value instanceof Timestamp ? value.toDate().toISOString() : undefined;
-  return {
-    ...(data as Omit<AgentSchedule, "id">),
-    id,
-    createdAt: toIso(data.createdAt),
-    updatedAt: toIso(data.updatedAt),
-  };
+  return { ...(data as Omit<AgentSchedule, "id">), id, createdAt: toIso(data.createdAt), updatedAt: toIso(data.updatedAt) };
 }
 
 export async function dispatchSchedules(now = new Date()) {
