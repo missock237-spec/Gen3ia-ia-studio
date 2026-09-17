@@ -22,22 +22,33 @@ async function createAndSignIn(): Promise<{ idToken: string; localId: string }> 
     },
   );
 
-  expect(createResponse.ok).toBe(true);
-  const created = (await createResponse.json()) as { idToken: string; localId: string };
-  return created;
+  if (createResponse.ok) {
+    return (await createResponse.json()) as { idToken: string; localId: string };
+  }
+
+  const signInResponse = await fetch(
+    `http://${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=e2e`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, returnSecureToken: true }),
+    },
+  );
+  expect(signInResponse.ok).toBe(true);
+  return (await signInResponse.json()) as { idToken: string; localId: string };
 }
 
 describe("Firebase E2E: inscription -> session -> portefeuille", () => {
   let verifyFirebaseToken: typeof import("@/lib/firebase/auth-server").verifyFirebaseToken;
-  let ensureUserProfile: typeof import("@/lib/firebase/users").ensureUserProfile;
   let getWallet: typeof import("@/lib/billing/wallet").getWallet;
   let adminDb: typeof import("@/lib/firebase/admin").adminDb;
+  let sessionPost: typeof import("@/app/api/auth/session/route").POST;
 
   beforeAll(async () => {
     ({ verifyFirebaseToken } = await import("@/lib/firebase/auth-server"));
-    ({ ensureUserProfile } = await import("@/lib/firebase/users"));
     ({ getWallet } = await import("@/lib/billing/wallet"));
     ({ adminDb } = await import("@/lib/firebase/admin"));
+    ({ POST: sessionPost } = await import("@/app/api/auth/session/route"));
   });
 
   afterAll(async () => {
@@ -45,35 +56,35 @@ describe("Firebase E2E: inscription -> session -> portefeuille", () => {
     await Promise.all(userSnap.docs.map((doc) => doc.ref.delete()));
   });
 
-  it("crée réellement le compte Firebase et obtient un ID token", async () => {
+  it("inscrit un utilisateur Firebase et obtient un ID token", async () => {
     const { idToken, localId } = await createAndSignIn();
     expect(localId).toMatch(/^.+$/);
     expect(idToken.split(".")).toHaveLength(3);
   });
 
-  it("vérifie la session puis crée le profil Firestore", async () => {
-    const { idToken, localId } = await createAndSignIn().catch(async () => {
-      const response = await fetch(
-        `http://${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=e2e`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, returnSecureToken: true }),
-        },
-      );
-      expect(response.ok).toBe(true);
-      return (await response.json()) as { idToken: string; localId: string };
-    });
-
+  it("établit la session via /api/auth/session et crée le profil Firestore", async () => {
+    const { idToken, localId } = await createAndSignIn();
     const token = await verifyFirebaseToken(`Bearer ${idToken}`);
     expect(token.uid).toBe(localId);
 
-    await ensureUserProfile({
-      uid: token.uid,
-      email: token.email,
-      displayName: "Gen3ia E2E",
-      provider: token.firebase?.sign_in_provider ?? "password",
-    });
+    const response = await sessionPost(
+      new Request("http://localhost/api/auth/session", {
+        method: "POST",
+        headers: { authorization: `Bearer ${idToken}` },
+      }) as never,
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      authenticated: boolean;
+      user: { uid: string; email: string | null };
+      wallet: { currency: string; balanceMinor: number; availableMinor: number };
+    };
+
+    expect(body.authenticated).toBe(true);
+    expect(body.user.uid).toBe(localId);
+    expect(body.user.email).toBe(TEST_EMAIL);
+    expect(body.wallet.currency).toBe("XAF");
 
     const profile = await adminDb.collection("users").doc(localId).get();
     expect(profile.exists).toBe(true);
@@ -81,20 +92,8 @@ describe("Firebase E2E: inscription -> session -> portefeuille", () => {
     expect(profile.get("email")).toBe(TEST_EMAIL);
   });
 
-  it("initialise le portefeuille une seule fois et attribue le solde d'accueil", async () => {
-    const { idToken, localId } = await createAndSignIn().catch(async () => {
-      const response = await fetch(
-        `http://${AUTH_EMULATOR}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=e2e`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ email: TEST_EMAIL, password: TEST_PASSWORD, returnSecureToken: true }),
-        },
-      );
-      expect(response.ok).toBe(true);
-      return (await response.json()) as { idToken: string; localId: string };
-    });
-
+  it("initialise le portefeuille une seule fois avec le solde d'accueil", async () => {
+    const { idToken, localId } = await createAndSignIn();
     const token = await verifyFirebaseToken(`Bearer ${idToken}`);
     expect(token.uid).toBe(localId);
 
