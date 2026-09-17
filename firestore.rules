@@ -180,6 +180,61 @@ service cloud.firestore {
       allow read: if isAuthenticated() && request.auth.uid == userId;
       allow write: if isAuthenticated() && request.auth.uid == userId;
     }
+
+    // ---- Extension Platform ----
+    // Toutes les mutations passent par l'Admin SDK (routes API sécurisées) :
+    // les écritures directes depuis le client sont interdites.
+    match /extensions/{extensionId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /extensionVersions/{versionId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /extensionInstallations/{installationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /extensionEntitlements/{entitlementId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /extensionReviews/{reviewId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /extensionReports/{reportId} {
+      allow read, write: if false;
+    }
+    match /extensionPurchases/{purchaseId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /extensionLicenses/{licenseId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+    match /extensionExecutions/{executionId} {
+      allow read, write: if false;
+    }
+    match /extensionUsageCounters/{counterId} {
+      allow read, write: if false;
+    }
+    match /extensionSecrets/{secretId} {
+      allow read, write: if false;
+    }
+    match /developers/{developerId} {
+      allow read: if isAuthenticated() && developerId == request.auth.uid;
+      allow write: if false;
+    }
+    match /developerRevenue/{entryId} {
+      allow read: if isAuthenticated() && resource.data.developerId == request.auth.uid;
+      allow write: if false;
+    }
+    match /developerApiKeys/{keyHash} {
+      allow read, write: if false;
+    }
   }
 }
   }

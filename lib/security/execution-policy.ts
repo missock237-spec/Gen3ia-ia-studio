@@ -8,6 +8,7 @@ export const PermissionSchema = z.enum([
   "file.read", "file.write", "file.create", "file.delete",
   "network.read", "network.write", "code.execute", "terminal.execute",
   "camera.capture", "memory.read", "memory.write", "ads.read", "ads.write",
+  "extension.execute",
 ]);
 export type Permission = z.infer<typeof PermissionSchema>;
 

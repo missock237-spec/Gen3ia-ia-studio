@@ -3,6 +3,7 @@ import { getApps } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { adminDb } from "@/lib/firebase/admin";
 import { applyTopup, WALLET_CURRENCY } from "@/lib/billing/wallet";
+import { settleChariowExtensionPurchase } from "@/lib/extensions/entitlements";
 
 const CREDITABLE_STATUSES = new Set(["completed", "settled"]);
 
@@ -55,6 +56,19 @@ export async function POST(request: Request) {
   if (!claimed) return Response.json({ received: true, duplicate: true });
 
   try {
+    // Extension purchases: the sale carries custom_metadata
+    // gen3ia_product = "extension_purchase" + purchaseId. The entitlement is
+    // granted here only — the webhook signature is the sole payment proof.
+    const metaProduct = String(payload?.sale?.custom_metadata?.gen3ia_product ?? "");
+    if (metaProduct === "extension_purchase") {
+      const purchaseId = String(payload?.sale?.custom_metadata?.purchaseId ?? "");
+      const saleId = String(payload?.sale?.id ?? "");
+      if (!purchaseId || !saleId) throw new Error("Extension purchase payload is missing purchaseId or saleId.");
+      const result = await settleChariowExtensionPurchase({ purchaseId, providerRef: `chariow:${saleId}` });
+      await deliveryRef.update({ status: "processed", kind: "extension_purchase", purchaseId, saleId, granted: result.granted, processedAt: new Date() });
+      return Response.json({ received: true, kind: "extension_purchase", granted: result.granted });
+    }
+
     if (!isTopupSale(payload)) {
       await deliveryRef.update({ status: "ignored", reason: "not_a_wallet_topup_sale", processedAt: new Date() });
       return Response.json({ received: true, ignored: true });

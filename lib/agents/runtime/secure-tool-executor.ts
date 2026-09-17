@@ -16,6 +16,8 @@ import { executeAdsTool, type AdsProvider } from "@/lib/integrations/composio/ad
 import { assertAdsSpendPolicy } from "@/lib/security/ads-spend-guard";
 import { commitAdsDailySpend, releaseAdsDailySpend, reserveAdsDailySpend, type AdsSpendReservation } from "@/lib/security/ads-spend-budget";
 import { reserveToolExecution, settleToolExecution, releaseToolExecution } from "@/lib/billing/tool-meter";
+import { executeExtensionTool } from "@/lib/extensions/runtime";
+import { isExtensionToolName } from "@/lib/security/tool-permissions";
 
 export interface SecureToolExecutionOptions {
   userId: string;
@@ -125,6 +127,11 @@ export async function executeToolSecurely(options: SecureToolExecutionOptions): 
     } else if (options.toolName === "code.execute") {
       const sandbox = parseSandboxInput(options.input);
       result = await executeSandbox({ executionId: options.executionId, userId: options.userId, runtime: sandbox.runtime, code: sandbox.code, input: sandbox.input, limits: sandbox.limits, network: "none" });
+    } else if (isExtensionToolName(options.toolName)) {
+      // Declarative extension tool: runs through the Extension Runtime
+ // pipeline (entitlement, quotas, rate limit, permission engine, SSRF
+ // guards, timeouts, secrets injection, output validation, audit logs).
+      result = await executeExtensionTool({ userId: options.userId, executionId: options.executionId, toolName: options.toolName, input: options.input, signal: options.signal });
     } else {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), policy.maxToolExecutionMs);

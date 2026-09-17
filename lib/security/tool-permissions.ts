@@ -24,8 +24,29 @@ const TOOL_SECURITY: Record<string, ToolSecurityDefinition> = {
 };
 
 export function getToolSecurityDefinition(toolName: string): ToolSecurityDefinition { const definition = TOOL_SECURITY[toolName]; if (!definition) throw new Error(`Unknown tool security definition: ${toolName}`); return definition; }
+
+/** Extension tools follow the `ext.<extensionId>.<toolId>` naming convention. */
+export function isExtensionToolName(toolName: string): boolean {
+  return toolName.startsWith("ext.") && /^[a-z0-9-]+\.[a-z0-9_-]+$/i.test(toolName.slice(4));
+}
+
+function getExtensionToolSecurityDefinition(toolName: string): ToolSecurityDefinition {
+  return { name: toolName, risk: "external", requiredPermissions: ["tool.external", "extension.execute"], network: true, externalApp: true };
+}
+
 export function authorizeTool(policy: ExecutionPolicy, toolName: string): ToolSecurityDefinition {
   assertToolAllowed(policy, toolName);
+  // Extension tools carry their own security profile: network calls, external
+  // risk class, and the dedicated `extension.execute` permission. All other
+  // gates (emergency stop, quotas, audit, metering, guardrails) are applied by
+  // the shared secure executor pipeline.
+  if (isExtensionToolName(toolName)) {
+    const extensionDefinition = getExtensionToolSecurityDefinition(toolName);
+    for (const permission of extensionDefinition.requiredPermissions) assertPermission(policy, permission);
+    if (!policy.allowNetwork) throw new Error(`Network access denied for tool: ${toolName}`);
+    if (!policy.allowExternalApps) throw new Error(`External application access denied: ${toolName}`);
+    return extensionDefinition;
+  }
   const definition = getToolSecurityDefinition(toolName);
   for (const permission of definition.requiredPermissions) assertPermission(policy, permission);
   if (definition.network && !policy.allowNetwork) throw new Error(`Network access denied for tool: ${toolName}`);

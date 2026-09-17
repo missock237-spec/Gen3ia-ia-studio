@@ -139,3 +139,52 @@ export async function getChariowSale(saleId: string): Promise<ChariowSale> {
     productId: data?.product?.id != null ? String(data.product.id) : "",
   };
 }
+
+export interface ChariowExtensionCheckoutInput {
+  productId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  countryCode: string;
+  redirectUrl: string;
+  customerIp?: string;
+  paymentCurrency?: string;
+  metadata: Record<string, string>;
+}
+
+/**
+ * Creates a Chariow checkout for an extension purchase. The sale is tagged
+ * with `custom_metadata.gen3ia_product = "extension_purchase"` plus the
+ * caller-provided metadata so the Pulse webhook can grant the entitlement.
+ */
+export async function createChariowExtensionCheckout(
+  input: ChariowExtensionCheckoutInput,
+): Promise<ChariowCheckoutResult> {
+  const body = {
+    product_id: input.productId,
+    email: input.email,
+    first_name: input.firstName.slice(0, 50),
+    last_name: input.lastName.slice(0, 50),
+    phone: {
+      number: input.phoneNumber.replace(/\D/g, ""),
+      country_code: input.countryCode.toUpperCase().slice(0, 10),
+    },
+    ...(input.paymentCurrency ? { payment_currency: input.paymentCurrency.toUpperCase() } : {}),
+    redirect_url: input.redirectUrl.slice(0, 2048),
+    ...(input.customerIp ? { customer_ip: input.customerIp } : {}),
+    custom_metadata: { gen3ia_product: "extension_purchase", ...input.metadata },
+  };
+
+  const { data } = await chariowFetch("/checkout", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  return {
+    step: String(data?.step ?? ""),
+    message: data?.message != null ? String(data.message) : null,
+    saleId: data?.purchase?.id != null ? String(data.purchase.id) : null,
+    checkoutUrl: data?.payment?.checkout_url != null ? String(data.payment.checkout_url) : null,
+  };
+}

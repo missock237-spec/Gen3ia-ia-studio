@@ -40,12 +40,22 @@ export default function HomePage() {
               PC
             </span>
           </Link>
+          <Link
+            href="/marketplace"
+            className="inline-flex items-center gap-2 rounded-xl px-6 py-3 border"
+          >
+            Marketplace
+          </Link>
         </div>
 
         <p className="mt-6 text-sm opacity-50">
           Disponible sur le web (Android &amp; iOS — installable depuis le
           navigateur) et sur PC avec l'application Gen3ia Desktop (Windows,
-          Linux).
+          Linux). Étendez vos agents avec les extensions de la
+          {" "}
+          <Link href="/marketplace" className="underline">marketplace</Link>
+          {" "}ou créez les vôtres via le{" "}
+          <Link href="/developer" className="underline">SDK développeur</Link>.
         </p>
       </section>
     </main>
