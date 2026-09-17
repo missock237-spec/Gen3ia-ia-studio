@@ -28,6 +28,35 @@ export function validateRequest(
   for (
     const header of BLOCKED_HEADERS
   ) {
+    // Cas particulier : derriere un reverse proxy de confiance (Vercel),
+    // `x-forwarded-host` est ajoute par la plateforme a CHAQUE requete.
+    // On ne le refuse que s'il entre en conflit avec le Host reel de la
+    // requete (tentative de spoofing), sinon toute l'API serait bloquee
+    // en production. Hors proxy, le blocage strict reste actif.
+    if (header === "x-forwarded-host") {
+      const forwarded =
+        request.headers.get(header);
+
+      const forwardedHost = forwarded
+        ?.split(",")[0]
+        ?.trim();
+
+      const host =
+        request.headers.get("host");
+
+      if (
+        forwardedHost &&
+        host &&
+        forwardedHost !== host
+      ) {
+        throw new Error(
+          `Blocked request header: ${header}`,
+        );
+      }
+
+      continue;
+    }
+
     if (request.headers.has(header)) {
       throw new Error(
         `Blocked request header: ${header}`,
