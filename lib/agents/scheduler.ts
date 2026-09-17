@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue, Timestamp, type DocumentData } from "firebase-admin/firestore";
 import { z } from "zod";
 
 import { adminDb } from "@/lib/firebase/admin";
@@ -65,53 +65,70 @@ function localParts(now: Date, timezone: string) {
   };
 
   return {
-    year: get("year"),
-    month: get("month"),
-    day: get("day"),
+    year: Number(get("year")),
+    month: Number(get("month")),
+    day: Number(get("day")),
     hour: Number(get("hour")),
     minute: Number(get("minute")),
     weekday: weekdayMap[get("weekday")] ?? -1,
   };
 }
 
+function previousCalendarDate(year: number, month: number, day: number) {
+  const date = new Date(Date.UTC(year, month - 1, day) - 86_400_000);
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function calendarDate(local: ReturnType<typeof localParts>) {
+  return `${String(local.year).padStart(4, "0")}-${String(local.month).padStart(2, "0")}-${String(local.day).padStart(2, "0")}`;
+}
+
 export function isScheduleActive(schedule: AgentSchedule, now = new Date()) {
   if (!schedule.enabled) return false;
   const local = localParts(now, schedule.timezone);
-  if (!schedule.daysOfWeek.includes(local.weekday)) return false;
-
   const current = local.hour * 60 + local.minute;
   const start = minutes(schedule.startTime);
   const end = minutes(schedule.endTime);
 
-  // Same start/end means a full-day window on selected days.
-  if (start === end) return true;
+  if (start === end) return schedule.daysOfWeek.includes(local.weekday);
 
-  // Windows crossing midnight remain active after midnight.
-  if (start > end) return current >= start || current < end;
-  return current >= start && current < end;
+  if (start > end) {
+    // Before the end time, the active window belongs to yesterday's start day.
+    if (current < end) {
+      const previousWeekday = (local.weekday + 6) % 7;
+      return schedule.daysOfWeek.includes(previousWeekday);
+    }
+    return schedule.daysOfWeek.includes(local.weekday) && current >= start;
+  }
+
+  return schedule.daysOfWeek.includes(local.weekday) && current >= start && current < end;
 }
 
 function slotFor(schedule: AgentSchedule, now = new Date()) {
   const local = localParts(now, schedule.timezone);
-  const date = `${local.year}-${local.month}-${local.day}`;
   const current = local.hour * 60 + local.minute;
   const start = minutes(schedule.startTime);
   const end = minutes(schedule.endTime);
 
   if (!isScheduleActive(schedule, now)) return null;
-  if (schedule.intervalMinutes <= 0) {
-    return `${date}:start`;
-  }
 
+  let date = calendarDate(local);
   let elapsed: number;
+
   if (start > end && current < end) {
+    const previous = previousCalendarDate(local.year, local.month, local.day);
+    date = `${String(previous.year).padStart(4, "0")}-${String(previous.month).padStart(2, "0")}-${String(previous.day).padStart(2, "0")}`;
     elapsed = current + 1440 - start;
   } else {
-    elapsed = current - start;
+    elapsed = Math.max(0, current - start);
   }
 
-  const bucket = Math.floor(elapsed / schedule.intervalMinutes);
-  return `${date}:${bucket}`;
+  if (schedule.intervalMinutes <= 0) return `${date}:start`;
+  return `${date}:${Math.floor(elapsed / schedule.intervalMinutes)}`;
 }
 
 export async function createSchedule(userId: string, input: unknown) {
@@ -138,14 +155,8 @@ export async function getSchedule(userId: string, id: string) {
 }
 
 export async function listSchedules(userId: string) {
-  const snap = await adminDb.collection(COLLECTION)
-    .where("userId", "==", userId)
-    .limit(100)
-    .get();
-
-  return snap.docs
-    .map((doc) => serializeSchedule(doc.id, doc.data()))
-    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const snap = await adminDb.collection(COLLECTION).where("userId", "==", userId).limit(100).get();
+  return snap.docs.map((doc) => serializeSchedule(doc.id, doc.data())).sort((a, b) => a.startTime.localeCompare(b.startTime));
 }
 
 export async function updateSchedule(userId: string, id: string, input: unknown) {
@@ -158,9 +169,7 @@ export async function updateSchedule(userId: string, id: string, input: unknown)
 
   await ref.update({
     ...parsed,
-    ...(parsed.daysOfWeek
-      ? { daysOfWeek: [...new Set(parsed.daysOfWeek)].sort((a, b) => a - b) }
-      : {}),
+    ...(parsed.daysOfWeek ? { daysOfWeek: [...new Set(parsed.daysOfWeek)].sort((a, b) => a - b) } : {}),
     updatedAt: FieldValue.serverTimestamp(),
   });
 
@@ -234,10 +243,8 @@ export async function runSchedule(schedule: AgentSchedule) {
   return { executionId, status: state.status };
 }
 
-export function serializeSchedule(id: string, data: FirebaseFirestore.DocumentData): AgentSchedule {
-  const toIso = (value: unknown) =>
-    value instanceof Timestamp ? value.toDate().toISOString() : undefined;
-
+export function serializeSchedule(id: string, data: DocumentData): AgentSchedule {
+  const toIso = (value: unknown) => value instanceof Timestamp ? value.toDate().toISOString() : undefined;
   return {
     ...(data as Omit<AgentSchedule, "id">),
     id,
@@ -247,30 +254,17 @@ export function serializeSchedule(id: string, data: FirebaseFirestore.DocumentDa
 }
 
 export async function dispatchSchedules(now = new Date()) {
-  const snap = await adminDb.collection(COLLECTION)
-    .where("enabled", "==", true)
-    .limit(500)
-    .get();
-
-  const due = snap.docs
-    .map((doc) => serializeSchedule(doc.id, doc.data()))
-    .filter((schedule) => isScheduleActive(schedule, now));
-
+  const snap = await adminDb.collection(COLLECTION).where("enabled", "==", true).limit(500).get();
+  const due = snap.docs.map((doc) => serializeSchedule(doc.id, doc.data())).filter((schedule) => isScheduleActive(schedule, now));
   const results: Array<Record<string, unknown>> = [];
 
   for (const schedule of due) {
     const claimed = await claimDueSchedule(schedule, now);
     if (!claimed) continue;
-
     try {
-      const execution = await runSchedule(schedule);
-      results.push({ scheduleId: schedule.id, ...execution });
+      results.push({ scheduleId: schedule.id, ...(await runSchedule(schedule)) });
     } catch (error) {
-      results.push({
-        scheduleId: schedule.id,
-        status: "failed",
-        error: error instanceof Error ? error.message : "Scheduled execution failed",
-      });
+      results.push({ scheduleId: schedule.id, status: "failed", error: error instanceof Error ? error.message : "Scheduled execution failed" });
     }
   }
 
