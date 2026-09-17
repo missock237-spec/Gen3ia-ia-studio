@@ -3,24 +3,12 @@ import { createPublicKey, createVerify, type KeyObject } from "node:crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 
 /**
- * Vérification serveur des Firebase ID tokens SANS clé de service account.
+ * Vérification serveur des Firebase ID tokens.
  *
- * Implémente la procédure officielle documentée par Google pour vérifier un
- * ID token avec une librairie JWT tierce :
- * https://firebase.google.com/docs/auth/admin/verify-id-tokens#verify_id_tokens_using_a_third-party_jwt_library
- *
- * Le token est signé (RS256) par le service `securetoken@system.gserviceaccount.com`
- * ; la clé publique est publiée par Google (URL ci-dessous). On vérifie :
- *   - la signature contre la clé publique correspondant au `kid` du header ;
- *   - `iss` = https://securetoken.google.com/<projet> ;
- *   - `aud` = <projet> (le projet du CLIENT, cf. NEXT_PUBLIC_FIREBASE_PROJECT_ID) ;
- *   - exp / iat / auth_time ; `sub` non vide.
- *
- * Différence connue avec l'Admin SDK (`verifyIdToken(token, true)`) : la
- * révocation en temps réel (compte désactivé / refresh token révoqué) ne peut
- * pas être consultée sans credential admin. Les ID tokens restent limités à
- * 1 h — le compromis est acceptable et permet à l'authentification de
- * fonctionner indépendamment du projet de la clé admin.
+ * Production: validation JWT RS256 contre les certificats publics Google.
+ * Emulator: Firebase Admin verifyIdToken() est utilisé uniquement lorsque
+ * FIREBASE_AUTH_EMULATOR_HOST est présent, afin que l'E2E local reproduise
+ * réellement le flux Auth -> API -> Firestore sans contourner l'authentification.
  */
 
 const GOOGLE_CERTS_URL =
@@ -70,18 +58,15 @@ async function fetchGooglePublicKeys(
   }
 
   const response = await fetch(GOOGLE_CERTS_URL, { cache: "no-store" });
-
   if (!response.ok) {
     throw new Error(
-      `Impossible de récupérer les certificats publics Google (HTTP ${response.status}).`
+      `Impossible de récupérer les certificats publics Google (HTTP ${response.status}).`,
     );
   }
 
   const cacheControl = response.headers.get("cache-control") ?? "";
   const maxAgeSeconds = Number(/max-age=(\d+)/.exec(cacheControl)?.[1] ?? 3600);
-  const certificates =
-    (await response.json()) as Record<string, string>;
-
+  const certificates = (await response.json()) as Record<string, string>;
   const keys: Record<string, KeyObject> = {};
 
   for (const [kid, pem] of Object.entries(certificates)) {
@@ -93,20 +78,13 @@ async function fetchGooglePublicKeys(
     fetchedAt: Date.now(),
     maxAgeMs: Math.max(60, maxAgeSeconds) * 1000,
   };
-
   return keys;
 }
 
 function decodeSegment(segment: string): unknown {
-  const json = Buffer.from(segment, "base64url").toString("utf8");
-  return JSON.parse(json);
+  return JSON.parse(Buffer.from(segment, "base64url").toString("utf8"));
 }
 
-/**
- * Projet Firebase attendu côté serveur : celui du SDK CLIENT (c'est lui qui
- * émet les tokens présentés aux API). NEXT_PUBLIC_FIREBASE_PROJECT_ID est la
- * source de vérité ; FIREBASE_PROJECT_ID sert de repli.
- */
 function expectedProjectId(): string {
   return (
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() ||
@@ -115,37 +93,40 @@ function expectedProjectId(): string {
   );
 }
 
-export async function verifyFirebaseToken(
-  authorizationHeader: string | null
-): Promise<DecodedIdToken> {
-  if (!authorizationHeader) {
-    throw new Error("Missing authorization header.");
-  }
+async function verifyWithEmulator(token: string): Promise<DecodedIdToken> {
+  const { getApps } = await import("firebase-admin/app");
+  const { getAuth } = await import("firebase-admin/auth");
+  const { getAdminApp } = await import("./admin");
 
+  if (getApps().length === 0) getAdminApp();
+  return getAuth().verifyIdToken(token, true);
+}
+
+export async function verifyFirebaseToken(
+  authorizationHeader: string | null,
+): Promise<DecodedIdToken> {
+  if (!authorizationHeader) throw new Error("Missing authorization header.");
   if (!authorizationHeader.startsWith("Bearer ")) {
     throw new Error("Invalid authorization scheme.");
   }
 
   const token = authorizationHeader.slice(7).trim();
-
-  if (!token) {
-    throw new Error("Missing Firebase ID token.");
-  }
+  if (!token) throw new Error("Missing Firebase ID token.");
 
   try {
-    const projectId = expectedProjectId();
+    if (process.env.FIREBASE_AUTH_EMULATOR_HOST?.trim()) {
+      return await verifyWithEmulator(token);
+    }
 
+    const projectId = expectedProjectId();
     if (!projectId) {
       throw new Error(
-        "Firebase project id is not configured (NEXT_PUBLIC_FIREBASE_PROJECT_ID)."
+        "Firebase project id is not configured (NEXT_PUBLIC_FIREBASE_PROJECT_ID).",
       );
     }
 
     const segments = token.split(".");
-
-    if (segments.length !== 3) {
-      throw new Error("Malformed JWT.");
-    }
+    if (segments.length !== 3) throw new Error("Malformed JWT.");
 
     const header = decodeSegment(segments[0]!) as TokenHeader;
     const payload = decodeSegment(segments[1]!) as TokenPayload;
@@ -154,82 +135,55 @@ export async function verifyFirebaseToken(
     if (header.alg !== "RS256") {
       throw new Error(`Unexpected JWT alg: ${String(header.alg)}.`);
     }
-
     const kid = header.kid;
+    if (!kid) throw new Error("Missing JWT kid.");
 
-    if (!kid) {
-      throw new Error("Missing JWT kid.");
-    }
-
-    // Vérification des claims temporels AVANT la signature (échec rapide).
     const now = Math.floor(Date.now() / 1000);
-
     if (typeof payload.exp !== "number" || payload.exp <= now) {
       throw new Error("Token expired.");
     }
-
     if (typeof payload.iat !== "number" || payload.iat > now + 300) {
       throw new Error("Token issued in the future.");
     }
-
-    if (
-      typeof payload.auth_time === "number" &&
-      payload.auth_time > now + 300
-    ) {
+    if (typeof payload.auth_time === "number" && payload.auth_time > now + 300) {
       throw new Error("Token auth_time in the future.");
     }
-
     if (typeof payload.sub !== "string" || payload.sub.length === 0) {
       throw new Error("Token subject is empty.");
     }
-
     if (payload.iss !== `https://securetoken.google.com/${projectId}`) {
       throw new Error(`Token issuer mismatch: ${String(payload.iss)}.`);
     }
-
     if (payload.aud !== projectId) {
       throw new Error(`Token audience mismatch: ${String(payload.aud)}.`);
     }
 
-    // Vérification de la signature. Si le `kid` est inconnu (rotation des
-    // certificats Google), on re-téléforce la liste avant d'échouer.
     let keys = await fetchGooglePublicKeys();
     let publicKey = keys[kid];
-
     if (!publicKey) {
       keys = await fetchGooglePublicKeys(true);
       publicKey = keys[kid];
     }
-
-    if (!publicKey) {
-      throw new Error(`Unknown JWT kid: ${kid}.`);
-    }
+    if (!publicKey) throw new Error(`Unknown JWT kid: ${kid}.`);
 
     const signatureValid = createVerify("RSA-SHA256")
       .update(`${segments[0]}.${segments[1]}`)
       .verify(publicKey, signature);
+    if (!signatureValid) throw new Error("Invalid JWT signature.");
 
-    if (!signatureValid) {
-      throw new Error("Invalid JWT signature.");
-    }
-
-    const decoded = {
+    return {
       ...payload,
       uid: payload.sub,
       firebase: {
         identities: payload.firebase?.identities ?? {},
         sign_in_provider: payload.firebase?.sign_in_provider ?? "unknown",
-        ...(payload.firebase?.tenant
-          ? { tenant: payload.firebase.tenant }
-          : {}),
+        ...(payload.firebase?.tenant ? { tenant: payload.firebase.tenant } : {}),
       },
     } as unknown as DecodedIdToken;
-
-    return decoded;
   } catch (error) {
     console.warn(
       "[auth-server] ID token verification failed:",
-      error instanceof Error ? error.message : error
+      error instanceof Error ? error.message : error,
     );
     throw new Error("Invalid or revoked Firebase ID token.");
   }
