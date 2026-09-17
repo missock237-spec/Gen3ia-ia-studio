@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 
+import { adminDb } from "@/lib/firebase/admin";
 import {
   reserveFunds,
   settleReservation,
@@ -17,7 +18,6 @@ import {
   markPurchasePaid,
   upsertEntitlement,
 } from "./repository";
-import { adminDb } from "@/lib/firebase/admin";
 import { canUseExtension, subscriptionExpiry, type PricingInfo } from "./pricing";
 
 export interface PurchaseStartResult {
@@ -27,7 +27,6 @@ export interface PurchaseStartResult {
   message?: string;
 }
 
-/** True when the user may use the extension right now. */
 export async function assertExtensionUsable(userId: string, extension: ExtensionDoc): Promise<void> {
   const pricing: PricingInfo = extension.pricing as PricingInfo;
   const entitlement = await getEntitlement(extension.id, userId);
@@ -35,7 +34,7 @@ export async function assertExtensionUsable(userId: string, extension: Extension
   if (!decision.allowed) throw new Error(decision.reason ?? "This extension is not usable.");
 }
 
-/** Grants or renews the entitlement that unlocks an extension. */
+/** Grants or renews an extension entitlement. */
 export async function grantEntitlement(params: {
   userId: string;
   extension: ExtensionDoc;
@@ -180,10 +179,7 @@ export async function startChariowPurchase(params: {
 
 /**
  * Atomically settles a verified Chariow sale.
- *
- * The purchase, entitlement and license are committed in one Firestore
- * transaction. A duplicate delivery therefore cannot create a second license
- * or re-grant access after the purchase has already been settled.
+ * Purchase, entitlement and license are committed in one Firestore transaction.
  */
 export async function settleChariowExtensionPurchase(params: {
   purchaseId: string;
@@ -240,18 +236,22 @@ export async function settleChariowExtensionPurchase(params: {
   const entitlementRef = adminDb.collection("extensionEntitlements").doc(`${purchase.extensionId}__${purchase.userId}`);
   const licenseRef = adminDb.collection("extensionLicenses").doc(licenseKey());
   const extensionRef = adminDb.collection("extensions").doc(purchase.extensionId);
-  const now = Date.now();
+  const settlementNow = Date.now();
+  let granted = false;
 
   await adminDb.runTransaction(async (tx) => {
-    const [purchaseSnap, extensionSnap, entitlementSnap] = await Promise.all([
-      tx.get(purchaseRef),
-      tx.get(extensionRef),
-      tx.get(entitlementRef),
-    ]);
+    const purchaseSnap = await tx.get(purchaseRef);
+    const extensionSnap = await tx.get(extensionRef);
+    const entitlementSnap = await tx.get(entitlementRef);
 
     if (!purchaseSnap.exists) throw new Error("Purchase disappeared during settlement.");
     const currentPurchase = purchaseSnap.data() as PurchaseDoc;
-    if (currentPurchase.status === "paid") return;
+    if (currentPurchase.status === "paid") {
+      if (currentPurchase.providerRef && currentPurchase.providerRef !== params.providerRef) {
+        throw new Error("Provider reference does not match the settled purchase.");
+      }
+      return;
+    }
     if (currentPurchase.status !== "pending") throw new Error(`Purchase is not payable: ${currentPurchase.status}.`);
     if (!extensionSnap.exists) throw new Error("Extension disappeared during settlement.");
 
@@ -260,22 +260,17 @@ export async function settleChariowExtensionPurchase(params: {
       throw new Error("Extension is not currently approved.");
     }
 
-    const currentEntitlement = entitlementSnap.exists ? entitlementSnap.data() as {
-      createdAt?: number;
-      expiresAt?: number | null;
-    } : null;
+    const currentEntitlement = entitlementSnap.exists
+      ? entitlementSnap.data() as { createdAt?: number; expiresAt?: number | null }
+      : null;
+
     let expiresAt: number | null = null;
     if (currentPurchase.kind === "subscription" && pricing.interval) {
-      const existingExpiry = typeof currentEntitlement?.expiresAt === "number" ? currentEntitlement.expiresAt : now;
-      expiresAt = subscriptionExpiry(pricing.interval, Math.max(now, existingExpiry));
+      const existingExpiry = typeof currentEntitlement?.expiresAt === "number" ? currentEntitlement.expiresAt : settlementNow;
+      expiresAt = subscriptionExpiry(pricing.interval, Math.max(settlementNow, existingExpiry));
     }
 
-    tx.update(purchaseRef, {
-      status: "paid",
-      providerRef: params.providerRef,
-      paidAt: now,
-    });
-
+    tx.update(purchaseRef, { status: "paid", providerRef: params.providerRef, paidAt: settlementNow });
     tx.set(entitlementRef, {
       id: `${purchase.extensionId}__${purchase.userId}`,
       extensionId: purchase.extensionId,
@@ -284,10 +279,9 @@ export async function settleChariowExtensionPurchase(params: {
       source: currentPurchase.kind === "subscription" ? "subscription" : "purchase",
       purchaseId: purchase.id,
       expiresAt,
-      createdAt: typeof currentEntitlement?.createdAt === "number" ? currentEntitlement.createdAt : now,
-      updatedAt: now,
+      createdAt: typeof currentEntitlement?.createdAt === "number" ? currentEntitlement.createdAt : settlementNow,
+      updatedAt: settlementNow,
     });
-
     tx.create(licenseRef, {
       licenseKey: licenseRef.id,
       purchaseId: purchase.id,
@@ -295,9 +289,10 @@ export async function settleChariowExtensionPurchase(params: {
       extensionId: purchase.extensionId,
       status: "active",
       expiresAt,
-      createdAt: now,
+      createdAt: settlementNow,
     });
+    granted = true;
   });
 
-  return { granted: true };
+  return { granted };
 }
