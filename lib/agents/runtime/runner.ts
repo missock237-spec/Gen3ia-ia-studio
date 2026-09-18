@@ -8,7 +8,7 @@ import { createCheckpoint, saveCheckpoint } from "./checkpoint";
 import { getReadySteps, validateDAG } from "./dag";
 import { RuntimeScheduler } from "./scheduler";
 
-export interface RuntimeRunnerOptions { userId: string; objective: string; plan: RuntimePlan; signal?: AbortSignal; policy?: ExecutionPolicy; }
+export interface RuntimeRunnerOptions { userId: string; objective: string; plan: RuntimePlan; conversationId?: string; signal?: AbortSignal; policy?: ExecutionPolicy; }
 
 export class AgentRuntime {
   private state: RuntimeExecutionState;
@@ -25,7 +25,7 @@ export class AgentRuntime {
     this.scheduler = new RuntimeScheduler(options.plan.maxConcurrency);
     this.startedAtMs = Date.now();
     this.state = {
-      executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective,
+      executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective, conversationId: options.conversationId,
       status: "pending", plan: options.plan, observations: [], evaluations: [], outputs: {}, iteration: 0,
       totalRetries: 0, maxTotalRetries: 15,
       billing: { currency: WALLET_CURRENCY, totalChargeMinor: 0, totalProviderCostEur: 0, llmInputTokens: 0, llmOutputTokens: 0 },
