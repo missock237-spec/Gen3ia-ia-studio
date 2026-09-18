@@ -8,9 +8,11 @@ import { createActionApproval } from "@/lib/agents/action-approvals";
 import { classifyRoles } from "@/lib/agents/orchestrator";
 import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
 import { getToolSecurityDefinition } from "@/lib/security/tool-permissions";
+import { createConversation, appendMessage, getConversation } from "@/lib/chat/repository";
 
 const Body = z.object({
   message: z.string().trim().min(1).max(20_000),
+  conversationId: z.string().min(1).max(256).optional(),
 });
 
 function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, approved = false): ExecutionPolicy {
@@ -51,7 +53,7 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
   };
 }
 
-function initialState(userId: string, plan: Awaited<ReturnType<typeof planUniversalAgent>>) {
+function finalText(plan: Awaited<ReturnType<typeof planUniversalAgent>>, outputs: Record<string, unknown>): string {\n  const candidates = [...plan.steps].reverse().filter((step) => ["llm", "document", "media", "research"].includes(step.type));\n  for (const step of candidates) {\n    const value = outputs[step.id];\n    if (typeof value === "string" && value.trim()) return value;\n  }\n  return "L’exécution de l’agent est terminée. Consultez les étapes et résultats affichés dans l’espace Agent.";\n}\n\nfunction initialState(userId: string, plan: Awaited<ReturnType<typeof planUniversalAgent>>, conversationId?: string) {
   return {
     executionId: plan.executionId,
     userId,
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
     );
 
     if (approvalSteps.length > 0) {
-      await createCheckpoint(initialState(user.uid, plan));
+      await createCheckpoint(initialState(user.uid, plan, conversationId));
       const role = classifyRoles(body.message)[0];
       const approvals = await Promise.all(approvalSteps.map((step) =>
         createActionApproval({
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
           reason: approval.reason,
           status: approval.status,
           expiresAt: approval.expiresAt,
-          stepId: approval.arguments.__stepId ?? undefined,
+          stepId: approval.arguments.__stepId ?? undefined,\n          conversationId,
         })),
       });
     }
