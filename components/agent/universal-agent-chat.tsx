@@ -33,6 +33,7 @@ type AgentResult = {
   approvals?: Approval[];
   billing?: { totalChargeMinor: number; totalProviderCostEur: number };
   error?: string;
+  finalText?: string;
 };
 
 type Message = {
@@ -98,7 +99,8 @@ export function UniversalAgentChat() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible de lancer l'agent.");
 
-      const result = data as AgentResult;\n      if ((data as { conversationId?: string }).conversationId) setConversationId((data as { conversationId: string }).conversationId);
+      const result = data as AgentResult;
+      if ((data as { conversationId?: string }).conversationId) setConversationId((data as { conversationId: string }).conversationId);
       setActive(result);
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
