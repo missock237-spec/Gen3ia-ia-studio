@@ -21,7 +21,7 @@ interface ConnectionState {
   lastActionResult?: { ok: boolean; error?: string; at: number };
 }
 
-const clients = new Map<string, ConnectionState>();
+const clients = new Map<string, ConnectionState>();\nconst viewers = new Map<string, Set<WebSocket>>();
 
 function send(socket: WebSocket, message: LiveServerMessage) {
   if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -104,6 +104,15 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
     socket.on("message", async (raw) => {
       try {
         const message = LiveClientMessageSchema.parse(JSON.parse(raw.toString()));
+        if (message.type === "viewer.hello") {
+          const session = await authenticateViewer(message);
+          let set = viewers.get(session.id);
+          if (!set) { set = new Set<WebSocket>(); viewers.set(session.id, set); }
+          set.add(socket);
+          state = null;
+          send(socket, { type: "viewer.ack", sessionId: session.id, frameIntervalMs: MAX_FRAME_INTERVAL_MS });
+          return;
+        }
         if (message.type === "hello") {
           const session = await authenticateHello(message);
           const existing = clients.get(session.id);
@@ -137,7 +146,7 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
         if (message.type === "frame") {
           const now = Date.now();
           if (now - state.lastFrameAt < MAX_FRAME_INTERVAL_MS) return;
-          const jpeg = validateFrameBase64(message.jpegBase64);
+          const jpeg = validateFrameBase64(message.jpegBase64);\n          broadcastFrame(state.sessionId, { type: "frame", sessionId: state.sessionId, deviceId: state.deviceId, timestamp: message.timestamp, width: message.width, height: message.height, jpegBase64: message.jpegBase64 });
           state.lastFrameAt = now;
           const session = await getLiveSession(state.sessionId);
           if (!session) throw new Error("Live session not found");
