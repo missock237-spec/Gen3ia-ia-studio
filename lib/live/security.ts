@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 import type { LiveAction, LivePermission } from "./types";
 
 const ACTION_PERMISSION: Record<LiveAction["type"], LivePermission | null> = {
@@ -6,6 +7,8 @@ const ACTION_PERMISSION: Record<LiveAction["type"], LivePermission | null> = {
   "mouse.click": "input.mouse",
   "keyboard.type": "input.keyboard",
   "keyboard.key": "input.keyboard",
+  "file.read": "files.read",
+  "file.write": "files.write",
   wait: null,
 };
 
@@ -19,9 +22,7 @@ export function createPairingToken(): string {
 
 export function assertActionAllowed(action: LiveAction, permissions: LivePermission[]): void {
   const required = ACTION_PERMISSION[action.type];
-  if (required && !permissions.includes(required)) {
-    throw new Error(`Live permission denied: ${required}`);
-  }
+  if (required && !permissions.includes(required)) throw new Error(`Live permission denied: ${required}`);
 }
 
 export function constantTimeEqual(a: string, b: string): boolean {
@@ -30,6 +31,21 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
 }
 
+export function resolveLiveFilePath(root: string, requestedPath: string): string {
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(resolvedRoot, requestedPath);
+  const relative = path.relative(resolvedRoot, resolved);
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    throw new Error("Live file path escapes the authorized root.");
+  }
+  return resolved;
+}
+
+export function assertSafeLiveFilePath(requestedPath: string): void {
+  if (!requestedPath.trim() || requestedPath.includes("\0") || requestedPath.includes("\\") || requestedPath.split("/").includes("..")) {
+    throw new Error("Unsafe live file path.");
+  }
+}
 
 const LIVE_PROTOCOL_WINDOW_MS = 10_000;
 const LIVE_PROTOCOL_MAX_MESSAGES = 40;
@@ -38,7 +54,6 @@ const LIVE_MAX_AUTH_FAILURES = 5;
 export class LiveRateLimiter {
   private windowStartedAt = Date.now();
   private messageCount = 0;
-
   allow(now = Date.now()): boolean {
     if (now - this.windowStartedAt >= LIVE_PROTOCOL_WINDOW_MS) {
       this.windowStartedAt = now;
@@ -51,7 +66,6 @@ export class LiveRateLimiter {
 
 export class LiveAuthFailureLimiter {
   private failures = 0;
-
   registerFailure(): boolean {
     this.failures += 1;
     return this.failures <= LIVE_MAX_AUTH_FAILURES;
