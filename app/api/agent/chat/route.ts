@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
           executionId: plan.executionId,
           role,
           toolSlug: step.toolName!,
-          arguments: step.input,
+          arguments: { ...step.input, __stepId: step.id },
           reason: step.description,
         }),
       ));
