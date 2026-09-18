@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import {
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
   User,
@@ -48,12 +50,44 @@ export function useAuth(): AuthState {
   return { user, loading };
 }
 
+/**
+ * Les navigateurs mobiles et les webviews bloquent generalement les popups :
+ * on utilise la connexion par redirection, plus fiable, sur ces appareils.
+ */
+function doitUtiliserRedirection(): boolean {
+  if (typeof window === "undefined") return false;
+  const ua = window.navigator.userAgent || "";
+  const estMobile = /Android|iPhone|iPad|iPod|Mobile|Opera Mini|IEMobile/i.test(ua)
+    || (window.navigator.maxTouchPoints ?? 0) > 1;
+  return estMobile;
+}
+
 export async function signInWithGoogle(): Promise<User> {
+  if (doitUtiliserRedirection()) {
+    await signInWithRedirect(auth, googleProvider);
+    throw new Error("REDIRECTION_EN_COURS");
+  }
   return (await signInWithPopup(auth, googleProvider)).user;
 }
 
 export async function signInWithGitHub(): Promise<User> {
+  if (doitUtiliserRedirection()) {
+    await signInWithRedirect(auth, githubProvider);
+    throw new Error("REDIRECTION_EN_COURS");
+  }
   return (await signInWithPopup(auth, githubProvider)).user;
+}
+
+/**
+ * Traite le retour d'une connexion par redirection (mobile) : lorsque
+ * l'utilisateur revient sur /login apres le flux OAuth, cette fonction
+ * recupere le resultat et etablit la session serveur.
+ */
+export async function completerConnexionRedirect(): Promise<void> {
+  const result = await getRedirectResult(auth);
+  if (result?.user) {
+    await establishSession(result.user);
+  }
 }
 
 export async function logout(): Promise<void> {
@@ -74,6 +108,11 @@ export function traduireErreurAuth(error: unknown): string {
     case "auth/user-not-found":
     case "auth/invalid-login-credentials": return "Email ou mot de passe incorrect.";
     case "auth/too-many-requests": return "Trop de tentatives. Veuillez reessayer dans quelques minutes.";
+    case "auth/unauthorized-domain": return "Ce domaine n'est pas autorise pour l'authentification. Ajoutez gen3ia.online (et www.gen3ia.online) dans la console Firebase (Authentication -> Settings -> Authorized domains).";
+    case "auth/internal-error": return "Erreur interne Firebase. Verifiez que gen3ia.online est bien autorise dans la console Firebase (domaines autorises), puis reessayez.";
+    case "auth/popup-blocked": return "Le navigateur a bloque la fenetre de connexion. Autorisez les popups ou reessayez.";
+    case "auth/popup-closed-by-user": return "Fenetre de connexion fermee avant la fin. Veuillez reessayer.";
+    case "auth/cancelled-popup-request": return "Une seule fenetre de connexion peut etre ouverte a la fois. Veuillez reessayer.";
     case "auth/user-disabled": return "Ce compte a ete desactive.";
     case "auth/network-request-failed": return "Erreur reseau : verifiez votre connexion internet.";
     case "auth/operation-not-allowed": return "La connexion par email/mot de passe n'est pas encore activee sur ce projet.";
@@ -104,10 +143,17 @@ export async function signUpWithEmail(
 
   try {
     if (profile.photo) {
-      const extension = profile.photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const avatarRef = ref(storage, `users/${result.user.uid}/uploads/profile/avatar-${Date.now()}.${extension}`);
-      const uploaded = await uploadBytes(avatarRef, profile.photo, { contentType: profile.photo.type });
-      photoURL = await getDownloadURL(uploaded.ref);
+      // L'avatar ne doit jamais bloquer la creation du compte : si le bucket
+      // Storage n'est pas provisionne ou refuse l'ecriture, on poursuit sans
+      // photo plutot que d'annuler l'inscription.
+      try {
+        const extension = profile.photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const avatarRef = ref(storage, `users/${result.user.uid}/uploads/profile/avatar-${Date.now()}.${extension}`);
+        const uploaded = await uploadBytes(avatarRef, profile.photo, { contentType: profile.photo.type });
+        photoURL = await getDownloadURL(uploaded.ref);
+      } catch (storageError) {
+        console.warn("Upload de la photo de profil impossible, inscription poursuivie sans avatar.", storageError);
+      }
     }
 
     const displayName = `${profile.firstName.trim()} ${profile.lastName.trim()}`.replace(/\s+/g, " ");
@@ -129,14 +175,40 @@ export async function signUpWithEmail(
         photoURL: photoURL || result.user.photoURL || null,
       }),
     });
-    if (!response.ok) throw new Error("Le profil n'a pas pu etre enregistre.");
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const errBody = (await response.json()) as { error?: string };
+        if (errBody?.error) detail = errBody.error;
+      } catch { /* corps illisible */ }
+      throw new Error(detail ? `Le profil n'a pas pu etre enregistre (${detail}).` : "Le profil n'a pas pu etre enregistre.");
+    }
 
     try { await sendEmailVerification(result.user); } catch { /* best effort */ }
     return result.user;
   } catch (error) {
-    try { await result.user.delete(); } catch { /* avoid leaving a half-created auth account when possible */ }
+    try { await result.user.delete(); } catch { /* evite de laisser un compte Auth a moitié cree quand c'est possible */ }
     throw error;
   }
+}
+
+/**
+ * Etablit la session serveur (profil + wallet) apres une authentification
+ * Firebase reussie, puis redirige vers le tableau de bord.
+ * Remonte le message d'erreur exact du serveur pour faciliter le diagnostic.
+ */
+export async function establishSession(user: User): Promise<void> {
+  const token = await user.getIdToken(true);
+  const response = await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    let detail = "";
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body?.error) detail = body.error;
+    } catch { /* corps illisible : message generique */ }
+    throw new Error(detail ? `Impossible d'etablir la session authentifiee (${detail}).` : "Impossible d'etablir la session authentifiee.");
+  }
+  window.location.href = "/dashboard";
 }
 
 export async function signInWithEmail(email: string, password: string): Promise<User> {

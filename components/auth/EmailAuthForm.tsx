@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmail, signUpWithEmail, resetPassword, traduireErreurAuth, type SignupProfile } from "@/lib/firebase/auth-client";
+import { signInWithEmail, signUpWithEmail, resetPassword, traduireErreurAuth, establishSession, type SignupProfile } from "@/lib/firebase/auth-client";
 
 const inputClasses = "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-neutral-900 bg-transparent";
 const buttonClasses = "w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -23,13 +23,6 @@ export default function EmailAuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-
-  async function establishSession(user: import("firebase/auth").User) {
-    const token = await user.getIdToken(true);
-    const response = await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error("Impossible d'etablir la session authentifiee.");
-    window.location.href = "/dashboard";
-  }
 
   function validate(): string | null {
     if (!email.trim() || !email.includes("@")) return "Veuillez saisir une adresse email valide.";

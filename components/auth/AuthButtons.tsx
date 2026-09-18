@@ -1,12 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
+
 import {
+  completerConnexionRedirect,
+  establishSession,
   signInWithGoogle,
   signInWithGitHub,
   traduireErreurAuth
 } from "@/lib/firebase/auth-client";
 
 export default function AuthButtons() {
+  // Connexion par redirection (mobile) : au retour du flux OAuth sur /login,
+  // on recupere le resultat et on etablit la session serveur.
+  useEffect(() => {
+    completerConnexionRedirect().catch((error) => {
+      window.alert(traduireErreurAuth(error));
+    });
+  }, []);
+
   async function authenticate(
     provider: "google" | "github"
   ) {
@@ -16,27 +28,13 @@ export default function AuthButtons() {
           ? await signInWithGoogle()
           : await signInWithGitHub();
 
-      const token =
-        await user.getIdToken(true);
-
-      const response =
-        await fetch("/api/auth/session", {
-          method: "POST",
-          headers: {
-            Authorization:
-              `Bearer ${token}`
-          }
-        });
-
-      if (!response.ok) {
-        throw new Error(
-          "Impossible d'etablir la session authentifiee."
-        );
-      }
-
-      window.location.href =
-        "/dashboard";
+      // Sur mobile, signInWith* redirige : on n'arrive jamais ici.
+      await establishSession(user);
     } catch (error) {
+      // La redirection mobile est un flux normal, pas une erreur a afficher.
+      if (error instanceof Error && error.message === "REDIRECTION_EN_COURS") {
+        return;
+      }
       window.alert(traduireErreurAuth(error));
     }
   }
