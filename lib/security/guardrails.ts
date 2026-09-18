@@ -33,12 +33,21 @@ function scanText(value: unknown): string {
   try { return JSON.stringify(value).slice(0, MAX_SCAN_CHARS); } catch { return ""; }
 }
 
+function matchesAny(patterns: RegExp[], text: string): boolean {
+  return patterns.some((pattern) => {
+    pattern.lastIndex = 0;
+    const matched = pattern.test(text);
+    pattern.lastIndex = 0;
+    return matched;
+  });
+}
+
 export function inspectUntrustedContent(value: unknown): GuardrailResult {
   const text = scanText(value);
   const reasons: string[] = [];
-  if (INJECTION_PATTERNS.some((pattern) => pattern.test(text))) reasons.push("prompt_injection_signal");
-  if (SECRET_PATTERNS.some((pattern) => pattern.test(text))) reasons.push("secret_signal");
-  if (PII_PATTERNS.some((pattern) => pattern.test(text))) reasons.push("pii_signal");
+  if (matchesAny(INJECTION_PATTERNS, text)) reasons.push("prompt_injection_signal");
+  if (matchesAny(SECRET_PATTERNS, text)) reasons.push("secret_signal");
+  if (matchesAny(PII_PATTERNS, text)) reasons.push("pii_signal");
   const highRisk = reasons.includes("secret_signal") || reasons.includes("prompt_injection_signal");
   return { allowed: !highRisk, risk: highRisk ? "high" : reasons.length ? "medium" : "low", reasons };
 }
@@ -46,8 +55,8 @@ export function inspectUntrustedContent(value: unknown): GuardrailResult {
 export function redactSensitiveContent(value: unknown): unknown {
   if (typeof value === "string") {
     let text = value;
-    for (const pattern of SECRET_PATTERNS) text = text.replace(pattern, "[REDACTED_SECRET]");
-    for (const pattern of PII_PATTERNS) text = text.replace(pattern, "[REDACTED_PII]");
+    for (const pattern of SECRET_PATTERNS) { pattern.lastIndex = 0; text = text.replace(pattern, "[REDACTED_SECRET]"); pattern.lastIndex = 0; }
+    for (const pattern of PII_PATTERNS) { pattern.lastIndex = 0; text = text.replace(pattern, "[REDACTED_PII]"); pattern.lastIndex = 0; }
     return text.slice(0, MAX_SCAN_CHARS);
   }
   if (Array.isArray(value)) return value.map(redactSensitiveContent);
