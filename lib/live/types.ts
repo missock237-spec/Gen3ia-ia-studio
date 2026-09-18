@@ -11,25 +11,12 @@ export const LivePermissionSchema = z.enum([
 export type LivePermission = z.infer<typeof LivePermissionSchema>;
 
 export const LiveSessionStatusSchema = z.enum([
-  "pending",
-  "connected",
-  "running",
-  "paused",
-  "disconnected",
-  "stopped",
-  "failed",
+  "pending", "connected", "running", "paused", "disconnected", "stopped", "failed",
 ]);
 export type LiveSessionStatus = z.infer<typeof LiveSessionStatusSchema>;
 
 export const LiveRuntimeStatusSchema = z.enum([
-  "idle",
-  "running",
-  "waiting_confirmation",
-  "paused",
-  "recovering",
-  "completed",
-  "failed",
-  "stopped",
+  "idle", "running", "waiting_confirmation", "paused", "recovering", "completed", "failed", "stopped",
 ]);
 export type LiveRuntimeStatus = z.infer<typeof LiveRuntimeStatusSchema>;
 
@@ -46,48 +33,33 @@ export interface LiveRuntimeState {
   error?: string;
 }
 
+const LivePathSchema = z.string().trim().min(1).max(2048).refine(
+  (value) => !value.includes("\\") && !value.includes("\0") && !value.split("/").includes(".."),
+  "Unsafe live file path",
+);
+
 export const LiveActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mouse.move"), x: z.number().finite().min(0).max(100000), y: z.number().finite().min(0).max(100000) }),
   z.object({ type: z.literal("mouse.click"), button: z.enum(["left", "middle", "right"]).default("left") }),
   z.object({ type: z.literal("keyboard.type"), text: z.string().max(10000) }),
   z.object({ type: z.literal("keyboard.key"), key: z.string().min(1).max(64) }),
   z.object({ type: z.literal("wait"), ms: z.number().int().min(50).max(30000) }),
+  z.object({ type: z.literal("file.read"), path: LivePathSchema }),
+  z.object({ type: z.literal("file.write"), path: LivePathSchema, content: z.string().max(2_000_000) }),
 ]);
 export type LiveAction = z.infer<typeof LiveActionSchema>;
 
 export interface LivePendingAction {
-  actionId: string;
-  action: LiveAction;
-  createdAt: number;
-  approvedAt?: number;
-  sentAt?: number;
+  actionId: string; action: LiveAction; createdAt: number; approvedAt?: number; sentAt?: number;
 }
-
 export interface LiveInFlightAction {
-  actionId: string;
-  action: LiveAction;
-  requestedAt: number;
-  sentAt?: number;
-  deviceId: string;
+  actionId: string; action: LiveAction; requestedAt: number; sentAt?: number; deviceId: string;
 }
-
 export interface LiveSession {
-  id: string;
-  ownerId: string;
-  name: string;
-  objective: string;
-  status: LiveSessionStatus;
-  permissions: LivePermission[];
-  deviceId?: string;
-  createdAt: number;
-  updatedAt: number;
-  lastHeartbeatAt?: number;
-  expiresAt?: number;
-  version: number;
-  runtime?: LiveRuntimeState;
-  pendingAction?: LivePendingAction;
-  inFlightAction?: LiveInFlightAction;
-  viewerTokenHash?: string;
+  id: string; ownerId: string; name: string; objective: string; status: LiveSessionStatus;
+  permissions: LivePermission[]; deviceId?: string; createdAt: number; updatedAt: number;
+  lastHeartbeatAt?: number; expiresAt?: number; version: number; runtime?: LiveRuntimeState;
+  pendingAction?: LivePendingAction; inFlightAction?: LiveInFlightAction; viewerTokenHash?: string;
 }
 
 export type LiveClientMessage =
