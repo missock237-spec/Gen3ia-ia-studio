@@ -108,6 +108,7 @@ export type LiveServerMessage =
 
 export const LiveClientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("viewer.hello"), sessionId: z.string().min(1).max(128), viewerToken: z.string().min(32).max(256) }),
+  z.object({ type: z.literal("viewer.hello"), sessionId: z.string().min(1).max(128), viewerToken: z.string().min(32).max(256) }),
   z.object({ type: z.literal("hello"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), pairingToken: z.string().min(32).max(256) }),
   z.object({ type: z.literal("heartbeat"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive() }),
   z.object({ type: z.literal("frame"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive(), width: z.number().int().min(1).max(10000), height: z.number().int().min(1).max(10000), jpegBase64: z.string().min(1).max(2_000_000) }),
