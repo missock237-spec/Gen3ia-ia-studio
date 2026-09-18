@@ -16,7 +16,14 @@ const Body = z.object({
 });
 
 function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, approved = false): ExecutionPolicy {
-  const tools = [...new Set(plan.steps.filter((step) => step.type === "tool" || step.type === "research").map((step) => step.toolName).filter((name): name is string => Boolean(name)).concat(plan.steps.some((step) => step.type === "code") ? ["code.execute"] : []))];
+  const tools = [...new Set(
+    plan.steps
+      .filter((step) => step.type === "tool" || step.type === "research")
+      .map((step) => step.toolName)
+      .filter((name): name is string => Boolean(name))
+      .concat(plan.steps.some((step) => step.type === "code") ? ["code.execute"] : []),
+  )];
+
   const permissions = new Set<ExecutionPolicy["permissions"][number]>(["tool.read"]);
   let allowNetwork = false;
   let allowFileWrite = false;
@@ -53,11 +60,25 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
   };
 }
 
-function finalText(plan: Awaited<ReturnType<typeof planUniversalAgent>>, outputs: Record<string, unknown>): string {\n  const candidates = [...plan.steps].reverse().filter((step) => ["llm", "document", "media", "research"].includes(step.type));\n  for (const step of candidates) {\n    const value = outputs[step.id];\n    if (typeof value === "string" && value.trim()) return value;\n  }\n  return "L’exécution de l’agent est terminée. Consultez les étapes et résultats affichés dans l’espace Agent.";\n}\n\nfunction initialState(userId: string, plan: Awaited<ReturnType<typeof planUniversalAgent>>, conversationId?: string) {
+function finalText(plan: Awaited<ReturnType<typeof planUniversalAgent>>, outputs: Record<string, unknown>): string {
+  const candidates = [...plan.steps].reverse().filter((step) => ["llm", "document", "media", "research"].includes(step.type));
+  for (const step of candidates) {
+    const value = outputs[step.id];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "L’exécution de l’agent est terminée. Consultez les étapes et résultats affichés dans l’espace Agent.";
+}
+
+function initialState(
+  userId: string,
+  plan: Awaited<ReturnType<typeof planUniversalAgent>>,
+  conversationId: string,
+) {
   return {
     executionId: plan.executionId,
     userId,
     objective: plan.objective,
+    conversationId,
     status: "pending" as const,
     plan,
     observations: [],
@@ -74,8 +95,23 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser(request);
     const body = Body.parse(await request.json());
-    const plan = await planUniversalAgent(user.uid, body.message);
 
+    let conversationId = body.conversationId;
+    if (conversationId) {
+      const conversation = await getConversation(user.uid, conversationId);
+      if (!conversation) return NextResponse.json({ error: "Conversation introuvable." }, { status: 404 });
+    } else {
+      conversationId = (await createConversation(user.uid, body.message.slice(0, 80))).id;
+    }
+
+    await appendMessage({
+      conversationId,
+      userId: user.uid,
+      role: "user",
+      content: body.message,
+    });
+
+    const plan = await planUniversalAgent(user.uid, body.message);
     const approvalSteps = plan.steps.filter((step) =>
       (step.type === "tool" && Boolean(step.toolName) && (step.requiresApproval || step.sideEffect)) ||
       step.type === "code",
@@ -94,11 +130,20 @@ export async function POST(request: NextRequest) {
           reason: step.description,
         }),
       ));
+
+      await appendMessage({
+        conversationId,
+        userId: user.uid,
+        role: "assistant",
+        content: "J’ai préparé le plan. Certaines actions nécessitent votre confirmation avant exécution.",
+      });
+
       return NextResponse.json({
         mode: "agent",
         status: "waiting_approval",
         executionId: plan.executionId,
         objective: plan.objective,
+        conversationId,
         plan,
         approvals: approvals.map((approval) => ({
           id: approval.id,
@@ -106,7 +151,7 @@ export async function POST(request: NextRequest) {
           reason: approval.reason,
           status: approval.status,
           expiresAt: approval.expiresAt,
-          stepId: approval.arguments.__stepId ?? undefined,\n          conversationId,
+          stepId: approval.arguments.__stepId ?? undefined,
         })),
       });
     }
@@ -115,19 +160,31 @@ export async function POST(request: NextRequest) {
       userId: user.uid,
       objective: plan.objective,
       plan,
+      conversationId,
       policy: buildPolicy(plan, false),
     });
     const state = await runtime.run();
+    const responseText = finalText(plan, state.outputs);
+
+    await appendMessage({
+      conversationId,
+      userId: user.uid,
+      role: "assistant",
+      content: responseText,
+      provider: "gen3ia-agent",
+    });
 
     return NextResponse.json({
       mode: "agent",
       status: state.status,
       executionId: state.executionId,
       objective: state.objective,
+      conversationId,
       plan: state.plan,
       observations: state.observations,
       outputs: state.outputs,
       billing: state.billing,
+      finalText: responseText,
     });
   } catch (error) {
     return NextResponse.json(
