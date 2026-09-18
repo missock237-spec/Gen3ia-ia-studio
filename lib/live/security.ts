@@ -29,3 +29,37 @@ export function constantTimeEqual(a: string, b: string): boolean {
   const bb = Buffer.from(b, "utf8");
   return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
 }
+
+
+const LIVE_PROTOCOL_WINDOW_MS = 10_000;
+const LIVE_PROTOCOL_MAX_MESSAGES = 40;
+const LIVE_MAX_AUTH_FAILURES = 5;
+
+export class LiveRateLimiter {
+  private windowStartedAt = Date.now();
+  private messageCount = 0;
+
+  allow(now = Date.now()): boolean {
+    if (now - this.windowStartedAt >= LIVE_PROTOCOL_WINDOW_MS) {
+      this.windowStartedAt = now;
+      this.messageCount = 0;
+    }
+    this.messageCount += 1;
+    return this.messageCount <= LIVE_PROTOCOL_MAX_MESSAGES;
+  }
+}
+
+export class LiveAuthFailureLimiter {
+  private failures = 0;
+
+  registerFailure(): boolean {
+    this.failures += 1;
+    return this.failures <= LIVE_MAX_AUTH_FAILURES;
+  }
+}
+
+export function assertFreshLiveTimestamp(timestamp: number, now = Date.now()): void {
+  if (!Number.isSafeInteger(timestamp) || Math.abs(now - timestamp) > 30_000) {
+    throw new Error("Live message timestamp is outside the allowed clock window.");
+  }
+}
