@@ -67,6 +67,7 @@ function statusLabel(status?: string) {
 
 export function UniversalAgentChat() {
   const [message, setMessage] = useState("");
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [active, setActive] = useState<AgentResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,12 +93,12 @@ export function UniversalAgentChat() {
       const response = await fetch("/api/agent/chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ message: objective }),
+        body: JSON.stringify({ message: objective, ...(conversationId ? { conversationId } : {}) }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Impossible de lancer l'agent.");
 
-      const result = data as AgentResult;
+      const result = data as AgentResult;\n      if ((data as { conversationId?: string }).conversationId) setConversationId((data as { conversationId: string }).conversationId);
       setActive(result);
       setMessages((items) => [...items, {
         id: crypto.randomUUID(),
