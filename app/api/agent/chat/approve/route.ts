@@ -12,6 +12,7 @@ import { AgentRuntime } from "@/lib/agents/runtime/runner";
 import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
 import { getToolSecurityDefinition } from "@/lib/security/tool-permissions";
 import type { RuntimePlan } from "@/lib/agents/runtime/types";
+import { appendMessage } from "@/lib/chat/repository";
 
 const Body = z.object({ approvalId: z.string().min(1).max(256) });
 
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         status: result.status,
-        executionId: result.executionId,
+        executionId: result.executionId,\n        conversationId: state.conversationId,\n        finalText: responseText,
         objective: result.objective,
         plan: result.plan,
         observations: result.observations,
