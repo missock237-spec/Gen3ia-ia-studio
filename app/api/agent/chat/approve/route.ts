@@ -19,7 +19,8 @@ function buildPolicy(plan: RuntimePlan): ExecutionPolicy {
   const tools = [...new Set(plan.steps
     .filter((step) => step.type === "tool" || step.type === "research")
     .map((step) => step.toolName)
-    .filter((name): name is string => Boolean(name)))];
+    .filter((name): name is string => Boolean(name))
+    .concat(plan.steps.some((step) => step.type === "code") ? ["code.execute"] : []))];
 
   const permissions = new Set<ExecutionPolicy["permissions"][number]>(["tool.read"]);
   let allowNetwork = false;
