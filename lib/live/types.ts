@@ -95,13 +95,13 @@ export interface LiveSession {
 }
 
 export type LiveClientMessage =
-  | { type: "hello"; sessionId: string; deviceId: string; pairingToken: string }
+  | { type: "viewer.hello"; sessionId: string; viewerToken: string }\n  | { type: "hello"; sessionId: string; deviceId: string; pairingToken: string }
   | { type: "heartbeat"; sessionId: string; deviceId: string; timestamp: number }
   | { type: "frame"; sessionId: string; deviceId: string; timestamp: number; width: number; height: number; jpegBase64: string }
   | { type: "action.result"; sessionId: string; actionId: string; ok: boolean; error?: string; result?: unknown };
 
 export type LiveServerMessage =
-  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number; frameIntervalMs: number }
+  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number; frameIntervalMs: number }\n  | { type: "viewer.ack"; sessionId: string; frameIntervalMs: number }\n  | { type: "frame"; sessionId: string; deviceId: string; timestamp: number; width: number; height: number; jpegBase64: string }
   | { type: "action"; actionId: string; action: LiveAction }
   | { type: "pause"; reason: string }
   | { type: "resume"; reason: string }
