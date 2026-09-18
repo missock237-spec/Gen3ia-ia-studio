@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 import { authFetch } from "@/lib/firebase/auth-client";
 
 type Purchase = {
@@ -80,6 +81,7 @@ function PurchasesContent() {
   return (
     <main className="min-h-screen bg-[#060812] px-4 py-6 text-white sm:px-6 lg:px-10">
       <div className="mx-auto max-w-6xl">
+        <PlatformTabs />
         <Link href="/marketplace" className="text-xs text-violet-300 hover:text-violet-200">← Marketplace</Link>
         <div className="mt-5 rounded-[30px] border border-white/10 bg-gradient-to-br from-violet-500/[.12] via-white/[.025] to-cyan-400/[.06] p-7 sm:p-9">
           <p className="text-[10px] font-bold tracking-[.28em] text-violet-300">GEN3IA / MES ACHATS</p>

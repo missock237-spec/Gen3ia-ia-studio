@@ -5,6 +5,7 @@ import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 type Schedule = {
   id: string;
@@ -123,6 +124,7 @@ export default function AgentSchedulesPage() {
   return (
     <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
       <div className="mx-auto max-w-6xl">
+        <PlatformTabs />
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA · AUTOMATION</div>

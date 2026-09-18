@@ -148,7 +148,7 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
         if (message.type === "viewer.hello") {
           const session = await authenticateViewer(message);
           let set = viewers.get(session.id);
-          if (set?.size >= MAX_VIEWERS_PER_SESSION && !set.has(socket)) throw new Error("Live viewer limit reached.");
+          if (set && set.size >= MAX_VIEWERS_PER_SESSION && !set.has(socket)) throw new Error("Live viewer limit reached.");
           if (!set) {
             set = new Set<WebSocket>();
             viewers.set(session.id, set);

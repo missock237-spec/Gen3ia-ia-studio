@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 interface HubFeature {
   href: string;
@@ -81,6 +82,8 @@ function DashboardContent() {
   return (
     <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
       <div className="mx-auto max-w-6xl">
+        <PlatformTabs />
+
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA · TABLEAU DE BORD</div>
@@ -95,6 +98,17 @@ function DashboardContent() {
             <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-300">
               Compte connecté
             </span>
+            <button
+              type="button"
+              onClick={async () => {
+                const { logout } = await import("@/lib/firebase/auth-client");
+                await logout();
+                window.location.href = "/login";
+              }}
+              className="rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-white/70 hover:bg-white/[.08] hover:text-white"
+            >
+              Déconnexion
+            </button>
           </div>
         </header>
 

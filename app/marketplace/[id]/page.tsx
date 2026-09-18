@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 type Fiche = {
   extension: {
@@ -103,6 +104,7 @@ export default function ExtensionFichePage() {
   return (
     <main className="min-h-screen bg-[#070a12] p-4 text-white sm:p-6 md:p-8">
       <div className="mx-auto max-w-6xl">
+        <PlatformTabs />
         <div className="flex items-center justify-between gap-4">
           <Link href="/marketplace" className="text-sm text-white/50 hover:text-white">← Marketplace</Link>
           <Link href="/marketplace/purchases" className="text-xs font-semibold text-violet-300 hover:text-violet-200">Achats & licences →</Link>

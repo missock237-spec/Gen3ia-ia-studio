@@ -2,6 +2,7 @@
 
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
 import { MarketplaceHub } from "@/components/marketplace/marketplace-hub";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 import { useSessionAvailable } from "@/lib/firebase/auth-client";
 
 export default function MarketplacePage() {
@@ -20,5 +21,12 @@ export default function MarketplacePage() {
     );
   }
 
-  return <MarketplaceHub />;
+  return (
+    <div className="min-h-screen bg-[#060812]">
+      <div className="mx-auto max-w-[1480px] px-3 pt-3 sm:px-5 lg:px-7">
+        <PlatformTabs />
+      </div>
+      <MarketplaceHub />
+    </div>
+  );
 }

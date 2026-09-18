@@ -6,6 +6,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 
 import { auth } from "@/lib/firebase/client";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
+import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 interface DeveloperExtension {
   id: string;
@@ -179,6 +180,7 @@ export default function DeveloperPage() {
   return (
     <main className="min-h-screen bg-[#070a12] text-white p-5 md:p-8">
       <div className="mx-auto max-w-6xl">
+        <PlatformTabs />
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA DEVELOPER STUDIO</div>
