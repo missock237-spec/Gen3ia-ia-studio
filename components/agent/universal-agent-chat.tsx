@@ -45,6 +45,7 @@ type Message = {
 
 const CAPABILITIES = [
   ["web.search", "Recherche web"],
+  ["web.open", "Pages web"],
   ["file.read", "Fichiers"],
   ["zip.analyze", "ZIP"],
   ["artifact.create", "Documents"],
@@ -53,6 +54,8 @@ const CAPABILITIES = [
   ["composio.execute", "Apps externes"],
   ["camera.capture", "Caméra"],
   ["file.create", "Création de fichiers"],
+  ["voice.speak", "Voix IA"],
+  ["github.create_repository", "GitHub"],
 ] as const;
 
 function statusLabel(status?: string) {
