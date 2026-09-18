@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-client";
-import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
+import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
 
 interface HubFeature {
   href: string;
@@ -70,7 +70,13 @@ const ACCENTS: Record<HubFeature["accent"], { border: string; text: string; chip
  */
 function DashboardContent() {
   const { user } = useAuth();
-  const displayName = user?.displayName?.trim() || user?.email || "votre compte";
+  const serverUser = useServerSessionUser();
+  const displayName =
+    user?.displayName?.trim() ||
+    serverUser?.name?.trim() ||
+    user?.email ||
+    serverUser?.email ||
+    "votre compte";
 
   return (
     <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">

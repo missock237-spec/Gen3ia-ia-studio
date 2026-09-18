@@ -13,10 +13,7 @@ export default function EmailAuthForm() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [username, setUsername] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
   const [country, setCountry] = useState("");
-  const [bio, setBio] = useState("");
-  const [photo, setPhoto] = useState<File | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -42,7 +39,7 @@ export default function EmailAuthForm() {
     setPending(true);
     try {
       if (mode === "inscription") {
-        const profile: SignupProfile = { firstName, lastName, username, phoneNumber, country, bio, photo, language: "fr", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
+        const profile: SignupProfile = { firstName, lastName, username, country, language: "fr", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
         const user = await signUpWithEmail(email, password, profile);
         await establishSession(user);
       } else {
@@ -70,26 +67,13 @@ export default function EmailAuthForm() {
 
       {mode === "inscription" && (
         <>
-          <div className="flex justify-center">
-            <label className="group cursor-pointer text-center">
-              <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-dashed bg-neutral-50 text-xs text-neutral-500">
-                {photo ? <img src={URL.createObjectURL(photo)} alt="Apercu de la photo de profil" className="h-full w-full object-cover" /> : "Photo"}
-              </div>
-              <span className="mt-2 block text-xs opacity-70">Ajouter une photo (5 Mo max)</span>
-              <input type="file" accept="image/*" className="sr-only" onChange={(event) => setPhoto(event.target.files?.[0] ?? null)} />
-            </label>
-          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input className={inputClasses} placeholder="Prenom" value={firstName} onChange={(e) => setFirstName(e.target.value)} autoComplete="given-name" required />
             <input className={inputClasses} placeholder="Nom" value={lastName} onChange={(e) => setLastName(e.target.value)} autoComplete="family-name" required />
           </div>
           <input className={inputClasses} placeholder="Nom d'utilisateur" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} autoComplete="username" required maxLength={32} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input className={inputClasses} placeholder="Telephone (optionnel)" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" />
-            <input className={inputClasses} placeholder="Pays (optionnel)" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country-name" />
-          </div>
-          <textarea className={inputClasses} placeholder="Bio courte (optionnel)" value={bio} onChange={(e) => setBio(e.target.value)} maxLength={500} rows={3} />
-          <p className="text-xs opacity-50">Langue et fuseau horaire sont detectes automatiquement. Tu pourras completer ton profil plus tard.</p>
+          <input className={inputClasses} placeholder="Pays (optionnel)" value={country} onChange={(e) => setCountry(e.target.value)} autoComplete="country-name" />
+          <p className="text-xs opacity-50">Tu pourras completer ton profil plus tard depuis ton tableau de bord.</p>
         </>
       )}
 

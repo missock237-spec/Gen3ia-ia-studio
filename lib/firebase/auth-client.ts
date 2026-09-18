@@ -14,9 +14,8 @@ import {
   updateProfile,
   User,
 } from "firebase/auth";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
-import { auth, googleProvider, githubProvider, storage } from "./client";
+import { auth, googleProvider, githubProvider } from "./client";
 
 export interface AuthState {
   user: User | null;
@@ -27,12 +26,9 @@ export interface SignupProfile {
   firstName: string;
   lastName: string;
   username: string;
-  phoneNumber?: string;
   country?: string;
-  bio?: string;
   language?: string;
   timezone?: string;
-  photo?: File | null;
 }
 
 export function useAuth(): AuthState {
@@ -91,6 +87,7 @@ export async function completerConnexionRedirect(): Promise<void> {
 }
 
 export async function logout(): Promise<void> {
+  try { await fetch("/api/auth/session", { method: "DELETE" }); } catch { /* le cookie expire de toute facon */ }
   await signOut(auth);
 }
 
@@ -125,11 +122,6 @@ function validateProfile(profile: SignupProfile): void {
   if (!profile.firstName.trim() || profile.firstName.trim().length > 80) throw new Error("Le prenom est obligatoire.");
   if (!profile.lastName.trim() || profile.lastName.trim().length > 80) throw new Error("Le nom est obligatoire.");
   if (!/^[a-zA-Z0-9._-]{3,32}$/.test(profile.username.trim())) throw new Error("Le nom d'utilisateur doit contenir 3 a 32 caracteres (lettres, chiffres, ., _ ou -).");
-  if (profile.bio && profile.bio.length > 500) throw new Error("La biographie ne peut pas depasser 500 caracteres.");
-  if (profile.photo) {
-    if (!profile.photo.type.startsWith("image/")) throw new Error("La photo de profil doit etre une image.");
-    if (profile.photo.size > 5 * 1024 * 1024) throw new Error("La photo de profil ne doit pas depasser 5 Mo.");
-  }
 }
 
 export async function signUpWithEmail(
@@ -139,25 +131,10 @@ export async function signUpWithEmail(
 ): Promise<User> {
   validateProfile(profile);
   const result = await createUserWithEmailAndPassword(auth, email.trim(), password);
-  let photoURL: string | undefined;
 
   try {
-    if (profile.photo) {
-      // L'avatar ne doit jamais bloquer la creation du compte : si le bucket
-      // Storage n'est pas provisionne ou refuse l'ecriture, on poursuit sans
-      // photo plutot que d'annuler l'inscription.
-      try {
-        const extension = profile.photo.name.split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-        const avatarRef = ref(storage, `users/${result.user.uid}/uploads/profile/avatar-${Date.now()}.${extension}`);
-        const uploaded = await uploadBytes(avatarRef, profile.photo, { contentType: profile.photo.type });
-        photoURL = await getDownloadURL(uploaded.ref);
-      } catch (storageError) {
-        console.warn("Upload de la photo de profil impossible, inscription poursuivie sans avatar.", storageError);
-      }
-    }
-
     const displayName = `${profile.firstName.trim()} ${profile.lastName.trim()}`.replace(/\s+/g, " ");
-    await updateProfile(result.user, { displayName, ...(photoURL ? { photoURL } : {}) });
+    await updateProfile(result.user, { displayName });
 
     const token = await result.user.getIdToken(true);
     const response = await fetch("/api/auth/profile", {
@@ -167,12 +144,10 @@ export async function signUpWithEmail(
         firstName: profile.firstName,
         lastName: profile.lastName,
         username: profile.username,
-        phoneNumber: profile.phoneNumber || null,
         country: profile.country || null,
-        bio: profile.bio || null,
         language: profile.language || "fr",
         timezone: profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-        photoURL: photoURL || result.user.photoURL || null,
+        photoURL: result.user.photoURL || null,
       }),
     });
     if (!response.ok) {
