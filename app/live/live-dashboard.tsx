@@ -67,7 +67,7 @@ export function LiveDashboard() {
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState(false);\n  const [liveFrame, setLiveFrame] = useState<string | null>(null);\n  const [viewerStatus, setViewerStatus] = useState<"offline" | "connecting" | "live">("offline");
 
   const loadSessions = useCallback(async (firebaseUser: User) => {
     const token = await firebaseUser.getIdToken();
@@ -129,6 +129,25 @@ export function LiveDashboard() {
     });
     await loadSessions(user);
   };
+
+  useEffect(() => {
+    if (!created?.viewerToken) return;
+    const gateway = process.env.NEXT_PUBLIC_LIVE_GATEWAY_URL;
+    if (!gateway) return;
+    setViewerStatus("connecting");
+    const socket = new WebSocket(gateway);
+    socket.onopen = () => socket.send(JSON.stringify({ type: "viewer.hello", sessionId: created.session.id, viewerToken: created.viewerToken }));
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data) as { type?: string; jpegBase64?: string };
+        if (message.type === "viewer.ack") setViewerStatus("live");
+        if (message.type === "frame" && message.jpegBase64) setLiveFrame("data:image/jpeg;base64," + message.jpegBase64);
+      } catch {}
+    };
+    socket.onerror = () => setViewerStatus("offline");
+    socket.onclose = () => setViewerStatus("offline");
+    return () => socket.close();
+  }, [created]);
 
   const copyPairing = async () => {
     if (!created) return;
@@ -230,7 +249,22 @@ export function LiveDashboard() {
         )}
       </section>
 
-      <div className="space-y-5">
+      <div className="space-y-5">        {created && (
+          <section className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Écran en temps réel</h2>
+                <p className="mt-1 text-xs text-white/45">Flux privé de la session active.</p>
+              </div>
+              <span className="rounded-full border border-white/10 px-2.5 py-1 text-[11px] text-white/60">{viewerStatus === "live" ? "LIVE" : viewerStatus}</span>
+            </div>
+            <div className="mt-4 overflow-hidden rounded-2xl border border-white/10 bg-black aspect-video flex items-center justify-center">
+              {liveFrame ? <img src={liveFrame} alt="Écran du PC contrôlé par Gen3ia Live" className="h-full w-full object-contain" /> : <span className="text-sm text-white/35">En attente du flux écran…</span>}
+            </div>
+            <p className="mt-3 text-xs leading-5 text-white/45">Le flux est accessible uniquement avec le jeton de visualisation de cette session. Il ne permet pas de prendre le contrôle du PC.</p>
+          </section>
+        )}
+
         <section className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
           <h2 className="text-lg font-semibold">Connecter un PC (client Live)</h2>
           <ol className="mt-4 space-y-3 text-sm leading-6 text-white/60">
