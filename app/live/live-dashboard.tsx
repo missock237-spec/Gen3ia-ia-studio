@@ -37,6 +37,7 @@ interface LiveSessionPublic {
 interface CreatedSession {
   session: LiveSessionPublic;
   pairingToken: string;
+  viewerToken: string;
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -67,7 +68,9 @@ export function LiveDashboard() {
   ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);\n  const [liveFrame, setLiveFrame] = useState<string | null>(null);\n  const [viewerStatus, setViewerStatus] = useState<"offline" | "connecting" | "live">("offline");
+  const [copied, setCopied] = useState(false);
+  const [liveFrame, setLiveFrame] = useState<string | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<"offline" | "connecting" | "live">("offline");
 
   const loadSessions = useCallback(async (firebaseUser: User) => {
     const token = await firebaseUser.getIdToken();
