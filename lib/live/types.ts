@@ -42,11 +42,7 @@ export interface LiveRuntimeState {
   lastObservationAt?: number;
   lastDecisionMessage?: string;
   lastActionId?: string;
-  lastActionResult?: {
-    ok: boolean;
-    error?: string;
-    at: number;
-  };
+  lastActionResult?: { ok: boolean; error?: string; at: number };
   error?: string;
 }
 
@@ -67,7 +63,6 @@ export interface LivePendingAction {
   sentAt?: number;
 }
 
-/** An action already delivered to the desktop client whose result has not arrived. */
 export interface LiveInFlightAction {
   actionId: string;
   action: LiveAction;
@@ -92,22 +87,27 @@ export interface LiveSession {
   runtime?: LiveRuntimeState;
   pendingAction?: LivePendingAction;
   inFlightAction?: LiveInFlightAction;
+  viewerTokenHash?: string;
 }
 
 export type LiveClientMessage =
-  | { type: "viewer.hello"; sessionId: string; viewerToken: string }\n  | { type: "hello"; sessionId: string; deviceId: string; pairingToken: string }
+  | { type: "viewer.hello"; sessionId: string; viewerToken: string }
+  | { type: "hello"; sessionId: string; deviceId: string; pairingToken: string }
   | { type: "heartbeat"; sessionId: string; deviceId: string; timestamp: number }
   | { type: "frame"; sessionId: string; deviceId: string; timestamp: number; width: number; height: number; jpegBase64: string }
   | { type: "action.result"; sessionId: string; actionId: string; ok: boolean; error?: string; result?: unknown };
 
 export type LiveServerMessage =
-  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number; frameIntervalMs: number }\n  | { type: "viewer.ack"; sessionId: string; frameIntervalMs: number }\n  | { type: "frame"; sessionId: string; deviceId: string; timestamp: number; width: number; height: number; jpegBase64: string }
+  | { type: "hello.ack"; sessionId: string; heartbeatIntervalMs: number; frameIntervalMs: number }
+  | { type: "viewer.ack"; sessionId: string; frameIntervalMs: number }
+  | { type: "frame"; sessionId: string; deviceId: string; timestamp: number; width: number; height: number; jpegBase64: string }
   | { type: "action"; actionId: string; action: LiveAction }
   | { type: "pause"; reason: string }
   | { type: "resume"; reason: string }
   | { type: "stop"; reason: string };
 
 export const LiveClientMessageSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("viewer.hello"), sessionId: z.string().min(1).max(128), viewerToken: z.string().min(32).max(256) }),
   z.object({ type: z.literal("hello"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), pairingToken: z.string().min(32).max(256) }),
   z.object({ type: z.literal("heartbeat"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive() }),
   z.object({ type: z.literal("frame"), sessionId: z.string().min(1).max(128), deviceId: z.string().min(1).max(256), timestamp: z.number().int().positive(), width: z.number().int().min(1).max(10000), height: z.number().int().min(1).max(10000), jpegBase64: z.string().min(1).max(2_000_000) }),
