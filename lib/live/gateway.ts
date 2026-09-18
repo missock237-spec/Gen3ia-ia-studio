@@ -15,7 +15,7 @@ import {
   startLiveRuntime,
   updateLiveSessionStatus,
 } from "./repository";
-import { assertActionAllowed, constantTimeEqual, hashPairingToken } from "./security";
+import { assertActionAllowed, assertFreshLiveTimestamp, constantTimeEqual, hashPairingToken, LiveAuthFailureLimiter, LiveRateLimiter } from "./security";
 import { actionRequiresConfirmation, decideLiveAction } from "./vision-decider";
 import { LiveActionSchema, LiveClientMessageSchema, type LiveClientMessage, type LiveServerMessage } from "./types";
 
@@ -24,6 +24,7 @@ const MAX_FRAME_INTERVAL_MS = 900;
 const HEARTBEAT_MS = 15_000;
 const SESSION_POLL_MS = 2_000;
 const ACTION_RESULT_MAX_AGE_MS = 5 * 60_000;
+const MAX_VIEWERS_PER_SESSION = 3;
 
 interface ConnectionState {
   sessionId: string;
@@ -63,6 +64,8 @@ async function authenticateViewer(message: Extract<LiveClientMessage, { type: "v
   const session = await getLiveSession(message.sessionId);
   if (!session) throw new Error("Live session not found");
   if (session.expiresAt && session.expiresAt <= Date.now()) throw new Error("Live session expired");
+  if (session.status === "stopped" || session.status === "failed") throw new Error("Live session is no longer active");
+  if (!session.permissions.includes("screen.read")) throw new Error("screen.read permission is required");
   if (!session.viewerTokenHash || !constantTimeEqual(session.viewerTokenHash, hashPairingToken(message.viewerToken))) {
     throw new Error("Invalid viewer token");
   }
@@ -134,14 +137,18 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
 
   server.on("connection", (socket) => {
     let state: ConnectionState | null = null;
+    const rateLimiter = new LiveRateLimiter();
+    const authFailures = new LiveAuthFailureLimiter();
 
     socket.on("message", async (raw) => {
       try {
+        if (!rateLimiter.allow()) throw new Error("Live protocol rate limit exceeded.");
         const message = LiveClientMessageSchema.parse(JSON.parse(raw.toString()));
 
         if (message.type === "viewer.hello") {
           const session = await authenticateViewer(message);
           let set = viewers.get(session.id);
+          if (set?.size >= MAX_VIEWERS_PER_SESSION && !set.has(socket)) throw new Error("Live viewer limit reached.");
           if (!set) {
             set = new Set<WebSocket>();
             viewers.set(session.id, set);
@@ -188,11 +195,13 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
         if (state.pausedByServer && message.type === "frame") return;
 
         if (message.type === "heartbeat") {
+          assertFreshLiveTimestamp(message.timestamp);
           await heartbeatLiveSession(state.sessionId, state.deviceId);
           return;
         }
 
         if (message.type === "frame") {
+          assertFreshLiveTimestamp(message.timestamp);
           const now = Date.now();
           if (now - state.lastFrameAt < MAX_FRAME_INTERVAL_MS) return;
           const jpeg = validateFrameBase64(message.jpegBase64);
@@ -277,7 +286,11 @@ export function startLiveGateway(port = Number(process.env.LIVE_GATEWAY_PORT || 
           await recordLiveEvent(state.sessionId, { type: "protocol.error", reason }).catch(() => undefined);
           send(socket, { type: "pause", reason });
         } else {
-          socket.close(4003, "Authentication failed");
+          if (!authFailures.registerFailure()) {
+            socket.close(4008, "Too many authentication/protocol failures");
+          } else {
+            socket.close(4003, "Authentication failed");
+          }
         }
       }
     });
