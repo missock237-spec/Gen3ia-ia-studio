@@ -33,7 +33,7 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
     if (tool === "code.execute") allowCodeExecution = approved;
     if (tool === "terminal.execute") allowAgentTerminal = approved;
     if (tool === "camera.capture") allowCamera = approved;
-    if (definition.externalApp) allowExternalApps = approved;
+    if (definition.externalApp) allowExternalApps = allowExternalApps || definition.risk === "read" || approved;
   }
 
   return {
