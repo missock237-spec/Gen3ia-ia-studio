@@ -14,7 +14,7 @@ const Body = z.object({
 });
 
 function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, approved = false): ExecutionPolicy {
-  const tools = [...new Set(plan.steps.filter((step) => step.type === "tool" || step.type === "research").map((step) => step.toolName).filter((name): name is string => Boolean(name)))];
+  const tools = [...new Set(plan.steps.filter((step) => step.type === "tool" || step.type === "research").map((step) => step.toolName).filter((name): name is string => Boolean(name)).concat(plan.steps.some((step) => step.type === "code") ? ["code.execute"] : []))];
   const permissions = new Set<ExecutionPolicy["permissions"][number]>(["tool.read"]);
   let allowNetwork = false;
   let allowFileWrite = false;
@@ -75,9 +75,8 @@ export async function POST(request: NextRequest) {
     const plan = await planUniversalAgent(user.uid, body.message);
 
     const approvalSteps = plan.steps.filter((step) =>
-      step.type === "tool" &&
-      Boolean(step.toolName) &&
-      (step.requiresApproval || step.sideEffect),
+      (step.type === "tool" && Boolean(step.toolName) && (step.requiresApproval || step.sideEffect)) ||
+      step.type === "code",
     );
 
     if (approvalSteps.length > 0) {
@@ -88,7 +87,7 @@ export async function POST(request: NextRequest) {
           ownerId: user.uid,
           executionId: plan.executionId,
           role,
-          toolSlug: step.toolName!,
+          toolSlug: step.type === "code" ? "code.execute" : step.toolName!,
           arguments: { ...step.input, __stepId: step.id },
           reason: step.description,
         }),
