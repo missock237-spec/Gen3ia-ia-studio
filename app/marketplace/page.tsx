@@ -1,13 +1,15 @@
 "use client";
 
-import { useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
 import { MarketplaceHub } from "@/components/marketplace/marketplace-hub";
+import { useSessionAvailable } from "@/lib/firebase/auth-client";
 
 export default function MarketplacePage() {
-  const { user, loading } = useAuth();
+  // Session Firebase OU cookie de session serveur : l'une des deux suffit
+  // pour parcourir, acheter et installer des extensions.
+  const sessionDisponible = useSessionAvailable();
 
-  if (loading || !user) {
+  if (sessionDisponible !== true) {
     return (
       <FeatureAuthGate
         feature="Marketplace Gen3ia"
