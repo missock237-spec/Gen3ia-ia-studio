@@ -5,7 +5,7 @@ import { getToolSecurityDefinition } from "./tool-permissions";
 export type AutonomyRisk = "low" | "medium" | "high" | "critical";
 
 const MAX_APPROVAL_ARGUMENTS_BYTES = 100_000;
-const EXTERNAL_MUTATION_TOOLS = new Set(["composio.execute", "ads.publish"]);
+const EXTERNAL_MUTATION_TOOLS = new Set(["composio.execute", "ads.publish", "github.create_repository"]);
 const CRITICAL_TOOLS = new Set(["ads.publish", "file.delete"]);
 
 function canonicalize(value: unknown): unknown {
