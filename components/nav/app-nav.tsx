@@ -34,7 +34,7 @@ const MAIN_LINKS = [
 const SECONDARY_LINKS = [
   { href: "/billing", label: "Facturation", hint: "Solde et rechargement" },
   { href: "/storage", label: "Stockage permanent", hint: "Fichiers et camera" },
-  { href: "/developer", label: "Espace developpeur", hint: "Extensions et API" },
+  { href: "/developer", label: "Espace développeur", hint: "Extensions et API" },
 ];
 
 function useIdentity(): SessionIdentity | null {
@@ -223,7 +223,7 @@ export function AppNav() {
                       <path d="m16 17 5-5-5-5" />
                       <path d="M21 12H9" />
                     </svg>
-                    Se deconnecter
+                    Se déconnecter
                   </button>
                 </div>
               </div>
@@ -240,7 +240,7 @@ export function AppNav() {
                 href="/signup"
                 className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500"
               >
-                Creer un compte
+                Créer un compte
               </Link>
             </div>
           )}
