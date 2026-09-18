@@ -9,11 +9,11 @@ function ref(id: string) {
   return adminDb.collection(COLLECTION).doc(id);
 }
 
-export async function createLiveSession(input: { id: string; ownerId: string; name: string; objective: string; permissions: LivePermission[]; expiresAt?: number; pairingTokenHash: string; }): Promise<LiveSession> {
+export async function createLiveSession(input: { id: string; ownerId: string; name: string; objective: string; permissions: LivePermission[]; expiresAt?: number; pairingTokenHash: string; viewerTokenHash?: string; }): Promise<LiveSession> {
   const now = Date.now();
   const runtime: LiveRuntimeState = { status: "idle", iteration: 0, maxIterations: DEFAULT_MAX_ITERATIONS };
   const session: LiveSession = { id: input.id, ownerId: input.ownerId, name: input.name, objective: input.objective, status: "pending", permissions: input.permissions, createdAt: now, updatedAt: now, expiresAt: input.expiresAt, version: 1, runtime };
-  await ref(input.id).set({ ...session, pairingTokenHash: input.pairingTokenHash });
+  await ref(input.id).set({ ...session, pairingTokenHash: input.pairingTokenHash, ...(input.viewerTokenHash ? { viewerTokenHash: input.viewerTokenHash } : {}) });
   return session;
 }
 
@@ -21,7 +21,7 @@ export async function getLiveSession(id: string): Promise<(LiveSession & { pairi
   const snap = await ref(id).get();
   if (!snap.exists) return null;
   const data = snap.data()!;
-  return { ...(data as LiveSession), createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(), updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : Date.now(), pairingTokenHash: String(data.pairingTokenHash ?? "") };
+  return { ...(data as LiveSession), createdAt: typeof data.createdAt === "number" ? data.createdAt : Date.now(), updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : Date.now(), pairingTokenHash: String(data.pairingTokenHash ?? ""), viewerTokenHash: String(data.viewerTokenHash ?? "") };
 }
 
 export async function assertLiveSessionOwner(id: string, ownerId: string) {
