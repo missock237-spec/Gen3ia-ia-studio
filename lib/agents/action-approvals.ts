@@ -21,7 +21,6 @@ export async function listActionApprovals(ownerId: string, executionId: string):
   const snapshot = await adminDb.collection(COLLECTION)
     .where("ownerId", "==", ownerId)
     .where("executionId", "==", executionId)
-    .orderBy("createdAt", "asc")
     .get();
   return Promise.all(snapshot.docs.map((doc) => getActionApproval(ownerId, doc.id)));
 }
