@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { approvePendingLiveAction, assertLiveSessionOwner, recordLiveEvent } from "@/lib/live/repository";
 
 type Params = { params: Promise<{ id: string; actionId: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id, actionId } = await params;
     await assertLiveSessionOwner(id, token.uid);
     await approvePendingLiveAction(id, actionId, token.uid);

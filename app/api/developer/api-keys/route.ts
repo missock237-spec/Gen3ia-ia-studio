@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import { hashDeveloperApiKey, issueDeveloperApiKey } from "@/lib/extensions/developer-keys";
 import { listDeveloperApiKeys, revokeDeveloperApiKey } from "@/lib/extensions/repository";
@@ -13,7 +13,7 @@ import { listDeveloperApiKeys, revokeDeveloperApiKey } from "@/lib/extensions/re
  */
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const keys = await listDeveloperApiKeys(token.uid);
     return NextResponse.json({ keys });
   } catch (error) {
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = (await request.json().catch(() => ({}))) as { name?: unknown };
     const name = typeof body.name === "string" && body.name.trim() ? body.name.trim().slice(0, 100) : "clé SDK";
     const issued = await issueDeveloperApiKey(token.uid, name);
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = (await request.json().catch(() => ({}))) as { key?: unknown };
     const key = typeof body.key === "string" ? body.key.trim() : "";
     if (!key.startsWith("g3x_")) {

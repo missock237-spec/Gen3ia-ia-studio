@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
+import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
 interface Wallet {
   currency: string;
@@ -36,10 +37,11 @@ export default function BillingPage() {
   const [phase, setPhase] = useState<TopupPhase>("idle");
   const [countryCode, setCountryCode] = useState("CM");
   const [phoneNumber, setPhoneNumber] = useState("");
+  const sessionDisponible = useSessionAvailable();
 
-  const loadWallet = useCallback(async (firebaseUser: User) => {
-    const token = await firebaseUser.getIdToken();
-    const response = await fetch("/api/billing/wallet", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+  const loadWallet = useCallback(async () => {
+    // authFetch : ID token Firebase si disponible, sinon cookie de session.
+    const response = await authFetch("/api/billing/wallet", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error ?? "Impossible de charger le solde.");
     setWallet(data.wallet);
@@ -47,17 +49,23 @@ export default function BillingPage() {
 
   useEffect(() => onAuthStateChanged(auth, async (current) => {
     setUser(current);
-    if (!current) { setLoading(false); return; }
+    // L'etat Firebase client peut etre perdu (webviews mobiles) : on charge
+    // quand meme le solde via le cookie de session serveur.
+    if (!current) {
+      try { await loadWallet(); } catch { /* aucune session : page de connexion affichee */ }
+      finally { setLoading(false); }
+      return;
+    }
     try {
-      await loadWallet(current);
+      await loadWallet();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Impossible de charger le solde.");
     } finally { setLoading(false); }
-  }), []);
+  }), [loadWallet]);
 
   // Retour de paiement Chariow : ?topup=success&sale=sal_xxx
   useEffect(() => {
-    if (!user) return;
+    if (sessionDisponible === false) return;
     const params = new URLSearchParams(window.location.search);
     const topup = params.get("topup");
     const saleId = params.get("sale");
@@ -71,10 +79,9 @@ export default function BillingPage() {
     }
     (async () => {
       try {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/billing/topup/verify", {
+        const response = await authFetch("/api/billing/topup/verify", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ saleId }),
         });
         const data = await response.json();
@@ -92,14 +99,13 @@ export default function BillingPage() {
   }, [user]);
 
   const startTopup = async (phone?: { number: string; country_code: string }) => {
-    if (!user) return;
+    if (sessionDisponible === false) return;
     setPhase(phone ? "redirecting" : "creating");
     setError(""); setNotice(""); setSuccess("");
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/billing/topup", {
+      const response = await authFetch("/api/billing/topup", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(phone ? { phone } : {}),
       });
       const data = await response.json();
@@ -121,7 +127,7 @@ export default function BillingPage() {
     startTopup({ number: digits, country_code: countryCode });
   };
 
-  if (!user && !loading) {
+  if (sessionDisponible === false) {
     return <main style={styles.main}><section style={styles.card}><h1>Financement Gen3ia</h1><p>Connectez-vous pour consulter votre solde et recharger votre compte.</p></section></main>;
   }
 

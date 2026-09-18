@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
+import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
 type Schedule = {
   id: string;
@@ -41,18 +42,11 @@ export default function AgentSchedulesPage() {
   const [intervalMinutes, setIntervalMinutes] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const sessionDisponible = useSessionAvailable();
 
-  const authHeaders = async () => {
-    if (!user) throw new Error("Connexion requise");
-    return { Authorization: `Bearer ${await user.getIdToken()}` };
-  };
-
-  const load = async (currentUser: User) => {
-    const token = await currentUser.getIdToken();
-    const response = await fetch("/api/agents/schedules", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+  const load = async () => {
+    // authFetch : ID token Firebase si disponible, sinon cookie de session.
+    const response = await authFetch("/api/agents/schedules", { cache: "no-store" });
     if (!response.ok) throw new Error((await response.json()).error ?? "Chargement impossible");
     setSchedules((await response.json()).schedules ?? []);
   };
@@ -62,9 +56,7 @@ export default function AgentSchedulesPage() {
     const timer = setTimeout(() => setTimezone(browserTimezone()), 0);
     const unsubscribe = onAuthStateChanged(auth, async (current) => {
       setUser(current);
-      if (current) {
-        try { await load(current); } catch (error) { setMessage(error instanceof Error ? error.message : "Chargement impossible"); }
-      } else setSchedules([]);
+      try { await load(); } catch (error) { setMessage(error instanceof Error ? error.message : "Chargement impossible"); }
     });
     return () => { clearTimeout(timer); unsubscribe(); };
   }, []);
@@ -79,12 +71,13 @@ export default function AgentSchedulesPage() {
   };
 
   const create = async () => {
-    if (!user || !name.trim() || !agentId.trim() || objective.trim().length < 3 || selectedDays.length === 0) return;
+    if (sessionDisponible === false) { setMessage("Session expirée. Reconnectez-vous."); return; }
+    if (!name.trim() || !agentId.trim() || objective.trim().length < 3 || selectedDays.length === 0) return;
     setBusy(true); setMessage("");
     try {
-      const response = await fetch("/api/agents/schedules", {
+      const response = await authFetch("/api/agents/schedules", {
         method: "POST",
-        headers: { ...(await authHeaders()), "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           name, agentId, objective, timezone, daysOfWeek: selectedDays,
           startTime, endTime, intervalMinutes, enabled: true,
@@ -99,12 +92,12 @@ export default function AgentSchedulesPage() {
   };
 
   const toggle = async (schedule: Schedule) => {
-    if (!user) return;
+    if (sessionDisponible === false) return;
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(`/api/agents/schedules/${encodeURIComponent(schedule.id)}`, {
+      const response = await authFetch(`/api/agents/schedules/${encodeURIComponent(schedule.id)}`, {
         method: "PATCH",
-        headers: { ...(await authHeaders()), "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ enabled: !schedule.enabled }),
       });
       const data = await response.json();
@@ -115,11 +108,11 @@ export default function AgentSchedulesPage() {
   };
 
   const remove = async (schedule: Schedule) => {
-    if (!user || !window.confirm(`Supprimer « ${schedule.name} » ?`)) return;
+    if (sessionDisponible === false || !window.confirm(`Supprimer « ${schedule.name} » ?`)) return;
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(`/api/agents/schedules/${encodeURIComponent(schedule.id)}`, {
-        method: "DELETE", headers: await authHeaders(),
+      const response = await authFetch(`/api/agents/schedules/${encodeURIComponent(schedule.id)}`, {
+        method: "DELETE",
       });
       if (!response.ok) throw new Error((await response.json()).error ?? "Suppression impossible");
       setSchedules((current) => current.filter((item) => item.id !== schedule.id));

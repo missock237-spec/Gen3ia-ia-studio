@@ -5,6 +5,7 @@ import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 
 import { auth } from "@/lib/firebase/client";
+import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
 type Permission =
   | "screen.read"
@@ -71,13 +72,11 @@ export function LiveDashboard() {
   const [copied, setCopied] = useState(false);
   const [liveFrame, setLiveFrame] = useState<string | null>(null);
   const [viewerStatus, setViewerStatus] = useState<"offline" | "connecting" | "live">("offline");
+  const sessionDisponible = useSessionAvailable();
 
-  const loadSessions = useCallback(async (firebaseUser: User) => {
-    const token = await firebaseUser.getIdToken();
-    const response = await fetch("/api/live/sessions", {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    });
+  const loadSessions = useCallback(async () => {
+    // authFetch : ID token Firebase si disponible, sinon cookie de session.
+    const response = await authFetch("/api/live/sessions", { cache: "no-store" });
     if (response.ok) setSessions((await response.json()).sessions ?? []);
   }, []);
 
@@ -86,7 +85,7 @@ export function LiveDashboard() {
       onAuthStateChanged(auth, async (current) => {
         setUser(current);
         setAuthReady(true);
-        if (current) await loadSessions(current);
+        await loadSessions();
       }),
     [loadSessions],
   );
@@ -100,21 +99,21 @@ export function LiveDashboard() {
   };
 
   const createSession = async () => {
-    if (!user || name.trim().length === 0 || objective.trim().length < 10 || permissions.length === 0) return;
+    if (sessionDisponible === false) { setError("Session expirée. Reconnectez-vous."); return; }
+    if (name.trim().length === 0 || objective.trim().length < 10 || permissions.length === 0) return;
     setBusy(true);
     setError("");
     setCreated(null);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch("/api/live/sessions", {
+      const response = await authFetch("/api/live/sessions", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: name.trim(), objective: objective.trim(), permissions }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Création impossible");
       setCreated(data);
-      await loadSessions(user);
+      await loadSessions();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Création impossible");
     } finally {
@@ -123,14 +122,13 @@ export function LiveDashboard() {
   };
 
   const stopSession = async (id: string) => {
-    if (!user) return;
-    const token = await user.getIdToken();
-    await fetch(`/api/live/sessions/${id}`, {
+    if (sessionDisponible === false) return;
+    await authFetch(`/api/live/sessions/${id}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: "stop" }),
     });
-    await loadSessions(user);
+    await loadSessions();
   };
 
   useEffect(() => {
@@ -159,11 +157,11 @@ export function LiveDashboard() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (!authReady) {
+  if (!authReady || sessionDisponible === null) {
     return <div className="p-10 text-center text-white/50">Chargement…</div>;
   }
 
-  if (!user) {
+  if (sessionDisponible === false) {
     return (
       <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-[#0d1220] p-8 text-center">
         <h2 className="text-xl font-semibold">Connexion requise</h2>

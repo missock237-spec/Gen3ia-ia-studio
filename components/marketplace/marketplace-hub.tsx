@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/lib/firebase/auth-client";
+import { useAuth, authFetch } from "@/lib/firebase/auth-client";
 
 type Extension = {
   id: string;
@@ -49,11 +49,10 @@ export function MarketplaceHub() {
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!user) return;
       setLoading(true);
       try {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/extensions?limit=100", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        // authFetch : ID token Firebase si disponible, sinon cookie de session.
+        const response = await authFetch("/api/extensions?limit=100", { cache: "no-store" });
         if (!response.ok) throw new Error("Impossible de charger le catalogue.");
         const data = await response.json();
         if (active) setExtensions(Array.isArray(data.extensions) ? data.extensions : []);
@@ -61,16 +60,14 @@ export function MarketplaceHub() {
       finally { if (active) setLoading(false); }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      if (!user) return;
       setInstalledLoading(true);
       try {
-        const token = await user.getIdToken();
-        const response = await fetch("/api/extensions/installed", { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" });
+        const response = await authFetch("/api/extensions/installed", { cache: "no-store" });
         if (!response.ok) throw new Error("Impossible de charger vos installations.");
         const data = await response.json();
         if (active) setInstalled(Array.isArray(data.installations) ? data.installations : []);
@@ -78,7 +75,7 @@ export function MarketplaceHub() {
       finally { if (active) setInstalledLoading(false); }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     if (!user) return;

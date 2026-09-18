@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useAuth } from "@/lib/firebase/auth-client";
+import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
 
 type Fiche = {
@@ -41,7 +41,7 @@ function permissionDescription(permission: string) {
 }
 
 export default function ExtensionFichePage() {
-  const { user, loading: authLoading } = useAuth();
+  const sessionDisponible = useSessionAvailable();
   const [fiche, setFiche] = useState<Fiche | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -50,11 +50,10 @@ export default function ExtensionFichePage() {
   const [permissionDraft, setPermissionDraft] = useState<string[]>([]);
   const [permissionsDirty, setPermissionsDirty] = useState(false);
 
-  const load = useCallback(async (currentUser: NonNullable<typeof user>) => {
+  const load = useCallback(async () => {
     const id = window.location.pathname.split("/").pop();
-    const response = await fetch(`/api/extensions/${id}?reviews=1`, {
-      headers: { Authorization: `Bearer ${await currentUser.getIdToken()}` }, cache: "no-store",
-    });
+    // authFetch : ID token Firebase si disponible, sinon cookie de session.
+    const response = await authFetch(`/api/extensions/${id}?reviews=1`, { cache: "no-store" });
     if (response.status === 401) throw new Error("Session expirée. Reconnectez-vous.");
     if (!response.ok) throw new Error("Impossible de charger cette extension.");
     const data = await response.json() as Fiche;
@@ -64,28 +63,29 @@ export default function ExtensionFichePage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
-    const timer = setTimeout(() => { void load(user).catch((e) => setMessage(e instanceof Error ? e.message : "Erreur de chargement")); }, 0);
+    if (sessionDisponible === false) return;
+    const timer = setTimeout(() => { void load().catch((e) => setMessage(e instanceof Error ? e.message : "Erreur de chargement")); }, 0);
     return () => clearTimeout(timer);
-  }, [load, user]);
+  }, [load, sessionDisponible]);
 
-  if (authLoading || !user) return <FeatureAuthGate feature="Marketplace Gen3ia" description="Connectez-vous pour consulter les extensions, leurs permissions, leurs versions et leurs avis."><span /></FeatureAuthGate>;
+  if (sessionDisponible === null) return <main className="min-h-screen bg-[#070a12] p-10 text-center text-white/50">Chargement…</main>;
+  if (sessionDisponible === false) return <FeatureAuthGate feature="Marketplace Gen3ia" description="Connectez-vous pour consulter les extensions, leurs permissions, leurs versions et leurs avis."><span /></FeatureAuthGate>;
   if (!fiche) return <main className="min-h-screen bg-[#070a12] p-10 text-center text-white/50">{message || "Chargement…"}</main>;
 
   const { extension, version, reviews, userState } = fiche;
   const action = async (path: string, init?: RequestInit) => {
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(`/api/extensions/${extension.id}${path}`, {
+      const response = await authFetch(`/api/extensions/${extension.id}${path}`, {
         ...init,
-        headers: { Authorization: `Bearer ${await user.getIdToken()}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+        headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
       });
       const data = await response.json().catch(() => ({}));
       if (response.status === 401) throw new Error("Session expirée. Reconnectez-vous.");
       if (!response.ok) throw new Error(data.error ?? "Action impossible");
       if (data.checkoutUrl) { window.location.href = data.checkoutUrl; return; }
       setMessage(data.status === "updated" ? "Extension mise à jour." : data.status === "uninstalled" ? "Extension désinstallée." : data.status === "purchased" ? (data.message ?? "Achat effectué.") : data.status === "reported" ? "Signalement envoyé." : "Action effectuée.");
-      await load(user);
+      await load();
     } catch (e) { setMessage(e instanceof Error ? e.message : "Action impossible"); }
     finally { setBusy(false); }
   };

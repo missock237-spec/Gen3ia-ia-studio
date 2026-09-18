@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { authenticateDeveloper } from "@/lib/extensions/developer-keys";
 import { extensionApiError } from "@/lib/extensions/api";
 import { validateManifest } from "@/lib/extensions/manifest";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { createExtension, getExtension, listApprovedExtensions } from "@/lib/extensions/repository";
 
 export async function POST(request: Request) {
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
 /** Marketplace catalog is account-only: public users cannot enumerate extensions through the API. */
 export async function GET(request: Request) {
   try {
-    await verifyFirebaseToken(request.headers.get("authorization"));
+    await verifyFirebaseAuth(request);
     const url = new URL(request.url);
     const extensions = await listApprovedExtensions({
       q: url.searchParams.get("q") ?? undefined,

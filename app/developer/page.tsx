@@ -5,6 +5,7 @@ import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 
 import { auth } from "@/lib/firebase/client";
+import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
 interface DeveloperExtension {
   id: string;
@@ -77,17 +78,17 @@ export default function DeveloperPage() {
   const [logs, setLogs] = useState<Array<Record<string, unknown>>>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const sessionDisponible = useSessionAvailable();
 
   const authedFetch = useCallback(async (path: string, init?: RequestInit) => {
-    const token = await (user as User).getIdToken();
-    return fetch(path, {
+    // authFetch : ID token Firebase si disponible, sinon cookie de session.
+    return authFetch(path, {
       ...init,
-      headers: { Authorization: `Bearer ${token}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+      headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
     });
-  }, [user]);
+  }, []);
 
   const loadAll = useCallback(async () => {
-    if (!user) return;
     const [extensionsRes, revenueRes, keysRes] = await Promise.all([
       authedFetch("/api/developer/extensions"),
       authedFetch("/api/developer/revenue"),
@@ -96,13 +97,15 @@ export default function DeveloperPage() {
     if (extensionsRes.ok) setExtensions((await extensionsRes.json()).extensions ?? []);
     if (revenueRes.ok) setRevenue((await revenueRes.json()).revenue ?? null);
     if (keysRes.ok) setApiKeys((await keysRes.json()).keys ?? []);
-  }, [authedFetch, user]);
+  }, [authedFetch]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (current) => {
       setUser(current);
-      if (current) void loadAll();
+      void loadAll();
     });
+    // Charge aussi sans etat Firebase client (le cookie de session suffit).
+    void loadAll();
     return () => unsubscribe();
   }, [loadAll]);
 
@@ -161,7 +164,7 @@ export default function DeveloperPage() {
     if (response.ok) setLogs((await response.json()).executions ?? []);
   };
 
-  if (!user) {
+  if (sessionDisponible === false) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#070a12] p-6 text-white">
         <div className="max-w-md rounded-3xl border border-white/10 bg-[#0d1220] p-8 text-center">

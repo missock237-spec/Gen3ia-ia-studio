@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { assertLiveSessionOwner, getLiveSession, updateLiveSessionStatus } from "@/lib/live/repository";
 
 const ActionSchema = z.object({ action: z.enum(["pause", "resume", "stop"]) });
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const session = await assertLiveSessionOwner(id, token.uid);
     const { pairingTokenHash: _pairingTokenHash, ...publicSession } = session;
@@ -22,7 +22,7 @@ export async function GET(request: Request, { params }: Params) {
 
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     await assertLiveSessionOwner(id, token.uid);
     const { action } = ActionSchema.parse(await request.json());
@@ -36,7 +36,7 @@ export async function POST(request: Request, { params }: Params) {
 
 export async function DELETE(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     await assertLiveSessionOwner(id, token.uid);
     await updateLiveSessionStatus(id, "stopped");

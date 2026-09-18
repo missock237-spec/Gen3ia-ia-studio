@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import {
   deleteExtensionSecret,
@@ -21,7 +21,7 @@ import { MAX_SECRETS } from "@/lib/extensions/manifest";
  */
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const extensionId = new URL(request.url).searchParams.get("extensionId") ?? "";
     const extension = await getExtension(extensionId);
     if (!extension) return NextResponse.json({ error: "Extension introuvable." }, { status: 404 });
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = (await request.json().catch(() => ({}))) as {
       extensionId?: unknown;
       ref?: unknown;
@@ -79,7 +79,7 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = (await request.json().catch(() => ({}))) as { extensionId?: unknown; ref?: unknown };
     const extensionId = typeof body.extensionId === "string" ? body.extensionId : "";
     const ref = typeof body.ref === "string" ? body.ref.trim() : "";

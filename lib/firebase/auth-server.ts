@@ -2,6 +2,8 @@ import { createPublicKey, createVerify, type KeyObject } from "node:crypto";
 
 import type { DecodedIdToken } from "firebase-admin/auth";
 
+import { readSessionCookie } from "@/lib/server/session-cookie";
+
 /**
  * Vérification serveur des Firebase ID tokens.
  *
@@ -187,4 +189,43 @@ export async function verifyFirebaseToken(
     );
     throw new Error("Invalid or revoked Firebase ID token.");
   }
+}
+
+/**
+ * Authentification de requete par Bearer Firebase OU cookie de session signe.
+ *
+ * 1. Bearer : ID token Firebase (signature RS256 Google).
+ * 2. Cookie `gen3ia_session` (HMAC serveur) : sauvegarde quand l'etat du SDK
+ *    Firebase client a ete perdu (webviews mobiles, stockage bloque) — sans
+ *    cela, l'utilisateur authentifie se verrait refuser toutes les
+ *    fonctionnalites de la plateforme.
+ *
+ * L'objet retourne imite DecodedIdToken ; le cookie ne transporte pas de
+ * custom claims (admin etc.), qui restent reserves au chemin Bearer.
+ */
+export async function verifyFirebaseAuth(
+  request: Request | { headers: { get(name: string): string | null } },
+): Promise<DecodedIdToken> {
+  const authorization = request.headers.get("authorization");
+  if (authorization && authorization.toLowerCase().startsWith("bearer ")) {
+    try {
+      return await verifyFirebaseToken(authorization);
+    } catch {
+      // Token absent/invalide : on tente le cookie avant d'echouer.
+    }
+  }
+
+  const session = readSessionCookie(request.headers.get("cookie"));
+  if (session) {
+    return {
+      uid: session.uid,
+      sub: session.uid,
+      email: session.email ?? undefined,
+      name: session.name ?? undefined,
+      picture: session.picture ?? undefined,
+      firebase: { identities: {}, sign_in_provider: session.provider },
+    } as unknown as DecodedIdToken;
+  }
+
+  throw new Error("Missing authorization header.");
 }

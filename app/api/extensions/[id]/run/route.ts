@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import { validateSimpleRecord } from "@/lib/extensions/schema-validate";
 import { executeExtensionTool, extensionToolName, runExtensionWorkflow } from "@/lib/extensions/runtime";
@@ -17,7 +17,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const body = (await request.json().catch(() => ({}))) as {
       toolId?: unknown;

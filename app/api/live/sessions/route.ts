@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { detectDeviceFromHeaders } from "@/lib/device/detect";
 import { createLiveSession, listLiveSessions } from "@/lib/live/repository";
 import { createPairingToken, hashPairingToken } from "@/lib/live/security";
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   try {
     const pcOnly = pcOnlyGuard(request);
     if (pcOnly) return pcOnly;
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = CreateSchema.parse(await request.json());
     const pairingToken = createPairingToken();
     const viewerToken = createPairingToken();
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const sessions = await listLiveSessions(token.uid);
     return NextResponse.json({ sessions });
   } catch (error) {

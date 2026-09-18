@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import { getExtension, getInstallation, getLatestApprovedVersion, getEntitlement, listReviews } from "@/lib/extensions/repository";
 import { canUseExtension } from "@/lib/extensions/pricing";
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 /** Account-only marketplace detail. Installation, entitlement and review state are user-scoped. */
 export async function GET(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const extension = await getExtension(id);
     if (!extension) return NextResponse.json({ error: "Extension introuvable." }, { status: 404 });

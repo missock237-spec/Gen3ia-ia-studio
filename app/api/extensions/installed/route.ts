@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { getExtension, listInstalledExtensions } from "@/lib/extensions/repository";
 
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const installations = await listInstalledExtensions(token.uid);
     const extensions = await Promise.all(
       installations.map(async (installation) => {

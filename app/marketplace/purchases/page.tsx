@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
-import { useAuth } from "@/lib/firebase/auth-client";
+import { authFetch } from "@/lib/firebase/auth-client";
 
 type Purchase = {
   id: string;
@@ -46,7 +46,6 @@ export default function MarketplacePurchasesPage() {
 }
 
 function PurchasesContent() {
-  const { user } = useAuth();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [licenses, setLicenses] = useState<License[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,14 +54,12 @@ function PurchasesContent() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!user) return;
       setLoading(true);
       try {
-        const token = await user.getIdToken();
-        const headers = { Authorization: `Bearer ${token}` };
+        // authFetch : ID token Firebase si disponible, sinon cookie de session.
         const [purchaseResponse, licenseResponse] = await Promise.all([
-          fetch("/api/extensions/purchases?limit=100", { headers, cache: "no-store" }),
-          fetch("/api/extensions/licenses?limit=100", { headers, cache: "no-store" }),
+          authFetch("/api/extensions/purchases?limit=100", { cache: "no-store" }),
+          authFetch("/api/extensions/licenses?limit=100", { cache: "no-store" }),
         ]);
         if (!purchaseResponse.ok || !licenseResponse.ok) throw new Error("Impossible de charger vos achats et licences.");
         const purchaseData = await purchaseResponse.json();
@@ -78,7 +75,7 @@ function PurchasesContent() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#060812] px-4 py-6 text-white sm:px-6 lg:px-10">

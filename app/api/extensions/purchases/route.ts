@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { getExtension, listPurchasesByUser } from "@/lib/extensions/repository";
 
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const url = new URL(request.url);
     const requestedLimit = Number(url.searchParams.get("limit") ?? "50");
     const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(Math.floor(requestedLimit), 1), 100) : 50;

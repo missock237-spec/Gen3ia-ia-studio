@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { coordinateTeamExecution } from "@/lib/orchestrator/team-coordination";
 
 const RequestSchema = z.object({
@@ -13,7 +13,7 @@ const RequestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const body = RequestSchema.parse(await request.json());
     const result = await coordinateTeamExecution({ userId: token.uid, ...body });
     return NextResponse.json(result, { status: 200 });

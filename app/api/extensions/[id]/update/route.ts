@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { adminDb } from "@/lib/firebase/admin";
 import { extensionApiError } from "@/lib/extensions/api";
 import { getExtension, getInstallation, getLatestApprovedVersion } from "@/lib/extensions/repository";
@@ -19,7 +19,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const installation = await getInstallation(id, token.uid);
     if (!installation || installation.status !== "active") {

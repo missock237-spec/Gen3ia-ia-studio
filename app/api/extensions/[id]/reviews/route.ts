@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import { getInstallation, listReviews, upsertReview } from "@/lib/extensions/repository";
 
@@ -30,7 +30,7 @@ export async function GET(_request: Request, { params }: Params) {
 /** POST /api/extensions/:id/reviews — review, installers only. Body: { rating, title?, body } */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const installation = await getInstallation(id, token.uid);
     if (!installation || installation.status === "uninstalled") {

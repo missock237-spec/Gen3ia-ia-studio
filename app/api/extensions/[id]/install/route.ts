@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import {
   getExtension,
@@ -21,7 +21,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function POST(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const extension = await getExtension(id);
     if (!extension) return NextResponse.json({ error: "Extension introuvable." }, { status: 404 });
@@ -73,7 +73,7 @@ export async function POST(request: Request, { params }: Params) {
 /** DELETE /api/extensions/:id/install — uninstall (soft delete). */
 export async function DELETE(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     await uninstallExtension(id, token.uid);
     return NextResponse.json({ ok: true, status: "uninstalled" });

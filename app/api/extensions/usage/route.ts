@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { getExtension, getInstallation, listExtensionExecutions } from "@/lib/extensions/repository";
 
 export async function GET(request: Request) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const url = new URL(request.url);
     const extensionId = url.searchParams.get("extensionId")?.trim();
     if (!extensionId) return NextResponse.json({ error: "extensionId requis." }, { status: 400 });

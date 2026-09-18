@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { verifyFirebaseToken } from "@/lib/firebase/auth-server";
+import { verifyFirebaseAuth } from "@/lib/firebase/auth-server";
 import { extensionApiError } from "@/lib/extensions/api";
 import { getExtension, listExtensionExecutions } from "@/lib/extensions/repository";
 
@@ -14,7 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  */
 export async function GET(request: Request, { params }: Params) {
   try {
-    const token = await verifyFirebaseToken(request.headers.get("authorization"));
+    const token = await verifyFirebaseAuth(request);
     const { id } = await params;
     const extension = await getExtension(id);
     if (!extension) return NextResponse.json({ error: "Extension introuvable." }, { status: 404 });

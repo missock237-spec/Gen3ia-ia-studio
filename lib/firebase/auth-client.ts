@@ -186,6 +186,65 @@ export async function establishSession(user: User): Promise<void> {
   window.location.href = "/dashboard";
 }
 
+/**
+ * Indique si l'utilisateur dispose d'une session utilisable, soit via l'etat
+ * Firebase client, soit via le cookie de session serveur. Retourne :
+ * - true : session presente (l'une ou l'autre) ;
+ * - false : aucune session ;
+ * - null : encore indetermine (chargement).
+ */
+export function useSessionAvailable(): boolean | null {
+  const { user, loading } = useAuth();
+  const [serverSession, setServerSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (user) { setServerSession(null); return; }
+    if (loading) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!cancelled) setServerSession(response.ok);
+      } catch {
+        if (!cancelled) setServerSession(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [user, loading]);
+
+  if (user) return true;
+  if (loading) return null;
+  return serverSession;
+}
+
+/**
+ * fetch authentifie pour toutes les fonctionnalites de la plateforme.
+ *
+ * - Si le SDK Firebase connait l'utilisateur courant : ID token en Bearer
+ *   (comportement historique).
+ * - Sinon (etat Firebase client perdu : webviews mobiles, stockage bloque,
+ *   reload apres redirection OAuth) : la requete part "nue" et le cookie de
+ *   session signe pose par POST /api/auth/session authentifie l'appel cote
+ *   serveur (requireUser accepte les deux).
+ *
+ * A utiliser partout a la place d'un fetch + getIdToken manuel, afin qu'aucune
+ * fonctionnalite ne devienne inaccessible apres une connexion reussie.
+ */
+export async function authFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      const token = await currentUser.getIdToken();
+      const headers = new Headers(init?.headers ?? undefined);
+      headers.set("Authorization", `Bearer ${token}`);
+      return fetch(input, { ...init, headers, credentials: init?.credentials ?? "same-origin" });
+    } catch {
+      /* ID token indisponible : on retombe sur le cookie de session. */
+    }
+  }
+  return fetch(input, { ...init, credentials: init?.credentials ?? "same-origin" });
+}
+
 export async function signInWithEmail(email: string, password: string): Promise<User> {
   return (await signInWithEmailAndPassword(auth, email, password)).user;
 }
