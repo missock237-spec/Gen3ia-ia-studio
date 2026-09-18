@@ -28,7 +28,7 @@ const PRODUCTS = [
   {
     href: "/studio",
     eyebrow: "Gen3ia Studio",
-    title: "Studio dâagents IA",
+    title: "Studio d’agents IA",
     description:
       "Créez, équipez et déployez des agents autonomes en quelques minutes. Objectifs en langage naturel, orchestration automatique des compétences, mémoire permanente et environnement contrôlé.",
     points: ["Orchestration multi-compétences", "Mémoire persistante par agent", "Terminal sandboxé réservé aux agents"],
@@ -64,7 +64,7 @@ const PRODUCTS = [
   {
     href: "/marketplace",
     eyebrow: "Gen3ia Marketplace",
-    title: "Marketplace dâextensions",
+    title: "Marketplace d’extensions",
     description:
       "Étendez vos agents avec des tools, skills et workflows créés par la communauté. Chaque extension est versionnée, notée, sandboxée et contrôlée par des permissions explicites.",
     points: ["Installation en un clic", "Permissions vérifiables avant achat", "Revenus développeur intégrés"],
@@ -189,10 +189,10 @@ export default function HomePage() {
                 pour vous.
               </h1>
               <p className="anim-fade-up anim-delay-2 mx-auto mt-6 max-w-2xl text-base leading-7 text-white/60 sm:text-lg sm:leading-8">
-                Gen3ia réunit le Studio dâagents, lâAgent Live sur votre
-                ordinateur et une Marketplace dâextensions dans une seule
-                plateforme sécurisée. Décrivez le résultat : lâorchestrateur
-                sâoccupe du reste, sous votre contrôle.
+                Gen3ia réunit le Studio d’agents, l’Agent Live sur votre
+                ordinateur et une Marketplace d’extensions dans une seule
+                plateforme sécurisée. Décrivez le résultat : l’orchestrateur
+                s’occupe du reste, sous votre contrôle.
               </p>
               <div className="anim-fade-up anim-delay-3 mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Link
@@ -228,7 +228,7 @@ export default function HomePage() {
                 </div>
                 <div className="grid gap-3 rounded-2xl bg-black/30 p-4 sm:grid-cols-3">
                   {[
-                    { title: "Studio dâagents IA", text: "Créer, tester et déployer des agents autonomes.", tone: "text-violet-300" },
+                    { title: "Studio d’agents IA", text: "Créer, tester et déployer des agents autonomes.", tone: "text-violet-300" },
                     { title: "Agent Live", text: "Pilotage d'écran et clavier/souris validé, sur PC.", tone: "text-amber-300" },
                     { title: "Marketplace", text: "Tools, skills et workflows de la communauté.", tone: "text-emerald-300" },
                   ].map((card, index) => (
@@ -263,7 +263,7 @@ export default function HomePage() {
           <div className="reveal mx-auto max-w-2xl text-center">
             <p className="text-xs font-bold uppercase tracking-[.3em] text-violet-300">Trois espaces, une plateforme</p>
             <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">
-              Tout ce quâil faut pour mettre les agents au travail
+              Tout ce qu’il faut pour mettre les agents au travail
             </h2>
             <p className="mt-4 text-sm leading-7 text-white/55 sm:text-base">
               Chaque espace est accessible en un clic depuis votre tableau de
@@ -379,7 +379,7 @@ export default function HomePage() {
                 Chaque capacité dangereuse est encadrée : permissions
                 explicites, sandbox isolée, double validation humaine et
                 journalisation. Vous gardez le contrôle permanent sur ce que
-                vos agents peuvent faire — et de ce quâils peuvent dépenser.
+                vos agents peuvent faire — et de ce qu’ils peuvent dépenser.
               </p>
               <ul className="mt-8 space-y-3.5">
                 {SECURITY_POINTS.map((point) => (
@@ -433,7 +433,7 @@ export default function HomePage() {
             </h2>
             <p className="relative mx-auto mt-4 max-w-xl text-sm leading-7 text-white/60 sm:text-base">
               Créez votre compte en une minute, recevez votre solde de
-              démonstration et ouvrez votre premier agent dès aujourdâhui.
+              démonstration et ouvrez votre premier agent dès aujourd’hui.
             </p>
             <div className="relative mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <Link
@@ -466,7 +466,7 @@ export default function HomePage() {
                 <span className="text-sm font-bold">Gen3ia AI Studio</span>
               </Link>
               <p className="mt-4 max-w-xs text-xs leading-5 text-white/40">
-                La plateforme dâagents IA autonomes : Studio, Agent Live et
+                La plateforme d’agents IA autonomes : Studio, Agent Live et
                 Marketplace, avec la sécurité et le contrôle humain au centre.
               </p>
             </div>
