@@ -43,7 +43,8 @@ export async function POST(request: Request) {
     if (pcOnly) return pcOnly;
     const token = await verifyFirebaseToken(request.headers.get("authorization"));
     const body = CreateSchema.parse(await request.json());
-    const pairingToken = createPairingToken();\n    const viewerToken = createPairingToken();
+    const pairingToken = createPairingToken();
+    const viewerToken = createPairingToken();
     const session = await createLiveSession({
       id: `live_${randomUUID()}`,
       ownerId: token.uid,
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
       objective: body.objective,
       permissions: body.permissions,
       expiresAt: Date.now() + body.ttlMs,
-      pairingTokenHash: hashPairingToken(pairingToken),\n      viewerTokenHash: hashPairingToken(viewerToken),
+      pairingTokenHash: hashPairingToken(pairingToken),
+      viewerTokenHash: hashPairingToken(viewerToken),
     });
     return NextResponse.json({ session, pairingToken, viewerToken }, { status: 201 });
   } catch (error) {
