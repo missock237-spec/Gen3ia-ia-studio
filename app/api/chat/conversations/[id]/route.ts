@@ -14,7 +14,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const user = await requireUser(); const { id } = await params;
+    const user = await requireUser(request); const { id } = await params;
     const body = z.object({ title: z.string().trim().min(1).max(120) }).parse(await request.json());
     await renameConversation(user.uid, id, body.title);
     return NextResponse.json({ ok: true });
