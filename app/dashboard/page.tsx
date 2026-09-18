@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
 import { UniversalAgentChat } from "@/components/agent/universal-agent-chat";

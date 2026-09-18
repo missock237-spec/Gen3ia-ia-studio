@@ -16,6 +16,20 @@ import { appendMessage } from "@/lib/chat/repository";
 
 const Body = z.object({ approvalId: z.string().min(1).max(256) });
 
+/**
+ * Reconstruit le texte final affiché a l'utilisateur après une exécution
+ * approuvée : dernier résultat textuel utile (llm, document, media, research)
+ * produit par le runtime, avec message de repli.
+ */
+function finalResponseText(plan: RuntimePlan, outputs: Record<string, unknown>): string {
+  const candidates = [...plan.steps].reverse().filter((step) => ["llm", "document", "media", "research"].includes(step.type));
+  for (const step of candidates) {
+    const value = outputs[step.id];
+    if (typeof value === "string" && value.trim()) return value;
+  }
+  return "L’exécution de l’agent est terminée. Consultez les étapes et résultats affichés dans l’espace Agent.";
+}
+
 function buildPolicy(plan: RuntimePlan): ExecutionPolicy {
   const tools = [...new Set(plan.steps
     .filter((step) => step.type === "tool" || step.type === "research")
@@ -128,7 +142,9 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         status: result.status,
-        executionId: result.executionId,\n        conversationId: state.conversationId,\n        finalText: responseText,
+        executionId: result.executionId,
+        conversationId: state.conversationId,
+        finalText: finalResponseText(result.plan, result.outputs),
         objective: result.objective,
         plan: result.plan,
         observations: result.observations,
