@@ -203,8 +203,8 @@ export async function listLiveSessions(ownerId: string, limit = 20): Promise<Liv
     .limit(limit)
     .get();
   return snap.docs.map((doc) => {
-    const data = doc.data() as LiveSession & { pairingTokenHash?: string };
-    const { pairingTokenHash: _pairingTokenHash, ...publicSession } = data;
+    const data = doc.data() as LiveSession & { pairingTokenHash?: string; viewerTokenHash?: string };
+    const { pairingTokenHash: _pairingTokenHash, viewerTokenHash: _viewerTokenHash, ...publicSession } = data;
     return publicSession;
   });
 }
