@@ -5,7 +5,6 @@ import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
-import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 type Provider = "google_ads" | "meta_ads" | "tiktok_ads";
 const labels: Record<Provider, string> = { google_ads: "Google Ads", meta_ads: "Meta Ads", tiktok_ads: "TikTok Ads" };
@@ -45,7 +44,6 @@ export default function StudioPage() {
   };
 
   return <main className="min-h-screen bg-[#070a12] text-white p-5 md:p-8"><div className="mx-auto max-w-7xl">
-    <PlatformTabs />
     <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div><div className="text-xs tracking-[.3em] text-violet-300">GEN3IA AI STUDIO</div><h1 className="mt-2 text-3xl font-bold">Studio d’agents IA</h1><p className="mt-2 text-white/60">Créez, équipez, testez et déployez des agents autonomes dans un environnement contrôlé.</p></div><div className="flex items-center gap-3"><Link href="/marketplace" className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Marketplace</Link><Link href="/live" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Agent Live<span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-300">PC</span></Link><div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm">{sessionDisponible === false ? "Connexion requise" : "Compte connecté"}</div></div></header>
     <section className="grid gap-4 md:grid-cols-4 mb-6"><Stat title="Agents" value="Studio" note="Création & orchestration"/><Stat title="Mémoire" value={String(memoryCount)} note="Souvenirs persistants"/><Stat title="Stockage" value={String(fileCount)} note="Fichiers permanents"/><Stat title="Terminal" value="Agent-only" note="Sandbox isolée"/></section>
     <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">

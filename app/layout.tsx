@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 
+import { AppNav } from "@/components/nav/app-nav";
 import { PwaRegister } from "@/components/pwa-register";
+import { ScrollReveal } from "@/components/nav/scroll-reveal";
 
 import "./globals.css";
 
@@ -46,7 +48,9 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="antialiased">
+        <AppNav />
         {children}
+        <ScrollReveal />
         <PwaRegister />
       </body>
     </html>

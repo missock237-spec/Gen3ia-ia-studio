@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
-import { PlatformTabs } from "@/components/nav/platform-tabs";
 
 interface Wallet {
   currency: string;
@@ -142,7 +141,6 @@ export default function BillingPage() {
 
   return <main style={styles.main}>
     <div style={{ gridColumn: "1 / -1", width: "100%", maxWidth: 980, margin: "0 auto", justifySelf: "center" }}>
-      <PlatformTabs />
     </div>
     <section style={styles.card}>
       <div style={styles.eyebrow}>GEN3IA WALLET</div>

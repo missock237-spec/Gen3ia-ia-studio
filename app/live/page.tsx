@@ -1,7 +1,6 @@
 import { headers } from "next/headers";
 
 import { PcOnlyNotice } from "@/components/pc-only-notice";
-import { PlatformTabs } from "@/components/nav/platform-tabs";
 import { detectDeviceFromHeaders } from "@/lib/device/detect";
 
 import { LiveDashboard } from "./live-dashboard";
@@ -30,7 +29,6 @@ export default async function LivePage() {
   return (
     <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
       <div className="mx-auto max-w-6xl">
-        <PlatformTabs />
         <LiveDashboard />
       </div>
     </main>

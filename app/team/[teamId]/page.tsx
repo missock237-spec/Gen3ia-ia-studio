@@ -4,7 +4,6 @@
 import Link from 'next/link';
 import { useTeam } from '@/lib/team/useTeam';
 import { TeamMembersPanel } from '@/components/team/TeamMembersPanel';
-import { PlatformTabs } from '@/components/nav/platform-tabs';
 import { useParams } from 'next/navigation';
 
 export default function TeamPage() {
@@ -17,7 +16,6 @@ export default function TeamPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8">
-      <PlatformTabs />
       <header>
         <h1 className="text-3xl font-bold">{team.name}</h1>
         {team.description && <p className="text-gray-500 mt-1">{team.description}</p>}

@@ -1,56 +1,242 @@
 "use client";
 
-import Link from "next/link";
 import { useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
-import { PlatformTabs } from "@/components/nav/platform-tabs";
 import { UniversalAgentChat } from "@/components/agent/universal-agent-chat";
 
+interface HubFeature {
+  href: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  cta: string;
+  badge?: string;
+  icon: React.ReactNode;
+  accent: string;
+  chip: string;
+}
+
+const FEATURES: HubFeature[] = [
+  {
+    href: "/studio",
+    eyebrow: "GEN3IA STUDIO",
+    title: "Studio d’agents IA",
+    description:
+      "Créez, équipez, testez et déployez des agents autonomes dans un environnement contrôlé.",
+    cta: "Ouvrir le Studio",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 2 4 6v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V6l-8-4Z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    ),
+    accent: "border-violet-400/25 from-violet-500/20 to-transparent",
+    chip: "border-violet-400/25 bg-violet-400/10 text-violet-200",
+  },
+  {
+    href: "/live",
+    eyebrow: "GEN3IA LIVE",
+    title: "Agent Live",
+    description:
+      "Un agent qui observe votre écran et pilote clavier/souris sur votre ordinateur, avec permissions granulaires et validation humaine.",
+    cta: "Lancer Agent Live",
+    badge: "PC",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="2" y="4" width="20" height="13" rx="2" />
+        <path d="M8 21h8M12 17v4" />
+        <path d="m10 9-2 2 2 2M14 9l2 2-2 2" />
+      </svg>
+    ),
+    accent: "border-amber-400/25 from-amber-500/20 to-transparent",
+    chip: "border-amber-400/25 bg-amber-400/10 text-amber-200",
+  },
+  {
+    href: "/marketplace",
+    eyebrow: "GEN3IA MARKETPLACE",
+    title: "Marketplace",
+    description:
+      "Découvrez, installez et gérez des tools, skills et workflows créés par la communauté. Chaque extension est versionnée et sandboxée.",
+    cta: "Parcourir la Marketplace",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4H6Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    ),
+    accent: "border-emerald-400/25 from-emerald-500/20 to-transparent",
+    chip: "border-emerald-400/25 bg-emerald-400/10 text-emerald-200",
+  },
+];
+
+const QUICK_LINKS = [
+  {
+    href: "/billing",
+    label: "Facturation",
+    hint: "Solde et rechargement",
+    icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
+  },
+  {
+    href: "/storage",
+    label: "Stockage permanent",
+    hint: "Fichiers et caméra",
+    icon: <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z" />,
+  },
+  {
+    href: "/developer",
+    label: "Espace développeur",
+    hint: "Extensions et API",
+    icon: <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />,
+  },
+  {
+    href: "/studio/schedules",
+    label: "Planification",
+    hint: "Fenêtres d’activation",
+    icon: <path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
+  },
+  {
+    href: "/team/join",
+    label: "Équipe",
+    hint: "Rejoindre une équipe",
+    icon: <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+  },
+];
+
+/**
+ * Page affichée juste après l’ouverture (connexion ou inscription) d’un
+ * compte. Elle réunit l’agent universel (chat), les trois espaces produits
+ * (Studio, Agent Live, Marketplace) et les accès rapides. Accessible
+ * uniquement aux utilisateurs connectés.
+ */
 function DashboardContent() {
   const { user } = useAuth();
   const serverUser = useServerSessionUser();
   const displayName = user?.displayName?.trim() || serverUser?.name?.trim() || user?.email || serverUser?.email || "votre compte";
 
   return (
-    <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
-      <div className="mx-auto max-w-6xl">
-        <PlatformTabs />
-        <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA · AGENT WORKSPACE</div>
-            <h1 className="mt-2 text-3xl font-bold">Bonjour, {displayName}</h1>
-            <p className="mt-2 max-w-3xl text-white/60">Une seule interface pour piloter les capacités de Gen3ia. Décrivez votre objectif ; l’agent sélectionne les capacités disponibles, prépare les étapes et applique les contrôles de sécurité.</p>
-          </div>
-          <button type="button" onClick={async () => { const { logout } = await import("@/lib/firebase/auth-client"); await logout(); window.location.href = "/login"; }} className="rounded-full border border-white/10 bg-white/[.04] px-4 py-2 text-sm text-white/70 hover:bg-white/[.08] hover:text-white">Déconnexion</button>
-        </header>
+    <main className="min-h-screen bg-[#070a12] text-white">
+      <div className="relative overflow-hidden">
+        <div className="aurora" aria-hidden="true" />
+        <div className="relative mx-auto max-w-6xl p-5 md:p-8">
+          {/* En-tête */}
+          <header className="anim-fade-up flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.3em] text-violet-300">
+                Gen3ia · Espace Agent
+              </p>
+              <h1 className="mt-2.5 text-3xl font-black tracking-tight">
+                Bonjour, <span className="gradient-text">{displayName}</span>
+              </h1>
+              <p className="mt-2.5 max-w-2xl text-sm leading-7 text-white/55">
+                Une seule interface pour piloter les capacités de Gen3ia.
+                Décrivez votre objectif à l’agent : il sélectionne les
+                capacités disponibles, prépare les étapes et applique les
+                contrôles de sécurité.
+              </p>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-400/25 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden="true" />
+              Compte connecté
+            </span>
+          </header>
 
-        <UniversalAgentChat />
+          {/* Agent universel — chat principal */}
+          <section className="anim-fade-up anim-delay-1 mt-9" aria-label="Agent universel Gen3ia" style={{ animationDelay: "0.08s" }}>
+            <UniversalAgentChat />
+          </section>
 
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Studio", "/studio", "Créer et gérer des agents"],
-            ["Live", "/live", "Piloter un ordinateur autorisé"],
-            ["Marketplace", "/marketplace", "Ajouter des skills et outils"],
-            ["Stockage", "/storage", "Gérer vos fichiers"],
-            ["Développeur", "/developer", "API et extensions"],
-            ["Équipe", "/team", "Travail collaboratif"],
-            ["Facturation", "/billing", "Crédits et paiements"],
-          ].map(([title, href, description]) => (
-            <Link key={href} href={href} className="rounded-2xl border border-white/10 bg-[#0d1220] p-4 hover:border-violet-400/30 hover:bg-white/[.03]">
-              <div className="font-semibold">{title}</div>
-              <div className="mt-1 text-xs leading-5 text-white/45">{description}</div>
-            </Link>
-          ))}
-        </section>
+          {/* Cartes des espaces */}
+          <section className="mt-10 grid gap-5 md:grid-cols-3" aria-label="Espaces de travail">
+            {FEATURES.map((feature, index) => (
+              <Link
+                key={feature.href}
+                href={feature.href}
+                className={`card-glow anim-fade-up group flex flex-col rounded-3xl border bg-[#0d1220] p-6 bg-gradient-to-b ${feature.accent.split(" ")[0]}`}
+                style={{ animationDelay: `${0.16 + index * 0.09}s` }}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`grid h-11 w-11 place-items-center rounded-2xl border bg-gradient-to-br ${feature.accent}`}
+                  >
+                    <span className={feature.chip.split(" ").slice(2).join(" ")}>{feature.icon}</span>
+                  </span>
+                  {feature.badge && (
+                    <span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                      {feature.badge}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-5 text-[11px] font-bold uppercase tracking-[.25em] text-white/35">
+                  {feature.eyebrow}
+                </p>
+                <h2 className="mt-2 text-xl font-bold transition-colors group-hover:text-violet-200">
+                  {feature.title}
+                </h2>
+                <p className="mt-2.5 flex-1 text-sm leading-6 text-white/55">
+                  {feature.description}
+                </p>
+                <span
+                  className={`mt-6 inline-flex w-fit items-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold transition group-hover:gap-2.5 group-hover:bg-white/10 ${feature.chip}`}
+                >
+                  {feature.cta}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </span>
+              </Link>
+            ))}
+          </section>
 
-        <footer className="mt-6 rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100/70">
-          Les opérations externes, financières, destructives, de publication, de sécurité ou nécessitant des secrets restent contrôlées par les permissions, les politiques d’exécution et la confirmation humaine.
-        </footer>
+          {/* Accès rapides */}
+          <section className="anim-fade-up anim-delay-4 mt-9" aria-label="Accès rapides" style={{ animationDelay: "0.4s" }}>
+            <p className="text-xs font-bold uppercase tracking-[.25em] text-white/35">Accès rapides</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {QUICK_LINKS.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="card-glow group flex items-center gap-3.5 rounded-2xl border border-white/10 bg-white/[.03] p-4 transition hover:border-violet-400/30 hover:bg-white/[.05]"
+                >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-400/[.08] text-violet-300 transition group-hover:scale-105">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      {link.icon}
+                    </svg>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-white/85">{link.label}</span>
+                    <span className="mt-0.5 block truncate text-xs text-white/40">{link.hint}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Note de sécurité */}
+          <footer className="anim-fade-up anim-delay-5 mt-8 flex items-start gap-3 rounded-2xl border border-amber-400/15 bg-amber-400/[.05] p-4 text-xs leading-5 text-amber-100/70" style={{ animationDelay: "0.48s" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0 text-amber-300">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+            </svg>
+            <p>
+              Les opérations externes, financières, destructives, de
+              publication, de sécurité ou nécessitant des secrets restent
+              contrôlées par les permissions, les politiques d’exécution et la
+              confirmation humaine.
+            </p>
+          </footer>
+        </div>
       </div>
     </main>
   );
 }
 
 export default function DashboardPage() {
-  return <FeatureAuthGate feature="Tableau de bord Gen3ia" description="Connectez-vous pour accéder à l’espace Agent Gen3ia."><DashboardContent /></FeatureAuthGate>;
+  return (
+    <FeatureAuthGate
+      feature="Tableau de bord Gen3ia"
+      description="Connectez-vous pour accéder à l’agent Gen3ia, au Studio, à l’agent Live et à la Marketplace depuis votre tableau de bord."
+    >
+      <DashboardContent />
+    </FeatureAuthGate>
+  );
 }
