@@ -30,7 +30,7 @@ export interface RuntimeBillingState {
   llmOutputTokens: number;
 }
 export interface RuntimeExecutionState {
-  executionId: string; userId: string; objective: string;
+  executionId: string; userId: string; objective: string; conversationId?: string;
   status: "pending" | "running" | "completed" | "failed" | "cancelled";
   plan: RuntimePlan; observations: RuntimeObservation[]; evaluations: RuntimeEvaluation[];
   outputs: Record<string, unknown>; iteration: number; totalRetries: number; maxTotalRetries: number;
