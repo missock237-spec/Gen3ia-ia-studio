@@ -33,6 +33,7 @@ export interface Gen3iaToolDefinition {
 
 export const GEN3IA_TOOLS: Gen3iaToolDefinition[] = [
   { name: "web.search", description: "Search the public web.", risk: "read", permission: "network.read", sideEffect: false },
+  { name: "web.open", description: "Open and extract text from a public web page.", risk: "read", permission: "network.read", sideEffect: false },
   { name: "file.read", description: "Read a workspace file.", risk: "read", permission: "file.read", sideEffect: false },
   { name: "file.create", description: "Create a workspace file.", risk: "write", permission: "file.create", sideEffect: true },
   { name: "file.modify", description: "Modify a workspace file.", risk: "write", permission: "file.write", sideEffect: true },
@@ -48,6 +49,9 @@ export const GEN3IA_TOOLS: Gen3iaToolDefinition[] = [
   { name: "camera.capture", description: "Request an authorized camera capture.", risk: "external", permission: "camera.capture", sideEffect: true },
   { name: "ads.read", description: "Read data from an authorized advertising account.", risk: "read", permission: "ads.read", sideEffect: false },
   { name: "ads.publish", description: "Publish an advertising action to an authorized account.", risk: "external", permission: "ads.write", sideEffect: true },
+  { name: "github.create_repository", description: "Create a GitHub repository for a generated project.", risk: "external", permission: "tool.external", sideEffect: true },
+  { name: "voice.speak", description: "Generate natural voice audio from text.", risk: "external", permission: "tool.external", sideEffect: false },
+  { name: "voice.list", description: "List available voice profiles.", risk: "read", permission: "network.read", sideEffect: false },
   { name: "code.execute", description: "Execute code in the isolated sandbox.", risk: "external", permission: "code.execute", sideEffect: true },
   { name: "composio.execute", description: "Execute an authorized external action.", risk: "external", permission: "tool.external", sideEffect: true },
 ];
