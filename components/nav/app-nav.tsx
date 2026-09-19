@@ -88,8 +88,10 @@ export function AppNav() {
     pathname === href || pathname.startsWith(href + "/");
 
   const commandItems = COMMAND_INDEX;
+  const normalized = (value: string) =>
+    value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const filteredCommands = commandItems.filter((item) =>
-    item.label.toLowerCase().includes(query.trim().toLowerCase())
+    normalized(item.label).includes(normalized(query.trim()))
   );
 
   const openCommand = () => {
