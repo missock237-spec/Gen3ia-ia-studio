@@ -121,8 +121,8 @@ export function AppDownloads() {
         }}
       >
         <div className="reveal rounded-[28px] border border-[rgba(23,23,20,0.06)] bg-[#f9f7f2] p-7 sm:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1fr_1.15fr] lg:items-center">
-            <div>
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-center">
+            <div className="min-w-0">
               <p className="g3-eyebrow">Applications</p>
               <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight sm:text-4xl">
                 Chaque appareil.
@@ -135,11 +135,11 @@ export function AppDownloads() {
                 Live. Vos agents, extensions et sessions vous suivent partout.
               </p>
             </div>
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="grid min-w-0 gap-3 sm:grid-cols-2">
               {PLATFORMS.map((platform) => (
                 <li
                   key={platform.key}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[rgba(23,23,20,0.08)] bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.05)]"
+                  className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-[rgba(23,23,20,0.08)] bg-white p-4 shadow-[0_2px_10px_rgba(15,23,42,0.05)]"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-neutral-900 text-white">
