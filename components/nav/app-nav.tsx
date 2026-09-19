@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { logout, useAuth } from "@/lib/firebase/auth-client";
@@ -87,6 +87,7 @@ function isActivePathname(pathname: string, href: string): boolean {
 
 export function AppNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const identity = useIdentity();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -234,7 +235,7 @@ export function AppNav() {
                   <button
                     type="button"
                     role="menuitem"
-                    onClick={async () => { closeMenus(); await logout(); window.location.href = "/login"; }}
+                    onClick={async () => { closeMenus(); await logout(); router.push("/login"); }}
                     className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
