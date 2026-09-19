@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
 
@@ -12,11 +12,7 @@ const MODES = [
   { href: "/marketplace", label: "Marketplace", description: "Ajouter des capacités", icon: "◇" },
 ];
 
-const RECENT = [
-  { href: "/studio", title: "Workspace Agent", description: "Créer, rechercher, coder ou automatiser", meta: "Agent" },
-  { href: "/studio/interface-lab", title: "Atelier d’Interfaces", description: "Construire des interfaces avec un agent de code", meta: "Build" },
-  { href: "/studio/schedules", title: "Tâches planifiées", description: "Automatiser des missions récurrentes", meta: "Automatisation" },
-];
+const STATUS_LABELS: Record<string,string> = { draft:"Brouillon", awaiting_approval:"A valider", approved:"Approuvee", running:"En cours", completed:"Terminee", failed:"Echec", cancelled:"Annulee" };
 
 function Arrow() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>;
@@ -26,6 +22,26 @@ function DashboardContent() {
   const { user } = useAuth();
   const serverUser = useServerSessionUser();
   const [objective, setObjective] = useState("");
+  const [recentTasks, setRecentTasks] = useState<Array<{ id:string; objective:string; status:string; updatedAt:number }>>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRecentTasks() {
+      try {
+        const response = await fetch("/api/workspace/tasks?limit=8", { credentials: "include", cache: "no-store" });
+        if (!response.ok) throw new Error("Unable to load tasks");
+        const data = await response.json() as { tasks?: Array<{ id:string; objective:string; status:string; updatedAt:number }> };
+        if (!cancelled) setRecentTasks(data.tasks ?? []);
+      } catch {
+        if (!cancelled) setRecentTasks([]);
+      } finally {
+        if (!cancelled) setTasksLoading(false);
+      }
+    }
+    void loadRecentTasks();
+    return () => { cancelled = true; };
+  }, []);
 
   const displayName = user?.displayName?.trim() || serverUser?.name?.trim() || user?.email || serverUser?.email || "vous";
   const firstName = useMemo(() => displayName.split(/[ .@_-]/)[0] || "vous", [displayName]);
@@ -130,20 +146,23 @@ function DashboardContent() {
               <Link href="/studio" className="text-xs font-semibold text-neutral-500 hover:text-neutral-900">Voir tout</Link>
             </div>
             <div className="space-y-2">
-              {RECENT.map((item) => (
-                <Link key={item.href + item.title} href={item.href} className="g3-home-recent group">
+              {tasksLoading ? (
+                <div className="g3-home-recent" aria-live="polite"><span className="g3-home-recent-dot" /><span className="text-xs text-neutral-400">Chargement du workspace...</span></div>
+              ) : recentTasks.length ? recentTasks.map((item) => (
+                <Link key={item.id} href={"/studio?task=" + encodeURIComponent(item.objective)} className="g3-home-recent group">
                   <span className="g3-home-recent-dot" />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-center gap-2">
-                      <strong>{item.title}</strong>
-                      <small>{item.meta}</small>
+                      <strong>{item.objective.length > 72 ? item.objective.slice(0, 72) + "..." : item.objective}</strong>
+                      <small>{STATUS_LABELS[item.status] ?? item.status}</small>
                     </span>
-                    <span className="mt-1 block truncate text-xs text-neutral-400">{item.description}</span>
+                    <span className="mt-1 block truncate text-xs text-neutral-400">Tache agent - {new Date(item.updatedAt).toLocaleString()}</span>
                   </span>
                   <Arrow />
                 </Link>
-              ))}
-            </div>
+              )) : (
+                <div className="g3-home-recent" aria-live="polite"><span className="g3-home-recent-dot" /><span className="min-w-0 flex-1"><strong>Aucune tache recente</strong><span className="mt-1 block text-xs text-neutral-400">Lancez votre premiere mission depuis le champ ci-dessus.</span></span></div>
+              )}          </div>
           </div>
 
           <aside className="g3-home-sidecard">
