@@ -110,7 +110,7 @@ export default function StudioPage() {
           />
         </div>
 
-        {tab === "agents" ? <div className="space-y-6">{taskId && <WorkspaceTaskPanel taskId={taskId} />}<AgentManager /><UniversalAgentChat initialMessage={taskId ? "" : initialTask} /></div> : <AdsWorkshop />}
+        {tab === "agents" ? <div className="space-y-6">{taskId ? <WorkspaceTaskPanel taskId={taskId} /> : <AgentManager />}<UniversalAgentChat initialMessage={taskId ? "" : initialTask} /></div> : <AdsWorkshop />}
       </div>
     </div>
   );
