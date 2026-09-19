@@ -96,7 +96,7 @@ export default function BillingPage() {
         setError(e instanceof Error ? e.message : "Vérification du paiement impossible.");
       }
     })();
-  }, [user]);
+  }, [sessionDisponible, user]);
 
   const startTopup = async (phone?: { number: string; country_code: string }) => {
     if (sessionDisponible === false) return;
