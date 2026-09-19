@@ -123,7 +123,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           <div className="relative">
             <button type="button" disabled={disabled} onClick={() => setOpen((v) => !v)} className="flex h-9 items-center gap-2 rounded-full px-3 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white" aria-expanded={open}><SlidersIcon className="h-4 w-4"/><span className="hidden sm:inline">Capacités</span></button>
             {open && (
-              <div className="absolute bottom-11 left-0 z-50 w-[280px] overflow-hidden rounded-2xl border border-white/10 bg-[#151c2b] p-2 shadow-2xl animate-in fade-in zoom-in-95">
+              <div className="absolute bottom-11 left-0 z-50 w-[280px] overflow-hidden rounded-2xl border border-white/10 bg-[#151c2b] p-2 shadow-2xl anim-scale-in">
                 <div className="px-2 py-2 text-[10px] font-bold uppercase tracking-[.2em] text-white/35">Outil prioritaire</div>
                 {AGENT_TOOLS.map((tool) => (
                   <button key={tool.id} type="button" onClick={() => { onToolChange?.(tool.id); setOpen(false); }} className="flex w-full items-start gap-3 rounded-xl p-2.5 text-left transition hover:bg-white/[.06]">
