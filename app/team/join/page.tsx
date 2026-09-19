@@ -98,30 +98,17 @@ function JoinTeamContent() {
     }
   };
 
-  if (authLoading || status === "loading" || status === "joining") {
-    return (
-      <main className="grid min-h-screen place-items-center bg-[#f6f4ef] px-4">
-        <div className="w-full max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-neutral-200 border-t-sky-500" />
-          <p className="mt-4 text-sm text-neutral-500">
-            {status === "joining" ? "Adhésion à l'équipe…" : "Vérification de l'invitation…"}
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  // Non connecté : porte d'entrée claire vers la connexion.
-  if (!user) {
+  // Non connecté : porte d'entrée claire vers la connexion (avant tout spinner).
+  if (!authLoading && !user) {
     const nextUrl = token ? `/team/join?token=${encodeURIComponent(token)}` : "/team";
     return (
       <main className="grid min-h-screen place-items-center bg-[#f6f4ef] px-4">
         <div className="anim-scale-in w-full max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sky-100 text-2xl">✉️</div>
-          <h1 className="mt-5 font-serif text-2xl font-semibold text-neutral-900">Invitation d&apos;équipe</h1>
+          <h1 className="mt-5 font-serif text-2xl font-semibold text-neutral-900">Invitation d'équipe</h1>
           <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Connectez-vous avec le compte invité pour rejoindre l&apos;équipe. Vous serez
-            redirigé automatiquement vers l&apos;invitation après la connexion.
+            Connectez-vous avec le compte invité pour rejoindre l'équipe. Vous serez
+            redirigé automatiquement vers l'invitation après la connexion.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href={`/login?next=${encodeURIComponent(nextUrl)}`} className="g3-btn g3-btn-primary rounded-full">
@@ -131,6 +118,19 @@ function JoinTeamContent() {
               Créer un compte
             </Link>
           </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (authLoading || status === "loading" || status === "joining") {
+    return (
+      <main className="grid min-h-screen place-items-center bg-[#f6f4ef] px-4">
+        <div className="w-full max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-neutral-200 border-t-sky-500" />
+          <p className="mt-4 text-sm text-neutral-500">
+            {status === "joining" ? "Adhésion à l'équipe…" : "Vérification de l'invitation…"}
+          </p>
         </div>
       </main>
     );
