@@ -7,6 +7,7 @@ import { auth } from "@/lib/firebase/client";
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
 import { AgentManager } from "@/components/agent/agent-manager";
+import { UniversalAgentChat } from "@/components/agent/universal-agent-chat";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
 
 type Provider = "google_ads" | "meta_ads" | "tiktok_ads";
