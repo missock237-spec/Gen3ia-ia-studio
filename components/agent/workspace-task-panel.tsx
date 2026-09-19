@@ -66,6 +66,7 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [historyBusy, setHistoryBusy] = useState(false);
+  const [executionResult, setExecutionResult] = useState<{ status: string; outputs?: Record<string, unknown>; observations?: unknown[] } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -237,6 +238,21 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
     }
   }
 
+  async function executeTask() {
+    if (!task || busy || task.status !== "approved") return;
+    setBusy(true); setError(""); setExecutionResult(null);
+    try {
+      const response = await authFetch("/api/workspace/tasks/" + encodeURIComponent(task.id) + "/execute", {
+        method: "POST", headers: { "content-type": "application/json" }, body: "{}",
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Exécution impossible.");
+      setExecutionResult({ status: data.status, outputs: data.outputs, observations: data.observations });
+      await load();
+    } catch (e) { setError(e instanceof Error ? e.message : "Exécution impossible."); await load(); }
+    finally { setBusy(false); }
+  }
+
   async function approve() {
     if (!task || busy) return;
     if (hasChanges) {
@@ -286,6 +302,11 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
           {task.status === "awaiting_approval" && (
             <button type="button" disabled={busy || hasChanges} onClick={() => void approve()} className="g3-workspace-task-approve">
               {busy ? "Validation..." : "Approuver le plan"}
+            </button>
+          )}
+          {task.status === "approved" && (
+            <button type="button" disabled={busy} onClick={() => void executeTask()} className="g3-workspace-task-approve">
+              {busy ? "Exécution..." : "Exécuter la tâche"}
             </button>
           )}
         </div>
@@ -392,7 +413,13 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
       {saveMessage && <div className="g3-workspace-task-save-message" role="status">{saveMessage}</div>}
 
       {task.status === "awaiting_approval" && <p className="g3-workspace-task-note">Le plan est visible avant toute exécution. Les actions sensibles restent protégées par les politiques d'autorisation.</p>}
-      {task.status === "approved" && <p className="g3-workspace-task-note">Plan approuvé. Le moteur d'exécution peut maintenant prendre le relais.</p>}
+      {task.status === "approved" && <p className="g3-workspace-task-note">Plan approuvé. L'exécution utilise le runtime sécurisé Gen3ia et ses politiques d'outils.</p>}
+      {executionResult && (
+        <div className="g3-workspace-task-execution-result">
+          <strong>Résultat d'exécution · {executionResult.status}</strong>
+          {executionResult.outputs && <pre>{JSON.stringify(executionResult.outputs, null, 2)}</pre>}
+        </div>
+      )}
     </section>
   );
 }
