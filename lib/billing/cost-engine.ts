@@ -11,9 +11,17 @@ const MIN_CHARGE_EUR = Math.max(0, n(process.env.GEN3IA_MIN_EXECUTION_CHARGE_EUR
 
 interface ModelRate { provider: AIProvider; model: string; inputEurPer1M: number; outputEurPer1M: number; cachedInputEurPer1M?: number; reasoningOutputEurPer1M?: number; }
 function modelRates(): ModelRate[] { try { const parsed = JSON.parse(process.env.GEN3IA_MODEL_PRICING_JSON ?? "[]"); return Array.isArray(parsed) ? parsed.filter((x): x is ModelRate => x && typeof x.provider === "string" && typeof x.model === "string" && Number.isFinite(Number(x.inputEurPer1M)) && Number.isFinite(Number(x.outputEurPer1M))) : []; } catch { return []; } }
-function rateFor(provider: AIProvider, model?: string): ModelRate { const match = modelRates().find((x) => x.provider === provider && (!model || x.model === model)); return match ?? { provider, model: model ?? "auto", inputEurPer1M: DEFAULT_INPUT_PER_MILLION[provider], outputEurPer1M: DEFAULT_OUTPUT_PER_MILLION[provider] }; }
-function clampComplexity(value: number | undefined): number { return Math.min(5, Math.max(0.5, value ?? 1)); }
-function ceilMinor(eur: number): number { return Math.max(0, Math.ceil(eur * 100)); }
+function rateFor(provider: AIProvider, model?: string): ModelRate { const match = modelRates().find((x) => x.provider === provider && (!model || x.model === model)); const fallback: ModelRate = { provider, model: model ?? "auto", inputEurPer1M: DEFAULT_INPUT_PER_MILLION[provider], outputEurPer1M: DEFAULT_OUTPUT_PER_MILLION[provider] };
+  if (!match) return fallback;
+  // Les tarifs venant de l'environnement peuvent etre incomplets : on retombe
+  // sur les tarifs par defaut pour toute valeur non finie (evite NaN/Infinity
+  // dans le calcul de reservation du portefeuille).
+  const input = Number(match.inputEurPer1M); const output = Number(match.outputEurPer1M);
+  if (!Number.isFinite(input) || input < 0 || !Number.isFinite(output) || output < 0) return fallback;
+  return { ...match, inputEurPer1M: input, outputEurPer1M: output };
+}
+function clampComplexity(value: number | undefined): number { const parsed = Number(value); if (!Number.isFinite(parsed)) return 1; return Math.min(5, Math.max(0.5, parsed)); }
+function ceilMinor(eur: number): number { if (!Number.isFinite(eur)) return 0; return Math.max(0, Math.ceil(eur * 100)); }
 
 export interface ExecutionCostInput { task: TaskType; provider?: AIProvider; model?: string; inputTokens?: number; outputTokens?: number; cachedInputTokens?: number; reasoningTokens?: number; durationMs?: number; storageBytes?: number; networkBytes?: number; computeUnits?: number; externalToolCostEur?: number; toolCalls?: number; complexity?: number; }
 export interface ExecutionCostBreakdown { providerCostEur: number; platformOverheadEur: number; computeCostEur: number; storageCostEur: number; networkCostEur: number; externalToolCostEur: number; complexityMultiplier: number; marginEur: number; chargeEur: number; reserveEur: number; chargeMinor: number; reserveMinor: number; }

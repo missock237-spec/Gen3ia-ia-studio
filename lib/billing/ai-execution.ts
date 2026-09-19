@@ -25,7 +25,7 @@ function worstCaseReserve(request: AIRequest, complexity: number): number {
     throw new Error(`No configured provider can execute task "${request.task}".`);
   }
 
-  return Math.max(
+  const worst = Math.max(
     ...candidates.map((candidate) =>
       estimateExecutionCost({
         task: request.task,
@@ -38,6 +38,10 @@ function worstCaseReserve(request: AIRequest, complexity: number): number {
       }).reserveMinor,
     ),
   );
+
+  // Garde-fou facturation : Math.max(...[NaN]) === NaN serait rejeté plus bas
+  // par la validation du portefeuille. Fallback : 100 minor (1 EUR).
+  return Number.isSafeInteger(worst) && worst >= 1 ? worst : 100;
 }
 
 export async function generateForUser(params: {
