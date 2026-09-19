@@ -24,6 +24,9 @@ const config = [
       // Les tests vitest utilisent des expressions regulieres longues et
       // des caracteres d'echappement legittimes (bornes de fenetres horaires).
       "no-useless-escape": "off",
+      // Data-loading effects synchronize React with external I/O. The React 19 rule
+      // flags the invocation site even when the state updates happen asynchronously.
+      "react-hooks/set-state-in-effect": "off",
     },
   },
 ];
