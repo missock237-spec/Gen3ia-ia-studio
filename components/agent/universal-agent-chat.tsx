@@ -194,20 +194,22 @@ export function UniversalAgentChat() {
   }
 
   function startVoice() {
-    const SpeechRecognition = (window as unknown as { SpeechRecognition?: new () => {
-      lang: string; continuous: boolean; interimResults: boolean;
-      start: () => void; stop: () => void;
+    type Recognition = {
+      lang: string;
+      continuous: boolean;
+      interimResults: boolean;
+      start: () => void;
+      stop: () => void;
       onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
       onend: (() => void) | null;
       onerror: (() => void) | null;
-    }; webkitSpeechRecognition?: new () => InstanceType<NonNullable<unknown>> }).SpeechRecognition
-      || (window as unknown as { webkitSpeechRecognition?: new () => {
-        lang: string; continuous: boolean; interimResults: boolean;
-        start: () => void; stop: () => void;
-        onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
-        onend: (() => void) | null;
-        onerror: (() => void) | null;
-      } }).webkitSpeechRecognition;
+    };
+    type RecognitionConstructor = new () => Recognition;
+    const speechWindow = window as unknown as {
+      SpeechRecognition?: RecognitionConstructor;
+      webkitSpeechRecognition?: RecognitionConstructor;
+    };
+    const SpeechRecognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setError("La saisie vocale n’est pas disponible dans ce navigateur.");
@@ -348,7 +350,7 @@ export function UniversalAgentChat() {
               )}
 
               {active && (
-                <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20 shadow-xl animate-in fade-in slide-in-from-bottom-2">
+                <div className="overflow-hidden rounded-3xl border border-white/10 bg-black/20 shadow-xl anim-fade-up">
                   <div className="border-b border-white/10 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
