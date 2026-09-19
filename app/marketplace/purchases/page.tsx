@@ -84,7 +84,7 @@ function PurchasesContent() {
         <div className="mt-5 rounded-[30px] border border-[rgba(23,23,20,0.09)] bg-white p-7 shadow-[0_2px_10px_rgba(15,23,42,0.05)] sm:p-9">
           <p className="text-[10px] font-bold tracking-[.28em] text-sky-700">GEN3IA / MES ACHATS</p>
           <h1 className="mt-3 font-serif text-3xl font-bold tracking-tight">Achats, licences et accès</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">Retrouvez vos transactions et vos licences activées. Les droits d'utilisation sont déterminés côté serveur après validation du paiement.</p>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-neutral-500">Retrouvez vos transactions et vos licences activées. Les droits d’utilisation sont déterminés côté serveur après validation du paiement.</p>
         </div>
 
         {error && <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>}
