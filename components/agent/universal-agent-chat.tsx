@@ -91,7 +91,7 @@ function Icon({ name, className = "h-4 w-4" }: { name: "spark" | "shield" | "act
   return <svg {...common}><rect x="7" y="7" width="10" height="10" rx="2"/></svg>;
 }
 
-export function UniversalAgentChat() {
+export function UniversalAgentChat({ initialMessage = "" }: { initialMessage?: string }) {
   const [message, setMessage] = React.useState("");
   const [conversationId, setConversationId] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<Message[]>([]);
@@ -103,6 +103,10 @@ export function UniversalAgentChat() {
   const [attachmentPath, setAttachmentPath] = React.useState<string | null>(null);
   const [isListening, setIsListening] = React.useState(false);
   const [showTrace, setShowTrace] = React.useState(true);
+
+  React.useEffect(() => {
+    if (initialMessage.trim() && !message.trim()) setMessage(initialMessage.trim());
+  }, [initialMessage, message]);
 
   const progress = React.useMemo(() => {
     if (!active?.plan.steps.length) return 0;
