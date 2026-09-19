@@ -639,3 +639,22 @@ body {
 .g3-sidebar-backdrop.is-open{display:block}
 }
 @media(prefers-reduced-motion:reduce){.g3-sidebar,.g3-side-link{transition:none}}
+
+
+/* Command navigation palette */
+.g3-command-overlay{position:fixed;inset:0;z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:11vh 20px 20px}
+.g3-command-backdrop{position:absolute;inset:0;border:0;background:rgba(28,27,24,.22);backdrop-filter:blur(7px);cursor:default}
+.g3-command-panel{position:relative;width:min(620px,100%);overflow:hidden;border:1px solid rgba(23,23,20,.1);border-radius:18px;background:#fff;box-shadow:0 30px 80px -30px rgba(28,27,24,.45);animation:gen3ia-scale-in .18s ease both}
+.g3-command-search{display:flex;align-items:center;gap:10px;height:58px;padding:0 16px;border-bottom:1px solid rgba(23,23,20,.07);color:#8b8881}
+.g3-command-search>span{font-size:21px}
+.g3-command-search input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#1c1b18;font-size:14px}
+.g3-command-search input::placeholder{color:#aaa69d}
+.g3-command-search kbd,.g3-command-footer kbd{border:1px solid rgba(23,23,20,.1);border-radius:5px;background:#f7f6f2;padding:2px 5px;font-size:9px;color:#918d85}
+.g3-command-list{max-height:min(430px,58vh);overflow:auto;padding:8px}
+.g3-command-item{display:flex;width:100%;align-items:center;gap:10px;border:0;border-radius:10px;background:transparent;padding:9px 10px;color:#4c4943;font-size:12px;cursor:pointer}
+.g3-command-item:hover,.g3-command-item:focus-visible{background:#f5f4f0;color:#1c1b18;outline:0}
+.g3-command-item .g3-side-icon{background:#f3f2ee}
+.g3-command-current{border-radius:999px;background:#eeece7;padding:3px 7px;font-size:9px;color:#8b8881}
+.g3-command-footer{display:flex;align-items:center;gap:14px;border-top:1px solid rgba(23,23,20,.07);padding:9px 14px;color:#aaa69d;font-size:9px}
+.g3-command-footer span:first-child{margin-right:auto}
+@media(max-width:640px){.g3-command-overlay{padding:8vh 12px 12px}.g3-command-panel{border-radius:15px}}
