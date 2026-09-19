@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logout, useAuth } from "@/lib/firebase/auth-client";
 
 const MAIN=[
@@ -24,7 +24,7 @@ const SYSTEM=[
 export function AppNav(){
  const pathname=usePathname(),router=useRouter();
  const {user}=useAuth();
- const [open,setOpen]=useState(false);
+ const [open,setOpen]=useState(false);\n useEffect(()=>{const handler=()=>setOpen(true);window.addEventListener("gen3ia:open-nav",handler);return()=>window.removeEventListener("gen3ia:open-nav",handler)},[]);
  if(pathname==="/") return null;
  const name=user?.displayName?.trim()||user?.email?.split("@")[0]||"Compte";
  const initial=name.charAt(0).toUpperCase();
