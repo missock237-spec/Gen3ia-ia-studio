@@ -111,7 +111,7 @@ export function MarketplaceHub() {
   return (
     <div className="min-h-full bg-[#f6f4ef] text-neutral-900">
       <div className="mx-auto flex max-w-[1480px] gap-0 px-3 py-3 sm:px-5 lg:px-7">
-        <aside className="sticky top-3 hidden h-[calc(100vh-24px)] w-[248px] shrink-0 flex-col rounded-[28px] border border-[rgba(23,23,20,0.09)] bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)] p-4 lg:flex">
+        <aside className="sticky top-3 hidden h-[calc(100dvh-88px)] w-[248px] shrink-0 flex-col rounded-[28px] border border-[rgba(23,23,20,0.09)] bg-white shadow-[0_2px_10px_rgba(15,23,42,0.05)] p-4 lg:flex">
           <Link href="/marketplace" className="mb-7 flex items-center gap-3 px-2 py-2"><span className="grid h-10 w-10 place-items-center rounded-2xl bg-neutral-900 text-white text-sm font-black">G3</span><span><b className="block text-sm">Gen3ia</b><small className="text-neutral-400">Marketplace</small></span></Link>
           <p className="px-2 text-[10px] font-semibold uppercase tracking-[.22em] text-neutral-400">Espace marketplace</p>
           <nav className="mt-3 space-y-1">{tabs.map(([id, label, desc]) => <button key={id} onClick={() => setTab(id)} className={`w-full rounded-2xl px-3 py-3 text-left transition ${tab === id ? "bg-sky-100 text-sky-700" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"}`}><span className="text-sm font-medium">{label}</span><span className="mt-0.5 block text-[11px] text-neutral-400">{desc}</span></button>)}</nav>
