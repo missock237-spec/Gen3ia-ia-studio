@@ -426,7 +426,7 @@ export default function HomePage() {
 
         {/* ---------- Sécurité ---------- */}
         <section id="securite" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-20 sm:px-6">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2">
             <div className="reveal">
               <p className="text-xs font-bold uppercase tracking-[.3em] text-emerald-300">Sécurité &amp; contrôle</p>
               <h2 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">

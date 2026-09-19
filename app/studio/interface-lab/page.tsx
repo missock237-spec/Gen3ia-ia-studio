@@ -356,6 +356,10 @@ export default function InterfaceLabPage() {
           </div>
         )}
 
+        {tab === "logos" && !loading && logos.length === 0 && query.trim().length >= 2 && !error && (
+          <div className="anim-fade-in mt-8 text-center text-sm text-white/40">Aucun logo trouve pour cette recherche — le service de logos (svgl.app) est peut-etre momentanement indisponible.</div>
+        )}
+
         {tab !== "logos" && results.length > 0 && (
           <div className="anim-fade-up mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((item, index) => (

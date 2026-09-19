@@ -53,11 +53,11 @@ function AdsWorkshop() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+      <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr]">
         <div className="g3-card p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-semibold">Générateur publicitaire</h2><span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Sécurité active</span></div><p className="mt-2 text-sm text-white/55">Décrivez le résultat attendu. L&apos;orchestrateur sélectionne les compétences et outils nécessaires.</p><textarea value={objective} onChange={e => setObjective(e.target.value)} placeholder="Ex. Analyse mon marché, prépare une campagne et propose les créations publicitaires…" className="g3-textarea mt-5 min-h-40" /><button disabled={busy || objective.trim().length < 10} onClick={generateAd} className="g3-btn g3-btn-primary mt-4">Lancer l&apos;agent Ads</button>{message && <div className="anim-fade-in mt-4 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4 text-sm text-white/80">{message}</div>}</div>
         <div className="g3-card p-6"><h2 className="text-xl font-semibold">Connexions Ads</h2><p className="mt-2 text-sm text-white/55">Les jetons sont stockés chiffrés côté serveur. Une publication externe exige une validation humaine.</p><div className="mt-5 space-y-3">{(Object.keys(labels) as Provider[]).map(provider => <button key={provider} disabled={busy} onClick={() => connectAds(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-4 text-left hover:bg-white/[.06]"><span>{labels[provider]}</span><span className={connections.includes(provider) ? "text-emerald-300 text-sm" : "text-violet-300 text-sm"}>{connections.includes(provider) ? "Connecté" : "Connecter"}</span></button>)}</div></div>
       </section>
-      <section className="grid gap-5 md:grid-cols-3">
+      <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
         <Feature title="Terminal IA" text="Un terminal sandboxé réservé aux agents. Aucun accès direct utilisateur au shell d'exécution." />
         <Feature title="Mémoire permanente" text="Les agents peuvent mémoriser des informations utiles, avec protection contre les secrets et contrôle propriétaire." />
         <Feature title="Caméra & fichiers" text="La caméra fonctionne uniquement après autorisation explicite. Les captures et fichiers peuvent être conservés dans le stockage permanent." />
