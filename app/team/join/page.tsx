@@ -94,7 +94,7 @@ function JoinTeamContent() {
       router.replace(`/team/${teamId}`);
     } catch (error) {
       setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Impossible de rejoindre l&apos;équipe.");
+      setErrorMessage(error instanceof Error ? error.message : "Impossible de rejoindre l’équipe.");
     }
   };
 
@@ -107,8 +107,8 @@ function JoinTeamContent() {
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sky-100 text-2xl">✉️</div>
           <h1 className="mt-5 font-serif text-2xl font-semibold text-neutral-900">Invitation d&apos;équipe</h1>
           <p className="mt-3 text-sm leading-6 text-neutral-500">
-            Connectez-vous avec le compte invité pour rejoindre l'équipe. Vous serez
-            redirigé automatiquement vers l'invitation après la connexion.
+            Connectez-vous avec le compte invité pour rejoindre l’équipe. Vous serez
+            redirigé automatiquement vers l’invitation après la connexion.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <Link href={`/login?next=${encodeURIComponent(nextUrl)}`} className="g3-btn g3-btn-primary rounded-full">
