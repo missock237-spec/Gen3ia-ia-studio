@@ -41,7 +41,7 @@ export class AgentRuntime {
     this.scheduler = new RuntimeScheduler(options.plan.maxConcurrency);
     this.startedAtMs = Date.now();
     this.state = {
-      executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective, conversationId: options.conversationId,
+      executionId: options.plan.executionId || randomUUID(), userId: options.userId, objective: options.objective, ...(options.conversationId !== undefined ? { conversationId: options.conversationId } : {}),
       status: "pending", plan: options.plan, observations: [], evaluations: [], outputs: {}, iteration: 0,
       totalRetries: 0, maxTotalRetries: 15,
       billing: { currency: WALLET_CURRENCY, totalChargeMinor: 0, totalProviderCostEur: 0, llmInputTokens: 0, llmOutputTokens: 0 },
