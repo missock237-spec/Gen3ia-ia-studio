@@ -32,7 +32,7 @@ export async function assertPublicHttpUrl(value: string): Promise<URL> {
   const hostname = url.hostname.toLowerCase().replace(/\.$/, "");
   if (!hostname || BLOCKED_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost") || hostname.endsWith(".local")) throw new Error("Access to private/local hosts is blocked.");
   if (net.isIP(hostname)) { if (isPrivateIp(hostname)) throw new Error("Access to private IP addresses is blocked."); return url; }
-  let addresses: dns.LookupAddress[];
+  let addresses: Array<{ address: string; family: 4 | 6 }>;
   try { addresses = await dns.lookup(hostname, { all: true, verbatim: true }); } catch { throw new Error("Unable to resolve target host."); }
   if (!addresses.length || addresses.some((entry) => isPrivateIp(entry.address))) throw new Error("Target host resolves to a private or reserved IP address.");
   return url;
