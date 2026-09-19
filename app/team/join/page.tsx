@@ -60,7 +60,7 @@ function JoinTeamContent() {
         if (cancelled) return;
         if (!response.ok || !body.invitation) {
           setStatus("notfound");
-          setErrorMessage(body.error ?? "Ce lien n'est plus valable : l'invitation a peut-être déjà été utilisée ou a expiré.");
+          setErrorMessage(body.error ?? "Ce lien n'est plus valable : l&apos;invitation a peut-être déjà été utilisée ou a expiré.");
           return;
         }
         if (!body.invitation.valid) {
@@ -68,7 +68,7 @@ function JoinTeamContent() {
           setErrorMessage(
             body.invitation.status === "accepted"
               ? "Cette invitation a déjà été utilisée."
-              : "Cette invitation a expiré. Demandez une nouvelle invitation au propriétaire de l'équipe.",
+              : "Cette invitation a expiré. Demandez une nouvelle invitation au propriétaire de l&apos;équipe.",
           );
           return;
         }
@@ -94,7 +94,7 @@ function JoinTeamContent() {
       router.replace(`/team/${teamId}`);
     } catch (error) {
       setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Impossible de rejoindre l'équipe.");
+      setErrorMessage(error instanceof Error ? error.message : "Impossible de rejoindre l&apos;équipe.");
     }
   };
 
@@ -105,7 +105,7 @@ function JoinTeamContent() {
       <div className="grid min-h-full place-items-center bg-[#f6f4ef] px-4">
         <div className="anim-scale-in w-full max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
           <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-sky-100 text-2xl">✉️</div>
-          <h1 className="mt-5 font-serif text-2xl font-semibold text-neutral-900">Invitation d'équipe</h1>
+          <h1 className="mt-5 font-serif text-2xl font-semibold text-neutral-900">Invitation d&apos;équipe</h1>
           <p className="mt-3 text-sm leading-6 text-neutral-500">
             Connectez-vous avec le compte invité pour rejoindre l'équipe. Vous serez
             redirigé automatiquement vers l'invitation après la connexion.
