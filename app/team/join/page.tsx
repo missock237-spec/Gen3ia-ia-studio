@@ -114,7 +114,7 @@ function JoinTeamContent() {
             <Link href={`/login?next=${encodeURIComponent(nextUrl)}`} className="g3-btn g3-btn-primary rounded-full">
               Se connecter
             </Link>
-            <Link href="/signup" className="g3-btn g3-btn-ghost rounded-full">
+            <Link href={`/signup?next=${encodeURIComponent(nextUrl)}`} className="g3-btn g3-btn-ghost rounded-full">
               Créer un compte
             </Link>
           </div>

@@ -36,7 +36,13 @@ export function createAgentPolicy(
           "file.read",
           "file.write",
           "file.create",
+          // network.read est requis par web.search (lecture seule) : sans lui,
+          // tout agent standard dont la mission active la recherche web
+          // echouait immediatement avec « Permission denied: network.read ».
+          // Les ecritures reseau (network.write) restent refusees.
+          "network.read",
         ],
+        allowNetwork: true,
         allowFileWrite: true,
       };
 
