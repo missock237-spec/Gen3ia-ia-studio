@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { FeatureAuthGate } from "@/components/auth/feature-auth-gate";
-import { useTeam } from "@/lib/team/useTeam";
-import type { Team } from "@/lib/team/types";
+import { useTeam, type Team } from "@/lib/team/useTeam";
 
 /**
  * Espace Équipes — liste les équipes de l'utilisateur, permet d'en créer
  * une nouvelle et de rejoindre une équipe via un code d'invitation.
- * Accessible uniquement aux utilisateurs connectés.
+ * Accessible uniquement aux utilisateurs connectés. Les données passent
+ * par l'API serveur (/api/teams) qui écrit dans la base Firestore Admin.
  */
 
 function TeamsContent() {
@@ -29,8 +29,8 @@ function TeamsContent() {
       const loaded = await fetchMyTeams();
       setTeams(loaded);
       setLoadError(null);
-    } catch {
-      setLoadError("Impossible de charger vos équipes pour le moment.");
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : "Impossible de charger vos équipes pour le moment.");
       setTeams([]);
     }
   }, [fetchMyTeams]);
@@ -45,15 +45,9 @@ function TeamsContent() {
     setCreateError(null);
     try {
       const teamId = await createTeam(name.trim(), description.trim());
-      await refresh();
       router.push(`/team/${teamId}`);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Création impossible.";
-      setCreateError(
-        message.includes("permission")
-          ? "La création a été refusée par la base de données. Reconnectez-vous puis réessayez."
-          : message,
-      );
+      setCreateError(error instanceof Error ? error.message : "Création impossible.");
     } finally {
       setCreating(false);
     }
@@ -70,7 +64,7 @@ function TeamsContent() {
       <div className="mx-auto max-w-5xl px-4 py-10 md:px-8 md:py-14">
         {/* En-tête */}
         <header className="anim-fade-up text-center">
-          <p className="text-xs font-bold uppercase tracking-[.3em] text-sky-600">Gen3ia · Collaboration</p>
+          <p className="g3-eyebrow">Gen3ia · Collaboration</p>
           <h1 className="mt-3 font-serif text-4xl font-semibold tracking-tight md:text-5xl">
             Vos équipes, au même endroit.
           </h1>
@@ -80,10 +74,10 @@ function TeamsContent() {
           </p>
         </header>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-5">
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-5">
           {/* Colonne principale : mes équipes */}
           <section className="anim-fade-up anim-delay-1 lg:col-span-3" aria-label="Mes équipes">
-            <div className="rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)] md:p-8">
+            <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)] md:p-8">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-2xl font-semibold">Mes équipes</h2>
                 <span className="rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold text-neutral-500">
@@ -121,7 +115,7 @@ function TeamsContent() {
                     <li key={team.id}>
                       <Link
                         href={`/team/${team.id}`}
-                        className="group flex items-center justify-between gap-4 rounded-2xl border border-neutral-200/80 bg-white p-4 transition hover:border-neutral-300 hover:shadow-[0_10px_30px_-12px_rgba(15,23,42,0.18)]"
+                        className="group flex items-center justify-between gap-4 rounded-2xl border border-[rgba(23,23,20,0.09)] bg-white p-4 transition hover:border-neutral-300 hover:shadow-[0_10px_30px_-12px_rgba(15,23,42,0.18)]"
                       >
                         <span className="flex min-w-0 items-center gap-4">
                           <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-sky-100 font-serif text-lg font-semibold text-sky-700">
@@ -152,14 +146,14 @@ function TeamsContent() {
 
           {/* Colonne latérale : créer + rejoindre */}
           <aside className="anim-fade-up anim-delay-2 space-y-6 lg:col-span-2">
-            <div className="rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+            <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
               <h2 className="font-serif text-xl font-semibold">Nouvelle équipe</h2>
               <p className="mt-1.5 text-xs leading-5 text-neutral-500">
                 Vous en devenez le propriétaire et pourrez inviter des membres.
               </p>
               <div className="mt-4 space-y-3">
                 <div>
-                  <label htmlFor="team-name" className="g3-label text-neutral-500">Nom de l&apos;équipe</label>
+                  <label htmlFor="team-name" className="g3-label">Nom de l&apos;équipe</label>
                   <input
                     id="team-name"
                     type="text"
@@ -171,7 +165,7 @@ function TeamsContent() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="team-description" className="g3-label text-neutral-500">Description (optionnel)</label>
+                  <label htmlFor="team-description" className="g3-label">Description (optionnel)</label>
                   <textarea
                     id="team-description"
                     rows={2}
@@ -198,7 +192,7 @@ function TeamsContent() {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-neutral-200/80 bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+            <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
               <h2 className="font-serif text-xl font-semibold">Rejoindre une équipe</h2>
               <p className="mt-1.5 text-xs leading-5 text-neutral-500">
                 Collez le code reçu dans l&apos;invitation (le lien contient <code className="rounded bg-neutral-100 px-1">?token=…</code>).

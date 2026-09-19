@@ -1,0 +1,26 @@
+import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+
+import { requireUser } from "@/lib/security/authenticated-request";
+import { getTeamWithMembers } from "@/lib/teams/repository";
+
+/** GET /api/teams/[teamId] — details de l'equipe + membres. */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ teamId: string }> },
+) {
+  const requestId = request.headers.get("x-request-id")?.trim() || randomUUID();
+  try {
+    const user = await requireUser(request);
+    const { teamId } = await params;
+    if (!teamId) {
+      return NextResponse.json({ error: "teamId manquant", requestId }, { status: 400 });
+    }
+    const result = await getTeamWithMembers(teamId, user.uid);
+    return NextResponse.json(result, { headers: { "x-request-id": requestId } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Equipe indisponible";
+    const status = message.includes("Acces refuse") ? 403 : message.includes("auth") ? 401 : 404;
+    return NextResponse.json({ error: message, requestId }, { status });
+  }
+}
