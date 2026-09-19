@@ -586,3 +586,8 @@ body {
  .g3-scroll{width:100%}
 }
 @media(prefers-reduced-motion:reduce){.g3-side-link,.g3-sidebar{transition:none}}
+
+.g3-mobile-menu{display:none}
+@media(max-width:1023px){
+ .g3-mobile-menu{display:grid;position:fixed;left:14px;top:14px;z-index:55;width:38px;height:38px;place-items:center;border:1px solid rgba(23,23,20,.08);border-radius:11px;background:rgba(255,255,255,.92);color:#1c1b18;box-shadow:0 8px 24px -16px rgba(28,27,24,.5);backdrop-filter:blur(12px)}
+}
