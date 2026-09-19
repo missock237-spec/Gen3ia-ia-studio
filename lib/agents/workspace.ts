@@ -20,6 +20,34 @@ export async function listWorkspaceTasks(ownerId:string,limitCount=12){
 
 export async function getWorkspaceTask(ownerId:string,id:string){assertOwner(ownerId);const s=await adminDb.collection(TASKS).doc(id).get();if(!s.exists||s.get("ownerId")!==ownerId)throw new Error("Task not found.");return taskFrom(id,s.data()!);}
 export async function updateWorkspacePlan(ownerId:string,id:string,plan:RuntimePlan){assertOwner(ownerId);const task=await getWorkspaceTask(ownerId,id);if(task.status!=="draft"&&task.status!=="awaiting_approval")throw new Error("Only draft or awaiting-approval tasks can be edited.");const parsed=(await import("@/lib/agents/runtime")).RuntimePlanSchema.safeParse(plan);if(!parsed.success)throw new Error(`Invalid runtime plan: ${parsed.error.message}`);if(parsed.data.objective!==task.objective)throw new Error("Plan objective cannot be changed.");const validation=(await import("@/lib/agents/runtime")).validateDAG(parsed.data);if(!validation.valid)throw new Error(`Invalid agent DAG:\n${validation.errors.join("\n")}`);await adminDb.collection(TASKS).doc(id).update({plan:parsed.data,status:"awaiting_approval",updatedAt:FieldValue.serverTimestamp()});await snapshotWorkspaceTask(ownerId,id,{plan:parsed.data,status:"awaiting_approval",reason:"plan_updated"});return getWorkspaceTask(ownerId,id);}\nexport async function approveWorkspaceTask(ownerId:string,id:string){const task=await getWorkspaceTask(ownerId,id);if(task.status!=="awaiting_approval")throw new Error("Task is not awaiting approval.");await adminDb.collection(TASKS).doc(id).update({status:"approved",approvedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});return getWorkspaceTask(ownerId,id);}
+export async function listWorkspaceBranches(ownerId:string,taskId:string){
+  const task=await getWorkspaceTask(ownerId,taskId);
+  const snap=await adminDb.collection(BRANCHES).where("ownerId","==",ownerId).where("taskId","==",task.id).get();
+  return snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a:any,b:any)=>ms(b.createdAt)-ms(a.createdAt));
+}
+export async function listWorkspaceSnapshots(ownerId:string,taskId:string){
+  const task=await getWorkspaceTask(ownerId,taskId);
+  const snap=await adminDb.collection(SNAPSHOTS).where("ownerId","==",ownerId).where("taskId","==",task.id).get();
+  return snap.docs.map(doc=>({id:doc.id,...doc.data()})).sort((a:any,b:any)=>ms(b.createdAt)-ms(a.createdAt));
+}
+
 export async function createBranch(ownerId:string,taskId:string,name:string){const task=await getWorkspaceTask(ownerId,taskId);const branchId=randomUUID(),snapshotId=randomUUID(),now=Date.now();await adminDb.collection(SNAPSHOTS).doc(snapshotId).create({ownerId,taskId,branchId,state:{plan:task.plan,status:task.status},createdAt:Timestamp.fromMillis(now)});await adminDb.collection(BRANCHES).doc(branchId).create({ownerId,taskId,name:name.trim().slice(0,80),parentBranchId:task.activeBranchId,snapshotId,active:false,createdAt:Timestamp.fromMillis(now)});return {id:branchId,taskId,ownerId,name:name.trim().slice(0,80),parentBranchId:task.activeBranchId,snapshotId,createdAt:now,active:false};}
+export async function switchWorkspaceBranch(ownerId:string,taskId:string,branchId:string){
+  const task=await getWorkspaceTask(ownerId,taskId);
+  const branch=await adminDb.collection(BRANCHES).doc(branchId).get();
+  if(!branch.exists||branch.get("ownerId")!==ownerId||branch.get("taskId")!==taskId) throw new Error("Branch not found.");
+  const snapshotId=branch.get("snapshotId") as string|undefined;
+  if(!snapshotId) throw new Error("Branch has no snapshot.");
+  const snapshot=await adminDb.collection(SNAPSHOTS).doc(snapshotId).get();
+  if(!snapshot.exists||snapshot.get("ownerId")!==ownerId||snapshot.get("taskId")!==taskId) throw new Error("Branch snapshot not found.");
+  const state=snapshot.get("state") as {plan?:RuntimePlan;status?:WorkspaceTaskStatus}|undefined;
+  await adminDb.runTransaction(async tx=>{
+    const branches=await tx.get(adminDb.collection(BRANCHES).where("ownerId","==",ownerId).where("taskId","==",taskId));
+    for(const doc of branches.docs) tx.update(doc.ref,{active:doc.id===branchId});
+    tx.update(adminDb.collection(TASKS).doc(taskId),{activeBranchId:branchId,plan:state?.plan??task.plan,status:state?.status==="running"?"approved":state?.status??"approved",updatedAt:FieldValue.serverTimestamp()});
+  });
+  return getWorkspaceTask(ownerId,taskId);
+}
+
 export async function rollbackTask(ownerId:string,taskId:string,snapshotId:string){const task=await getWorkspaceTask(ownerId,taskId);const snap=await adminDb.collection(SNAPSHOTS).doc(snapshotId).get();if(!snap.exists||snap.get("ownerId")!==ownerId||snap.get("taskId")!==taskId)throw new Error("Snapshot not found.");const state=snap.get("state") as {plan?:RuntimePlan;status?:WorkspaceTaskStatus}|undefined;await adminDb.collection(TASKS).doc(taskId).update({plan:state?.plan??task.plan,status:state?.status==="running"?"approved":state?.status??"approved",updatedAt:FieldValue.serverTimestamp()});return getWorkspaceTask(ownerId,taskId);}
 export async function snapshotWorkspaceTask(ownerId:string,taskId:string,state:Record<string,unknown>){const task=await getWorkspaceTask(ownerId,taskId);const id=randomUUID();await adminDb.collection(SNAPSHOTS).doc(id).create({ownerId,taskId,branchId:task.activeBranchId,state,createdAt:FieldValue.serverTimestamp()});return id;}
