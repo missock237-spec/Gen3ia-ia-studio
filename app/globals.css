@@ -591,3 +591,51 @@ body {
 @media(max-width:1023px){
  .g3-mobile-menu{display:grid;position:fixed;left:14px;top:14px;z-index:55;width:38px;height:38px;place-items:center;border:1px solid rgba(23,23,20,.08);border-radius:11px;background:rgba(255,255,255,.92);color:#1c1b18;box-shadow:0 8px 24px -16px rgba(28,27,24,.5);backdrop-filter:blur(12px)}
 }
+
+
+/* Runable-inspired navigation shell */
+.g3-sidebar{position:relative;z-index:60;width:248px;min-width:248px;height:100dvh;background:rgba(248,247,243,.97);border-right:1px solid rgba(23,23,20,.07);backdrop-filter:blur(18px);transition:width .22s cubic-bezier(.22,1,.36,1),transform .22s cubic-bezier(.22,1,.36,1)}
+.g3-sidebar.is-compact{width:72px;min-width:72px}
+.g3-nav-header{height:58px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid rgba(23,23,20,.06)}
+.g3-brand{display:flex;align-items:center;gap:9px;min-width:0;flex:1;color:#1c1b18}
+.g3-brand-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#1c1b18;color:#fff;font-size:10px;font-weight:800;letter-spacing:-.05em}
+.g3-brand-name{font-size:14px;font-weight:750;letter-spacing:-.02em}
+.g3-nav-toggle{display:grid;place-items:center;width:27px;height:27px;border:1px solid rgba(23,23,20,.08);border-radius:8px;background:#fff;color:#77746d;font-size:17px;line-height:1}
+.g3-nav-toggle:hover{background:#f2f1ed;color:#1c1b18}
+.g3-nav-scroll{overflow-y:auto;overflow-x:hidden;scrollbar-width:none}
+.g3-nav-scroll::-webkit-scrollbar{display:none}
+.g3-nav-group-title{padding:0 10px 7px;font-size:9px;font-weight:750;letter-spacing:.16em;text-transform:uppercase;color:#aaa69d}
+.g3-side-link{display:flex;align-items:center;gap:.65rem;min-height:37px;padding:.48rem .62rem;border-radius:10px;color:#73716b;font-size:.78rem;font-weight:560;transition:background .16s ease,color .16s ease}
+.g3-side-link:hover{background:#fff;color:#1c1b18}
+.g3-side-link.is-active{background:#1c1b18;color:#fff;box-shadow:0 7px 18px -12px rgba(28,27,24,.55)}
+.g3-side-icon{display:grid;place-items:center;width:22px;height:22px;min-width:22px;border-radius:7px;font-size:14px;opacity:.78}
+.g3-side-link.is-active .g3-side-icon{background:rgba(255,255,255,.12);opacity:1}
+.g3-nav-shortcut{font-size:9px;color:#b4b0a8;border:1px solid rgba(23,23,20,.08);border-radius:5px;padding:1px 4px}
+.g3-new-task{display:flex;align-items:center;gap:.55rem;width:100%;min-height:40px;padding:.55rem .65rem;border:1px solid rgba(23,23,20,.09);border-radius:11px;background:#fff;color:#1c1b18;font-size:.78rem;box-shadow:0 1px 2px rgba(28,27,24,.04)}
+.g3-new-task:hover{background:#faf9f6;border-color:rgba(23,23,20,.16)}
+.g3-new-task>span{display:grid;place-items:center;width:21px;height:21px;min-width:21px;border-radius:7px;background:#1c1b18;color:#fff;font-size:16px;line-height:1}
+.g3-new-task strong{font-size:12px;font-weight:650}
+.g3-new-task kbd{margin-left:auto;border:1px solid rgba(23,23,20,.1);border-radius:5px;padding:2px 5px;color:#aaa;font-size:9px;font-weight:600}
+.g3-new-task.is-compact{justify-content:center;padding:.55rem}
+.g3-help-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;padding:7px 9px;border-radius:9px;color:#8b8881;font-size:11px}
+.g3-help-row:hover{background:#fff;color:#1c1b18}
+.g3-help-row>span:first-child{display:grid;place-items:center;width:20px;height:20px;border:1px solid rgba(23,23,20,.1);border-radius:6px}
+.g3-nav-footer{padding:8px 10px 10px;border-top:1px solid rgba(23,23,20,.06)}
+.g3-account-button{display:flex;align-items:center;gap:9px;width:100%;padding:7px;border-radius:11px;text-align:left}
+.g3-account-button:hover{background:#fff}
+.g3-account-button.is-compact{justify-content:center}
+.g3-account-avatar{display:grid;place-items:center;width:30px;height:30px;min-width:30px;border-radius:50%;background:#1c1b18;color:#fff;font-size:11px;font-weight:750}
+.g3-account-menu{position:absolute;left:0;bottom:calc(100% + 7px);width:100%;padding:5px;border:1px solid rgba(23,23,20,.09);border-radius:12px;background:#fff;box-shadow:0 18px 40px -20px rgba(28,27,24,.35)}
+.g3-account-menu.is-compact{left:54px;bottom:6px;width:190px}
+.g3-account-item{display:block;width:100%;padding:8px 10px;border-radius:8px;text-align:left;font-size:11px;color:#45423d}
+.g3-account-item:hover{background:#f6f5f1}
+.g3-account-item.danger{color:#b91c1c}
+.g3-sidebar-backdrop{display:none}
+@media(max-width:1023px){
+.g3-sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);box-shadow:18px 0 50px -25px rgba(28,27,24,.35)}
+.g3-sidebar.is-open{transform:translateX(0)}
+.g3-sidebar.is-compact{width:248px;min-width:248px}
+.g3-sidebar-backdrop{position:fixed;inset:0;z-index:59;background:rgba(28,27,24,.2);backdrop-filter:blur(2px)}
+.g3-sidebar-backdrop.is-open{display:block}
+}
+@media(prefers-reduced-motion:reduce){.g3-sidebar,.g3-side-link{transition:none}}
