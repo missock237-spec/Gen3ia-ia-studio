@@ -100,6 +100,7 @@ export function UniversalAgentChat() {
   const [error, setError] = React.useState("");
   const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
   const [attachment, setAttachment] = React.useState<File | null>(null);
+  const [attachmentPath, setAttachmentPath] = React.useState<string | null>(null);
   const [isListening, setIsListening] = React.useState(false);
   const [showTrace, setShowTrace] = React.useState(true);
 
@@ -123,9 +124,11 @@ export function UniversalAgentChat() {
     setMessage("");
 
     try {
-      const enrichedObjective = selectedTool
-        ? `[Capacité prioritaire: ${selectedTool}] ${objective}`
-        : objective;
+      const enrichedObjective = [
+        selectedTool ? `[Capacité prioritaire: ${selectedTool}]` : "",
+        attachmentPath ? `[Fichier joint disponible dans le stockage Gen3ia: ${attachmentPath}]` : "",
+        objective,
+      ].filter(Boolean).join("\n");
 
       const response = await fetch("/api/agent/chat", {
         method: "POST",
@@ -193,6 +196,24 @@ export function UniversalAgentChat() {
     }
   }
 
+  async function handleAttachment(file: File) {
+    setAttachment(file);
+    setAttachmentPath(null);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch("/api/storage/permanent", { method: "POST", body: form });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Téléversement impossible.");
+      const path = typeof data.file?.path === "string" ? data.file.path : typeof data.file?.filename === "string" ? data.file.filename : null;
+      if (!path) throw new Error("Le stockage n’a pas retourné le chemin du fichier.");
+      setAttachmentPath(path);
+    } catch (e) {
+      setAttachment(null);
+      setError(e instanceof Error ? e.message : "Le fichier n’a pas pu être téléversé.");
+    }
+  }
   function startVoice() {
     type Recognition = {
       lang: string;
@@ -240,6 +261,7 @@ export function UniversalAgentChat() {
     setActive(null);
     setError("");
     setAttachment(null);
+    setAttachmentPath(null);
     setSelectedTool(null);
     setMessage("");
   }
@@ -450,7 +472,7 @@ export function UniversalAgentChat() {
                 <Icon name="file" className="h-3.5 w-3.5"/>
                 <span className="min-w-0 flex-1 truncate">{attachment.name}</span>
                 <span className="text-white/30">{Math.ceil(attachment.size / 1024)} Ko</span>
-                <button type="button" onClick={() => setAttachment(null)} className="text-white/35 hover:text-white" aria-label="Retirer le fichier">×</button>
+                <button type="button" onClick={() => { setAttachment(null); setAttachmentPath(null); }} className="text-white/35 hover:text-white" aria-label="Retirer le fichier">×</button>
               </div>
             )}
 
@@ -462,7 +484,7 @@ export function UniversalAgentChat() {
                 disabled={loading}
                 selectedTool={selectedTool}
                 onToolChange={setSelectedTool}
-                onFile={setAttachment}
+                onFile={handleAttachment}
                 onVoice={startVoice}
                 placeholder="Parlez à l’Agent Gen3ia… demandez-lui de réfléchir, rechercher, créer ou agir."
               />
