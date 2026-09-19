@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getActionApproval } from "@/lib/agents/action-approvals";
-import { getToolSecurityDefinition } from "./tool-permissions";
+import { getToolSecurityDefinition, isExtensionToolName } from "./tool-permissions";
 
 export type AutonomyRisk = "low" | "medium" | "high" | "critical";
 
@@ -11,11 +11,7 @@ const CRITICAL_TOOLS = new Set(["ads.publish", "file.delete"]);
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, item]) => [key, canonicalize(item)]),
-    );
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => [key, canonicalize(item)]));
   }
   return value;
 }
@@ -29,6 +25,7 @@ function hashArguments(value: Record<string, unknown>): string {
 export function getAutonomyRisk(toolName: string): AutonomyRisk {
   if (CRITICAL_TOOLS.has(toolName)) return "critical";
   if (EXTERNAL_MUTATION_TOOLS.has(toolName)) return "high";
+  if (isExtensionToolName(toolName)) return "high";
   const definition = getToolSecurityDefinition(toolName);
   if (definition.risk === "destructive") return "high";
   if (definition.risk === "external") return "medium";
@@ -37,7 +34,7 @@ export function getAutonomyRisk(toolName: string): AutonomyRisk {
 }
 
 export function requiresPersistedApproval(toolName: string): boolean {
-  return EXTERNAL_MUTATION_TOOLS.has(toolName) || CRITICAL_TOOLS.has(toolName);
+  return EXTERNAL_MUTATION_TOOLS.has(toolName) || CRITICAL_TOOLS.has(toolName) || isExtensionToolName(toolName);
 }
 
 export async function assertAutonomousActionAllowed(params: {
@@ -48,29 +45,26 @@ export async function assertAutonomousActionAllowed(params: {
 }): Promise<void> {
   const risk = getAutonomyRisk(params.toolName);
   if (risk === "low" || (risk === "medium" && !requiresPersistedApproval(params.toolName))) return;
-
-  if (!requiresPersistedApproval(params.toolName)) {
-    throw new Error(`Human approval is required for high-risk tool: ${params.toolName}`);
-  }
-  if (!params.approvalId) {
-    throw new Error(`Human approval is required before executing ${params.toolName}.`);
-  }
+  if (!requiresPersistedApproval(params.toolName)) throw new Error("Human approval is required for high-risk tool: " + params.toolName);
+  if (!params.approvalId) throw new Error("Human approval is required before executing " + params.toolName + ".");
 
   const approval = await getActionApproval(params.userId, params.approvalId);
   if (approval.status !== "executing") throw new Error("The persisted approval is not in an executable state.");
 
   if (params.toolName === "composio.execute") {
-    if (!approval.toolSlug || approval.toolSlug !== params.input.toolSlug) {
-      throw new Error("The persisted approval does not match the requested external tool.");
-    }
+    if (!approval.toolSlug || approval.toolSlug !== params.input.toolSlug) throw new Error("The persisted approval does not match the requested external tool.");
     const approvedHash = hashArguments({ toolSlug: approval.toolSlug, arguments: approval.arguments });
     const requestedHash = hashArguments({ toolSlug: params.input.toolSlug, arguments: params.input.arguments });
     if (approvedHash !== requestedHash) throw new Error("The execution arguments do not match the approved action.");
     return;
   }
 
-  if (approval.toolSlug !== params.toolName) throw new Error("The persisted approval does not match the requested tool.");
-  if (hashArguments(approval.arguments) !== hashArguments(params.input)) {
-    throw new Error("The execution arguments do not match the approved action.");
+  if (isExtensionToolName(params.toolName)) {
+    if (approval.toolSlug !== params.toolName) throw new Error("The persisted approval does not match the requested extension tool.");
+    if (hashArguments(approval.arguments) !== hashArguments(params.input)) throw new Error("The extension execution arguments do not match the approved action.");
+    return;
   }
+
+  if (approval.toolSlug !== params.toolName) throw new Error("The persisted approval does not match the requested tool.");
+  if (hashArguments(approval.arguments) !== hashArguments(params.input)) throw new Error("The execution arguments do not match the approved action.");
 }
