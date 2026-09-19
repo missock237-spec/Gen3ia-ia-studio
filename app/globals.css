@@ -658,3 +658,22 @@ body {
 .g3-command-footer{display:flex;align-items:center;gap:14px;border-top:1px solid rgba(23,23,20,.07);padding:9px 14px;color:#aaa69d;font-size:9px}
 .g3-command-footer span:first-child{margin-right:auto}
 @media(max-width:640px){.g3-command-overlay{padding:8vh 12px 12px}.g3-command-panel{border-radius:15px}}
+
+
+/* Runable-inspired Agent workspace */
+.g3-studio-workspace{min-height:100%;background:#f6f4ef}
+.g3-studio-topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;padding:10px 18px;border-bottom:1px solid rgba(23,23,20,.07);background:rgba(246,244,239,.88);backdrop-filter:blur(18px)}
+.g3-workspace-status{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(23,23,20,.08);border-radius:999px;background:#fff;padding:3px 7px;font-size:9px;color:#8b8881}
+.g3-workspace-status span{width:5px;height:5px;border-radius:999px;background:#22c55e}
+.g3-studio-tabs{padding:10px 18px 0}
+.g3-studio-canvas{width:min(1440px,100%);margin:0 auto;padding:18px 18px 34px}
+.g3-studio-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:10px 4px 16px}
+.g3-studio-agents{margin-top:18px}
+.g3-studio-canvas-ads{padding-top:20px}
+@media(max-width:767px){
+ .g3-studio-topbar{padding-left:58px}
+ .g3-studio-tabs{padding-left:12px;padding-right:12px}
+ .g3-studio-canvas{padding:12px 10px 24px}
+ .g3-studio-intro{align-items:flex-start}
+ .g3-studio-intro h2{font-size:1.45rem}
+}
