@@ -54,4 +54,5 @@ export const GEN3IA_TOOLS: Gen3iaToolDefinition[] = [
   { name: "voice.list", description: "List available voice profiles.", risk: "read", permission: "network.read", sideEffect: false },
   { name: "code.execute", description: "Execute code in the isolated sandbox.", risk: "external", permission: "code.execute", sideEffect: true },
   { name: "composio.execute", description: "Execute an authorized external action.", risk: "external", permission: "tool.external", sideEffect: true },
+  { name: "ui.components", description: "Search and retrieve professional UI components from the 21st.dev catalog (code agents only).", risk: "read", permission: "tool.external", sideEffect: false },
 ];

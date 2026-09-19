@@ -8,7 +8,21 @@ import { createCheckpoint, saveCheckpoint } from "./checkpoint";
 import { getReadySteps, validateDAG } from "./dag";
 import { RuntimeScheduler } from "./scheduler";
 
-export interface RuntimeRunnerOptions { userId: string; objective: string; plan: RuntimePlan; conversationId?: string; signal?: AbortSignal; policy?: ExecutionPolicy; }
+/**
+ * Configuration d'un agent personnalise du Studio. Injectee dans chaque step
+ * LLM : le prompt systeme de l'agent precede TOUJOURS les contraintes de
+ * securite du runtime (non negotiables), et les preferences modele/provider
+ * orientent le routeur IA.
+ */
+export interface RuntimeAgentConfig {
+  name: string;
+  type?: string;
+  systemPrompt?: string;
+  provider?: string;
+  model?: string;
+}
+
+export interface RuntimeRunnerOptions { userId: string; objective: string; plan: RuntimePlan; conversationId?: string; signal?: AbortSignal; policy?: ExecutionPolicy; agent?: RuntimeAgentConfig; }
 
 export class AgentRuntime {
   private state: RuntimeExecutionState;
@@ -16,12 +30,14 @@ export class AgentRuntime {
   private readonly signal?: AbortSignal;
   private readonly policy: ExecutionPolicy;
   private readonly startedAtMs: number;
+  private readonly agentConfig?: RuntimeAgentConfig;
 
   constructor(options: RuntimeRunnerOptions) {
     const validation = validateDAG(options.plan);
     if (!validation.valid) throw new Error(`Invalid agent DAG:\n${validation.errors.join("\n")}`);
     this.signal = options.signal;
     this.policy = options.policy ?? DEFAULT_EXECUTION_POLICY;
+    this.agentConfig = options.agent;
     this.scheduler = new RuntimeScheduler(options.plan.maxConcurrency);
     this.startedAtMs = Date.now();
     this.state = {
@@ -99,18 +115,33 @@ export class AgentRuntime {
     }
   }
 
+  private static readonly SAFETY_CONTRACT =
+    "Never invent external results, credentials, customer data, transactions or completed actions. Do not perform side effects unless a separately authorized tool step executes them. Be factual, operational and explicit about uncertainty.";
+
+  private static readonly VALID_PROVIDERS = new Set(["groq", "openrouter", "anthropic", "openai", "glm", "huggingface"]);
+
+  private static safeProvider(value?: string): "groq" | "openrouter" | "anthropic" | "openai" | "glm" | "huggingface" | undefined {
+    return value && AgentRuntime.VALID_PROVIDERS.has(value) ? (value as "groq" | "openrouter" | "anthropic" | "openai" | "glm" | "huggingface") : undefined;
+  }
+
   private async executeLLM(step: RuntimeStep): Promise<unknown> {
     const dependencyContext = this.getDependencyOutputs(step);
     const role = step.agentRole ?? "general";
     const complexity = role === "analytics" ? 1.35 : role === "orchestrator" ? 1.25 : 1;
+    const personalPrompt = this.agentConfig?.systemPrompt?.trim();
+    const systemContent = personalPrompt
+      ? `You are "${this.agentConfig?.name ?? "Agent"}", a personalized AI agent created in the Gen3ia Studio${this.agentConfig?.type ? ` (specialty: ${this.agentConfig.type})` : ""}.\n\n--- OWNER INSTRUCTIONS (personnalite et mission de l'agent) ---\n${personalPrompt.slice(0, 12_000)}\n--- END OWNER INSTRUCTIONS ---\n\nYou are executing one step of a mission inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. ${AgentRuntime.SAFETY_CONTRACT}`
+      : `You are the ${role} agent inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. Be factual, operational and explicit about uncertainty. ${AgentRuntime.SAFETY_CONTRACT}`;
     const billed = await generateForUser({
       userId: this.state.userId,
       executionId: this.state.executionId,
       complexity,
       request: {
         task: step.type === "document" ? "document" : "agent",
+        ...(AgentRuntime.safeProvider(this.agentConfig?.provider) ? { provider: AgentRuntime.safeProvider(this.agentConfig?.provider) } : {}),
+        ...(this.agentConfig?.model ? { model: this.agentConfig.model } : {}),
         messages: [
-          { role: "system", content: `You are the ${role} agent inside the Gen3ia multi-agent runtime. Work only on your assigned responsibility. Be factual, operational and explicit about uncertainty. Never invent external results, credentials, customer data, transactions or completed actions. Do not perform side effects unless a separately authorized tool step executes them.` },
+          { role: "system", content: systemContent },
           { role: "user", content: JSON.stringify({ objective: this.state.objective, agentRole: role, step: { id: step.id, name: step.name, description: step.description, input: step.input }, dependencies: dependencyContext }) },
         ],
         maxTokens: 4096,

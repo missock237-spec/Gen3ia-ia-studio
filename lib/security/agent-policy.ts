@@ -53,6 +53,7 @@ export function createAgentPolicy(
           "zip.extract",
           "artifact.create",
           "code.execute",
+          "ui.components",
           "composio.execute",
         ],
         permissions: [

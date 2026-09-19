@@ -14,6 +14,7 @@ import {
   voiceListTool,
   voiceSpeakTool,
 } from "@/lib/integrations/elevenlabs/tools";
+import { twentyFirstUiTool } from "@/lib/integrations/twentyfirst/tool";
 
 export function createDefaultToolRegistry(): ToolRegistry {
   const registry = new ToolRegistry();
@@ -34,5 +35,6 @@ export function createDefaultToolRegistry(): ToolRegistry {
     registry.register(voiceSpeakTool);
     registry.register(voiceListTool);
   }
+  if (process.env.TWENTY_FIRST_API_KEY) registry.register(twentyFirstUiTool);
   return registry;
 }

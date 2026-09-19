@@ -81,39 +81,6 @@ const PRODUCTS = [
   },
 ];
 
-const CAPABILITIES = [
-  {
-    title: "Mémoire permanente",
-    text: "Vos agents se souviennent du contexte utile de vos projets, avec protection des secrets et contrôle propriétaire.",
-    icon: <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />,
-  },
-  {
-    title: "Facturation à l'usage",
-    text: "Wallet intégré, solde en temps réel, rechargement Mobile Money ou carte. Vous ne payez que ce que vos agents exécutent.",
-    icon: <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />,
-  },
-  {
-    title: "Sécurité par conception",
-    text: "Sandbox isolée, permissions granulaires, garde-fous anti-dépenses et validation humaine des actions externes.",
-    icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />,
-  },
-  {
-    title: "Planification automatique",
-    text: "Définissez les fenêtres horaires d'activation de vos agents : le serveur applique le planning même application fermée.",
-    icon: <path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
-  },
-  {
-    title: "Multi-appareils",
-    text: "Web app installable sur Android et iOS, application Desktop pour Windows et Linux. Vos données vous suivent partout.",
-    icon: <path d="M2 3h20v14H2zM8 21h8M12 17v4" />,
-  },
-  {
-    title: "Espace développeur",
-    text: "Créez vos propres extensions avec le SDK Gen3ia, publiez-les sur la Marketplace et suivez vos revenus.",
-    icon: <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />,
-  },
-];
-
 const STEPS = [
   {
     number: "01",
@@ -313,25 +280,115 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Capacités */}
+          {/* Capacités — grille bento */}
           <div className="mt-16 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {CAPABILITIES.map((capability, index) => (
-              <article
-                key={capability.title}
-                className="card-glow reveal flex gap-4 rounded-2xl border border-white/10 bg-white/[.03] p-5"
-                style={{ ["--reveal-delay" as string]: `${(index % 3) * 0.1}s` }}
-              >
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-400/[.08] text-violet-300">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    {capability.icon}
+            {/* Memoire permanente — grande tuile */}
+            <article className="card-glow reveal relative flex flex-col overflow-hidden rounded-3xl border border-violet-400/20 bg-gradient-to-br from-violet-500/[.14] via-[#0d1220] to-[#0d1220] p-7 sm:col-span-2">
+              <div className="flex items-start gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-violet-400/25 bg-violet-400/10 text-violet-300">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
                   </svg>
                 </span>
                 <div>
-                  <h3 className="text-sm font-bold">{capability.title}</h3>
-                  <p className="mt-1.5 text-xs leading-5 text-white/50">{capability.text}</p>
+                  <h3 className="text-base font-bold">Mémoire permanente</h3>
+                  <p className="mt-1.5 max-w-sm text-sm leading-6 text-white/55">
+                    Vos agents se souviennent du contexte utile de vos projets, avec protection des secrets et contrôle propriétaire.
+                  </p>
                 </div>
-              </article>
-            ))}
+              </div>
+              <div className="mt-6 space-y-2" aria-hidden="true">
+                <div className="anim-fade-in max-w-[85%] rounded-2xl rounded-bl-md border border-white/10 bg-white/[.05] px-4 py-2.5 text-xs text-white/60">Retiens la charte graphique du projet Nebula.</div>
+                <div className="anim-fade-in ml-auto max-w-[85%] rounded-2xl rounded-br-md border border-violet-400/25 bg-violet-500/15 px-4 py-2.5 text-xs text-violet-100/80" style={{ animationDelay: "0.3s", animationFillMode: "both" }}>Mémorisé — 3 souvenirs liés à ce projet.</div>
+              </div>
+            </article>
+
+            {/* Securite */}
+            <article className="card-glow reveal flex gap-4 rounded-3xl border border-emerald-400/20 bg-gradient-to-br from-emerald-500/[.1] to-transparent p-6">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-emerald-400/25 bg-emerald-400/10 text-emerald-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="text-sm font-bold">Sécurité par conception</h3>
+                <p className="mt-1.5 text-xs leading-5 text-white/50">Sandbox isolée, permissions granulaires, garde-fous anti-dépenses et validation humaine.</p>
+              </div>
+            </article>
+
+            {/* Atelier 21st.dev — tuile vedette */}
+            <article className="card-glow reveal relative flex flex-col overflow-hidden rounded-3xl border border-cyan-400/25 bg-gradient-to-br from-cyan-500/[.12] via-[#0d1220] to-[#0d1220] p-6">
+              <span className="absolute right-4 top-4 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-cyan-300">Nouveau</span>
+              <span className="grid h-10 w-10 place-items-center rounded-xl border border-cyan-400/25 bg-cyan-400/10 text-cyan-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />
+                </svg>
+              </span>
+              <h3 className="mt-4 text-sm font-bold">Atelier d&apos;Interfaces 21st.dev</h3>
+              <p className="mt-1.5 text-xs leading-5 text-white/50">Composants et thèmes professionnels récupérés et adaptés par vos agents de code.</p>
+              <pre className="g3-code mt-4 !max-h-24 !p-3 !text-[10px]" aria-hidden="true">{`<Hero variant="aurora" />\n<StatsGrid cols={4} />\n<BentoFeature />`}</pre>
+            </article>
+
+            {/* Facturation */}
+            <article className="card-glow reveal flex gap-4 rounded-2xl border border-white/10 bg-white/[.03] p-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-400/[.08] text-violet-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="text-sm font-bold">Facturation à l&apos;usage</h3>
+                <p className="mt-1.5 text-xs leading-5 text-white/50">Wallet intégré, rechargement Mobile Money ou carte. Vous ne payez que ce que vos agents exécutent.</p>
+              </div>
+            </article>
+
+            {/* Planification */}
+            <article className="card-glow reveal flex gap-4 rounded-2xl border border-white/10 bg-white/[.03] p-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-400/[.08] text-violet-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="text-sm font-bold">Planification automatique</h3>
+                <p className="mt-1.5 text-xs leading-5 text-white/50">Fenêtres horaires d&apos;activation : le serveur applique le planning même application fermée.</p>
+              </div>
+            </article>
+
+            {/* Multi-appareils — grande tuile */}
+            <article className="card-glow reveal relative flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/[.05] to-transparent p-7 sm:col-span-2">
+              <div className="flex items-start gap-4">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-cyan-400/25 bg-cyan-400/[.08] text-cyan-300">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2 3h20v14H2zM8 21h8M12 17v4" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-base font-bold">Multi-appareils</h3>
+                  <p className="mt-1.5 max-w-sm text-sm leading-6 text-white/55">
+                    Web app installable sur Android et iOS, application Desktop pour Windows et Linux. Vos données vous suivent partout.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2" aria-hidden="true">
+                {["Android", "iOS", "Windows", "Linux", "Web PWA"].map((device) => (
+                  <span key={device} className="rounded-full border border-white/12 bg-white/[.04] px-3.5 py-1.5 text-xs font-semibold text-white/65">{device}</span>
+                ))}
+              </div>
+            </article>
+
+            {/* Espace developpeur */}
+            <article className="card-glow reveal flex gap-4 rounded-2xl border border-white/10 bg-white/[.03] p-5">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-violet-400/20 bg-violet-400/[.08] text-violet-300">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />
+                </svg>
+              </span>
+              <div>
+                <h3 className="text-sm font-bold">Espace développeur</h3>
+                <p className="mt-1.5 text-xs leading-5 text-white/50">Créez vos extensions avec le SDK Gen3ia, publiez-les et suivez vos revenus.</p>
+              </div>
+            </article>
           </div>
         </section>
 

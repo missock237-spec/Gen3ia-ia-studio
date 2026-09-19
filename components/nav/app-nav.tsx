@@ -32,6 +32,7 @@ const MAIN_LINKS = [
 ];
 
 const SECONDARY_LINKS = [
+  { href: "/studio/interface-lab", label: "Atelier d'Interfaces", hint: "Reserve aux agents de code" },
   { href: "/billing", label: "Facturation", hint: "Solde et rechargement" },
   { href: "/storage", label: "Stockage permanent", hint: "Fichiers et camera" },
   { href: "/developer", label: "Espace développeur", hint: "Extensions et API" },

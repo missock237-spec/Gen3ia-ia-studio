@@ -73,6 +73,18 @@ const FEATURES: HubFeature[] = [
 
 const QUICK_LINKS = [
   {
+    href: "/studio",
+    label: "Mes agents",
+    hint: "Créer et exécuter",
+    icon: <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.8 5.6 21.2 8 14 2 9.2h7.6Z" />,
+  },
+  {
+    href: "/studio/interface-lab",
+    label: "Atelier d'Interfaces",
+    hint: "Agents de code · 21st.dev",
+    icon: <path d="m8 6-6 6 6 6M16 6l6 6-6 6" />,
+  },
+  {
     href: "/billing",
     label: "Facturation",
     hint: "Solde et rechargement",

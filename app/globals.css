@@ -197,3 +197,293 @@ body {
     transform: none;
   }
 }
+
+/* ============================================================
+   Gen3ia design system v2 — composants entreprise
+   ============================================================ */
+
+:root {
+  --gen3ia-radius: 16px;
+  --gen3ia-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --gen3ia-shadow-md: 0 12px 34px -14px rgba(0, 0, 0, 0.55);
+  --gen3ia-shadow-glow: 0 18px 50px -18px rgba(139, 92, 246, 0.45);
+}
+
+@keyframes gen3ia-slide-up {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes gen3ia-slide-in-right {
+  from { opacity: 0; transform: translateX(36px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes gen3ia-progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+
+@keyframes gen3ia-dot-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
+.anim-slide-up { animation: gen3ia-slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-slide-in-right { animation: gen3ia-slide-in-right 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Barre de progression indéterminée */
+.g3-progress {
+  position: relative;
+  height: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.g3-progress::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30%;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--gen3ia-violet), var(--gen3ia-cyan));
+  animation: gen3ia-progress 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Points de chargement */
+.g3-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 4px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: gen3ia-dot-bounce 1.2s ease-in-out infinite;
+}
+.g3-dots span:nth-child(2) { animation-delay: 0.15s; }
+.g3-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+/* Boutons */
+.g3-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.7rem 1.15rem;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease, opacity 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.g3-btn:active:not(:disabled) { transform: scale(0.97); }
+.g3-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.g3-btn:focus-visible { outline: 2px solid var(--gen3ia-violet); outline-offset: 2px; }
+
+.g3-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6 55%, #6d28d9);
+  box-shadow: 0 8px 24px -10px rgba(139, 92, 246, 0.7);
+}
+.g3-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 12px 34px -10px rgba(139, 92, 246, 0.85);
+  transform: translateY(-1px);
+}
+
+.g3-btn-ghost {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.g3-btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.18); }
+
+.g3-btn-danger {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+.g3-btn-danger:hover:not(:disabled) { background: rgba(239, 68, 68, 0.16); }
+
+.g3-btn-cyan {
+  color: #a5f3fc;
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+}
+.g3-btn-cyan:hover:not(:disabled) { background: rgba(34, 211, 238, 0.16); }
+
+/* Champs de formulaire */
+.g3-input,
+.g3-textarea,
+.g3-select {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font-size: 0.875rem;
+  padding: 0.65rem 0.9rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  outline: none;
+}
+.g3-input::placeholder,
+.g3-textarea::placeholder { color: rgba(255, 255, 255, 0.35); }
+.g3-input:focus,
+.g3-textarea:focus,
+.g3-select:focus {
+  border-color: rgba(139, 92, 246, 0.65);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+}
+.g3-textarea { resize: vertical; min-height: 96px; line-height: 1.6; }
+.g3-select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.5) 50%), linear-gradient(135deg, rgba(255,255,255,0.5) 50%, transparent 50%); background-position: calc(100% - 18px) 55%, calc(100% - 13px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+.g3-select option { background: #0d1220; color: #fff; }
+
+.g3-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 0.45rem;
+}
+
+/* Cartes */
+.g3-card {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 42%), var(--gen3ia-panel);
+  box-shadow: var(--gen3ia-shadow-sm);
+}
+
+/* Chips / badges */
+.g3-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 9999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.75);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+.g3-chip:hover { background: rgba(255, 255, 255, 0.09); }
+.g3-chip[data-selected="true"] {
+  background: rgba(139, 92, 246, 0.18);
+  border-color: rgba(139, 92, 246, 0.55);
+  color: #ddd6fe;
+}
+
+/* Onglets avec pilule animée */
+.g3-tabs {
+  position: relative;
+  display: inline-flex;
+  gap: 0.25rem;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.3rem;
+}
+.g3-tab {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 0.25s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.g3-tab:hover { color: rgba(255, 255, 255, 0.85); }
+.g3-tab[data-active="true"] { color: #fff; }
+.g3-tab-pill {
+  position: absolute;
+  z-index: 0;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.85), rgba(109, 40, 217, 0.85));
+  box-shadow: 0 6px 18px -6px rgba(139, 92, 246, 0.6);
+  transition: left 0.32s cubic-bezier(0.22, 1, 0.36, 1), width 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Commutateur (switch) */
+.g3-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 0.25s ease, border-color 0.25s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.g3-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  background: #fff;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.g3-switch[data-on="true"] {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  border-color: rgba(139, 92, 246, 0.6);
+}
+.g3-switch[data-on="true"]::after { transform: translateX(18px); }
+
+/* Bloc de code */
+.g3-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.65;
+  color: #d7dcf0;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  overflow: auto;
+  white-space: pre;
+  max-height: 420px;
+}
+
+/* Panneau latéral (détail composant) */
+.g3-drawer {
+  animation: gen3ia-slide-in-right 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Titre de section standard */
+.g3-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #a78bfa;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .g3-progress::after { animation: none; }
+  .g3-dots span { animation: none; }
+  .anim-slide-up,
+  .anim-slide-in-right { animation: none; }
+  .g3-tab-pill { transition: none; }
+}
