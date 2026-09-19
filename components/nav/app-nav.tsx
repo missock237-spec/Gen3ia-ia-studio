@@ -113,6 +113,32 @@ export function AppNav() {
 
   return (
     <>
+      {commandOpen && (
+        <div className="g3-command-overlay" role="dialog" aria-modal="true" aria-label="Navigation Gen3ia">
+          <button type="button" className="g3-command-backdrop" onClick={() => setCommandOpen(false)} aria-label="Fermer" />
+          <div className="g3-command-panel">
+            <div className="g3-command-search">
+              <span aria-hidden="true">⌕</span>
+              <input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Aller à…" aria-label="Rechercher une destination" />
+              <kbd>ESC</kbd>
+            </div>
+            <div className="g3-command-list">
+              {filteredCommands.length ? filteredCommands.map((item) => (
+                <button key={item.href} type="button" onClick={() => goTo(item.href)} className="g3-command-item">
+                  <span className="g3-side-icon">{item.icon}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {active(item.href) && <span className="g3-command-current">Actuel</span>}
+                </button>
+              )) : (
+                <div className="px-4 py-8 text-center text-xs text-neutral-400">Aucune destination trouvée.</div>
+              )}
+            </div>
+            <div className="g3-command-footer">
+              <span>Navigation rapide</span><span><kbd>⌘ K</kbd> ouvrir/fermer</span><span>Esc fermer</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className={`g3-sidebar-backdrop ${open ? "is-open" : ""}`}
         onClick={() => setOpen(false)}
