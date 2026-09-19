@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { signInWithEmail, signUpWithEmail, resetPassword, traduireErreurAuth, establishSession, type SignupProfile } from "@/lib/firebase/auth-client";
+import { useEffect, useState } from "react";
+import { signInWithEmail, signUpWithEmail, resetPassword, traduireErreurAuth, establishSession, readNextRedirect, type SignupProfile } from "@/lib/firebase/auth-client";
 
 const inputClasses = "w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:border-neutral-900 bg-transparent";
 const buttonClasses = "w-full rounded-xl bg-neutral-900 px-4 py-3 text-sm font-medium text-white transition hover:bg-neutral-700 disabled:cursor-not-allowed disabled:opacity-50";
@@ -20,6 +20,9 @@ export default function EmailAuthForm() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [nextPath, setNextPath] = useState<string | null>(null);
+
+  useEffect(() => { setNextPath(readNextRedirect()); }, []);
 
   function validate(): string | null {
     if (!email.trim() || !email.includes("@")) return "Veuillez saisir une adresse email valide.";
@@ -41,10 +44,10 @@ export default function EmailAuthForm() {
       if (mode === "inscription") {
         const profile: SignupProfile = { firstName, lastName, username, country, language: "fr", timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC" };
         const user = await signUpWithEmail(email, password, profile);
-        await establishSession(user);
+        await establishSession(user, nextPath);
       } else {
         const user = await signInWithEmail(email, password);
-        await establishSession(user);
+        await establishSession(user, nextPath);
       }
     } catch (authError) { setError(traduireErreurAuth(authError)); } finally { setPending(false); }
   }

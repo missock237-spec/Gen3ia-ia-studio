@@ -61,11 +61,11 @@ interface RunResult {
 }
 
 const toneClasses: Record<string, string> = {
-  violet: "border-violet-400/30 bg-violet-400/10 text-violet-200",
-  cyan: "border-cyan-400/30 bg-cyan-400/10 text-cyan-200",
-  emerald: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
-  amber: "border-amber-400/30 bg-amber-400/10 text-amber-200",
-  sky: "border-sky-400/30 bg-sky-400/10 text-sky-200",
+  violet: "border-violet-200 bg-violet-100 text-violet-700",
+  cyan: "border-sky-200 bg-sky-100 text-sky-700",
+  emerald: "border-emerald-200 bg-emerald-100 text-emerald-600",
+  amber: "border-amber-200 bg-amber-100 text-amber-700",
+  sky: "border-sky-200 bg-sky-100 text-sky-700",
 };
 
 export function AgentManager() {
@@ -204,7 +204,7 @@ export function AgentManager() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-bold">Mes agents</h2>
-          <p className="mt-1 text-sm text-white/55">
+          <p className="mt-1 text-sm text-neutral-600">
             Creez un agent, personnalisez-le, puis lancez une mission : il s&apos;execute immediatement.
           </p>
         </div>
@@ -222,17 +222,17 @@ export function AgentManager() {
       </div>
 
       {message && (
-        <div className="anim-fade-in rounded-2xl border border-emerald-400/20 bg-emerald-400/5 p-4 text-sm text-emerald-100/90">{message}</div>
+        <div className="anim-fade-in rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">{message}</div>
       )}
       {error && (
-        <div className="anim-fade-in rounded-2xl border border-red-400/20 bg-red-400/5 p-4 text-sm text-red-100/90">{error}</div>
+        <div className="anim-fade-in rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>
       )}
 
       {/* Formulaire de creation / personnalisation */}
       {showForm && (
         <div className="g3-card anim-slide-up p-5 md:p-7">
           <h3 className="text-lg font-bold">Creer et personnaliser</h3>
-          <p className="mt-1 text-sm text-white/50">Tout est modifiable plus tard. Un agent actif est immediatement executable.</p>
+          <p className="mt-1 text-sm text-neutral-500">Tout est modifiable plus tard. Un agent actif est immediatement executable.</p>
 
           <div className="mt-6 grid gap-5 lg:grid-cols-2">
             <div className="space-y-5">
@@ -257,17 +257,17 @@ export function AgentManager() {
                         onClick={() => setType(key)}
                         aria-pressed={selected}
                         className={`rounded-xl border p-3 text-left transition-all duration-300 ${
-                          selected ? "border-violet-400/60 bg-violet-500/10 shadow-[0_8px_24px_-10px_rgba(139,92,246,0.6)]" : "border-white/10 bg-white/[.03] hover:border-white/20 hover:bg-white/[.06]"
+                          selected ? "border-neutral-900 bg-neutral-50 shadow-[0_8px_24px_-12px_rgba(28,27,24,0.35)]" : "border-[rgba(23,23,20,0.09)] bg-white hover:border-neutral-300 hover:bg-neutral-50"
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={selected ? "text-violet-300" : "text-white/50"}>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={selected ? "text-neutral-900" : "text-neutral-400"}>
                             <path d={meta.icon} />
                           </svg>
                           <span className="text-sm font-semibold">{meta.label}</span>
-                          {key === "code" && <span className="rounded bg-cyan-400/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-cyan-300">21st.dev</span>}
+                          {key === "code" && <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-sky-700">21st.dev</span>}
                         </div>
-                        <p className="mt-1 text-xs leading-5 text-white/45">{meta.description}</p>
+                        <p className="mt-1 text-xs leading-5 text-neutral-500">{meta.description}</p>
                       </button>
                     );
                   })}
@@ -286,7 +286,7 @@ export function AgentManager() {
                   placeholder="Ex. Tu es un analyste marketing senior. Tu structureras tes reponses en 3 parties…"
                   maxLength={20_000}
                 />
-                <p className="mt-1 text-xs text-white/35">{systemPrompt.length.toLocaleString("fr-FR")} / 20 000 caracteres</p>
+                <p className="mt-1 text-xs text-neutral-400">{systemPrompt.length.toLocaleString("fr-FR")} / 20 000 caracteres</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -336,7 +336,7 @@ export function AgentManager() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-2 border-t border-white/10 pt-5 sm:flex-row sm:justify-end">
+          <div className="mt-6 flex flex-col gap-2 border-t border-[rgba(23,23,20,0.09)] pt-5 sm:flex-row sm:justify-end">
             <button type="button" className="g3-btn g3-btn-ghost" onClick={() => setShowForm(false)}>Annuler</button>
             <button type="button" className="g3-btn g3-btn-primary" disabled={creating || name.trim().length < 2 || systemPrompt.trim().length < 10} onClick={createAgent}>
               {creating ? <>Creation<span className="g3-dots"><span /><span /><span /></span></> : "Creer l'agent"}
@@ -347,16 +347,16 @@ export function AgentManager() {
 
       {/* Liste des agents */}
       {loading ? (
-        <div className="g3-card p-8 text-center text-sm text-white/50">
+        <div className="g3-card p-8 text-center text-sm text-neutral-500">
           Chargement de vos agents<span className="g3-dots"><span /><span /><span /></span>
         </div>
       ) : agents.length === 0 ? (
         <div className="g3-card p-10 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-400/30 bg-violet-500/10 anim-float">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-violet-300"><path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.8 5.6 21.2 8 14 2 9.2h7.6z" /></svg>
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-violet-200 bg-violet-100 anim-float">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="text-violet-700"><path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.8 5.6 21.2 8 14 2 9.2h7.6z" /></svg>
           </div>
           <h3 className="mt-4 font-bold">Aucun agent pour l&apos;instant</h3>
-          <p className="mx-auto mt-2 max-w-md text-sm text-white/50">Creez votre premier agent : choisissez un type, ecrivez ses instructions, et lancez votre premiere mission en moins d&apos;une minute.</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-neutral-500">Creez votre premier agent : choisissez un type, ecrivez ses instructions, et lancez votre premiere mission en moins d&apos;une minute.</p>
           <button type="button" className="g3-btn g3-btn-primary mt-5" onClick={() => setShowForm(true)}>+ Creer mon premier agent</button>
         </div>
       ) : (
@@ -371,14 +371,14 @@ export function AgentManager() {
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="truncate text-base font-bold">{agent.name}</h3>
                       <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${toneClasses[meta.tone]}`}>{meta.label}</span>
-                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${agent.status === "active" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-white/15 bg-white/5 text-white/50"}`}>{agent.status}</span>
+                      <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${agent.status === "active" ? "border-emerald-200 bg-emerald-50 text-emerald-600" : "border-[rgba(23,23,20,0.09)] bg-neutral-50 text-neutral-500"}`}>{agent.status}</span>
                     </div>
-                    {agent.description && <p className="mt-1.5 line-clamp-2 text-sm text-white/55">{agent.description}</p>}
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-white/40">
-                      <span className="rounded border border-white/10 px-1.5 py-0.5">{agent.autonomous ? "Autonome" : "Guide"}</span>
-                      <span className="rounded border border-white/10 px-1.5 py-0.5">{agent.maxIterations} iterations</span>
-                      <span className="rounded border border-white/10 px-1.5 py-0.5">{agent.modelStrategy === "fixed" ? agent.preferredProvider ?? "modele fixe" : "modele auto"}</span>
-                      {agent.tools.slice(0, 3).map((tool) => <span key={tool} className="rounded border border-white/10 px-1.5 py-0.5">{tool}</span>)}
+                    {agent.description && <p className="mt-1.5 line-clamp-2 text-sm text-neutral-600">{agent.description}</p>}
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-neutral-500">
+                      <span className="rounded border border-[rgba(23,23,20,0.09)] px-1.5 py-0.5">{agent.autonomous ? "Autonome" : "Guide"}</span>
+                      <span className="rounded border border-[rgba(23,23,20,0.09)] px-1.5 py-0.5">{agent.maxIterations} iterations</span>
+                      <span className="rounded border border-[rgba(23,23,20,0.09)] px-1.5 py-0.5">{agent.modelStrategy === "fixed" ? agent.preferredProvider ?? "modele fixe" : "modele auto"}</span>
+                      {agent.tools.slice(0, 3).map((tool) => <span key={tool} className="rounded border border-[rgba(23,23,20,0.09)] px-1.5 py-0.5">{tool}</span>)}
                     </div>
                   </div>
                   <button type="button" className="g3-btn g3-btn-danger !px-3 !py-2 text-xs" onClick={() => deleteAgent(agent)} aria-label={`Supprimer ${agent.name}`}>
@@ -387,7 +387,7 @@ export function AgentManager() {
                 </div>
 
                 {agent.type === "code" && agent.status === "active" && (
-                  <Link href="/studio/interface-lab" className="mt-4 flex items-center justify-between rounded-xl border border-cyan-400/25 bg-cyan-400/[.06] px-4 py-3 text-sm text-cyan-100 transition-colors hover:bg-cyan-400/[.12]">
+                  <Link href="/studio/interface-lab" className="mt-4 flex items-center justify-between rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700 transition-colors hover:bg-sky-100">
                     <span className="flex items-center gap-2">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6" /></svg>
                       Atelier d&apos;Interfaces — exclusivite agent de code
@@ -410,13 +410,13 @@ export function AgentManager() {
                 </div>
 
                 {result && (
-                  <div className="anim-slide-up mt-3 rounded-xl border border-white/10 bg-black/25 p-4">
+                  <div className="anim-slide-up mt-3 rounded-xl border border-[rgba(23,23,20,0.09)] bg-neutral-50 p-4">
                     {result.status === "running" && <div className="g3-progress" aria-label="Execution en cours" />}
-                    {result.error && <p className="text-sm text-red-300">{result.error}</p>}
+                    {result.error && <p className="text-sm text-red-600">{result.error}</p>}
                     {result.status !== "running" && !result.error && (
                       <>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-white/45">
-                          <span className={`rounded-full border px-2 py-0.5 font-semibold uppercase ${result.status === "completed" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-red-400/30 bg-red-400/10 text-red-300"}`}>{result.status}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                          <span className={`rounded-full border px-2 py-0.5 font-semibold uppercase ${result.status === "completed" ? "border-emerald-200 bg-emerald-50 text-emerald-600" : "border-red-200 bg-red-50 text-red-600"}`}>{result.status}</span>
                           {typeof result.durationMs === "number" && <span>{(result.durationMs / 1000).toFixed(1)} s</span>}
                           {result.billing && <span>{(result.billing.totalChargeMinor / 100).toFixed(4)} {result.billing.currency}</span>}
                           <span className="truncate">#{result.executionId.slice(0, 8)}</span>
@@ -424,8 +424,8 @@ export function AgentManager() {
                         <div className="mt-2 space-y-2">
                           {Object.entries(result.outputs).map(([stepId, output]) => (
                             <div key={stepId}>
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-white/35">{stepId}</div>
-                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-white/80">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">{stepId}</div>
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-neutral-800">
                                 {typeof output === "string" ? output.slice(0, 2400) : JSON.stringify(output, null, 2).slice(0, 2400)}
                               </p>
                             </div>
@@ -446,8 +446,8 @@ export function AgentManager() {
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[.03] px-3 py-2.5 text-sm transition-colors hover:bg-white/[.06]">
-      <span className="text-white/75">{label}</span>
+    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-[rgba(23,23,20,0.09)] bg-white px-3 py-2.5 text-sm transition-colors hover:bg-neutral-50">
+      <span className="text-neutral-700">{label}</span>
       <button type="button" role="switch" aria-checked={checked} aria-label={label} data-on={checked} className="g3-switch" onClick={() => onChange(!checked)} />
     </label>
   );

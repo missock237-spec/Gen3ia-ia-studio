@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import {
   completerConnexionRedirect,
   establishSession,
+  readNextRedirect,
   signInWithGoogle,
   signInWithGitHub,
   traduireErreurAuth
@@ -32,11 +33,13 @@ function GitHubLogo() {
 export default function AuthButtons() {
   // Connexion par redirection (mobile) : au retour du flux OAuth sur /login,
   // on recupere le resultat et on etablit la session serveur.
+  const [nextPath, setNextPath] = useState<string | null>(null);
+  useEffect(() => { setNextPath(readNextRedirect()); }, []);
   useEffect(() => {
-    completerConnexionRedirect().catch((error) => {
+    completerConnexionRedirect(nextPath).catch((error) => {
       window.alert(traduireErreurAuth(error));
     });
-  }, []);
+  }, [nextPath]);
 
   async function authenticate(
     provider: "google" | "github"
@@ -48,7 +51,7 @@ export default function AuthButtons() {
           : await signInWithGitHub();
 
       // Sur mobile, signInWith* redirige : on n'arrive jamais ici.
-      await establishSession(user);
+      await establishSession(user, nextPath);
     } catch (error) {
       // La redirection mobile est un flux normal, pas une erreur a afficher.
       if (error instanceof Error && error.message === "REDIRECTION_EN_COURS") {

@@ -54,21 +54,21 @@ function AdsWorkshop() {
   return (
     <div className="space-y-6">
       <section className="grid grid-cols-1 gap-5 lg:grid-cols-[1.5fr_1fr]">
-        <div className="g3-card p-6"><div className="flex items-center justify-between"><h2 className="text-xl font-semibold">Générateur publicitaire</h2><span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Sécurité active</span></div><p className="mt-2 text-sm text-white/55">Décrivez le résultat attendu. L&apos;orchestrateur sélectionne les compétences et outils nécessaires.</p><textarea value={objective} onChange={e => setObjective(e.target.value)} placeholder="Ex. Analyse mon marché, prépare une campagne et propose les créations publicitaires…" className="g3-textarea mt-5 min-h-40" /><button disabled={busy || objective.trim().length < 10} onClick={generateAd} className="g3-btn g3-btn-primary mt-4">Lancer l&apos;agent Ads</button>{message && <div className="anim-fade-in mt-4 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4 text-sm text-white/80">{message}</div>}</div>
-        <div className="g3-card p-6"><h2 className="text-xl font-semibold">Connexions Ads</h2><p className="mt-2 text-sm text-white/55">Les jetons sont stockés chiffrés côté serveur. Une publication externe exige une validation humaine.</p><div className="mt-5 space-y-3">{(Object.keys(labels) as Provider[]).map(provider => <button key={provider} disabled={busy} onClick={() => connectAds(provider)} className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/[.03] p-4 text-left hover:bg-white/[.06]"><span>{labels[provider]}</span><span className={connections.includes(provider) ? "text-emerald-300 text-sm" : "text-violet-300 text-sm"}>{connections.includes(provider) ? "Connecté" : "Connecter"}</span></button>)}</div></div>
+        <div className="g3-card p-6"><div className="flex items-center justify-between"><h2 className="font-serif text-xl font-semibold">Générateur publicitaire</h2><span className="rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs text-emerald-600">Sécurité active</span></div><p className="mt-2 text-sm text-neutral-500">Décrivez le résultat attendu. L&apos;orchestrateur sélectionne les compétences et outils nécessaires.</p><textarea value={objective} onChange={e => setObjective(e.target.value)} placeholder="Ex. Analyse mon marché, prépare une campagne et propose les créations publicitaires…" className="g3-textarea mt-5 min-h-40" /><button disabled={busy || objective.trim().length < 10} onClick={generateAd} className="g3-btn g3-btn-primary mt-4">Lancer l&apos;agent Ads</button>{message && <div className="anim-fade-in mt-4 rounded-xl border border-violet-200 bg-violet-100 p-4 text-sm text-violet-700">{message}</div>}</div>
+        <div className="g3-card p-6"><h2 className="font-serif text-xl font-semibold">Connexions Ads</h2><p className="mt-2 text-sm text-neutral-500">Les jetons sont stockés chiffrés côté serveur. Une publication externe exige une validation humaine.</p><div className="mt-5 space-y-3">{(Object.keys(labels) as Provider[]).map(provider => <button key={provider} disabled={busy} onClick={() => connectAds(provider)} className="flex w-full items-center justify-between rounded-xl border border-[rgba(23,23,20,0.09)] bg-neutral-50 p-4 text-left hover:bg-neutral-100"><span>{labels[provider]}</span><span className={connections.includes(provider) ? "text-emerald-600 text-sm" : "text-sky-700 text-sm"}>{connections.includes(provider) ? "Connecté" : "Connecter"}</span></button>)}</div></div>
       </section>
       <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
         <Feature title="Terminal IA" text="Un terminal sandboxé réservé aux agents. Aucun accès direct utilisateur au shell d'exécution." />
         <Feature title="Mémoire permanente" text="Les agents peuvent mémoriser des informations utiles, avec protection contre les secrets et contrôle propriétaire." />
         <Feature title="Caméra & fichiers" text="La caméra fonctionne uniquement après autorisation explicite. Les captures et fichiers peuvent être conservés dans le stockage permanent." />
       </section>
-      <footer className="rounded-2xl border border-amber-400/15 bg-amber-400/5 p-4 text-xs text-amber-100/70">Les actions externes, dépenses publicitaires et opérations sensibles restent soumises aux politiques de sécurité et à une confirmation humaine. Les agents ne peuvent pas contourner ces contrôles.</footer>
+      <footer className="rounded-2xl border border-amber-200 bg-amber-100 p-4 text-xs text-amber-700">Les actions externes, dépenses publicitaires et opérations sensibles restent soumises aux politiques de sécurité et à une confirmation humaine. Les agents ne peuvent pas contourner ces contrôles.</footer>
     </div>
   );
 }
 
 function Feature({ title, text }: { title: string; text: string }) {
-  return <div className="g3-card p-5"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-white/55">{text}</p></div>;
+  return <div className="g3-card p-5"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-neutral-500">{text}</p></div>;
 }
 
 export default function StudioPage() {
@@ -78,17 +78,17 @@ export default function StudioPage() {
   useEffect(() => onAuthStateChanged(auth, (current) => setUser(current)), []);
 
   return (
-    <main className="min-h-screen bg-[#070a12] text-white p-4 md:p-8">
+    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="g3-eyebrow">GEN3IA AI STUDIO</div>
-            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">Studio d&apos;agents IA</h1>
-            <p className="mt-2 max-w-2xl text-sm text-white/55 md:text-base">Créez un agent, personnalisez-le, exécutez-le immédiatement. Les agents de code accèdent en exclusivité à l&apos;Atelier d&apos;Interfaces propulsé par 21st.dev.</p>
+            <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight md:text-4xl">Studio d&apos;agents IA</h1>
+            <p className="mt-2 max-w-2xl text-sm text-neutral-500 md:text-base">Créez un agent, personnalisez-le, exécutez-le immédiatement. Les agents de code accèdent en exclusivité à l&apos;Atelier d&apos;Interfaces propulsé par 21st.dev.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/marketplace" className="g3-btn g3-btn-ghost text-xs">Marketplace</Link>
-            <Link href="/live" className="g3-btn g3-btn-ghost text-xs">Agent Live<span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-300">PC</span></Link>
+            <Link href="/live" className="g3-btn g3-btn-ghost text-xs">Agent Live<span className="rounded-md border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-amber-700">PC</span></Link>
           </div>
         </header>
 

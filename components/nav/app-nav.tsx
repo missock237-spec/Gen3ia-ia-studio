@@ -9,10 +9,10 @@ import { logout, useAuth } from "@/lib/firebase/auth-client";
 /**
  * Navigation globale de l'application Gen3ia.
  *
- * - Barre sticky en verre dépoli, presente sur toutes les pages sauf la
- *   vitrine "/" (qui possede sa propre navigation).
+ * - Barre sticky claire a pilules blanches (style Runable), presente sur
+ *   toutes les pages sauf la vitrine "/" (qui possede sa propre navigation).
  * - Acces structure : liens principaux au centre, menu utilisateur a droite
- *   (Facturation, Stockage, Developpeur, Deconnexion).
+ *   (Atelier, Equipes, Facturation, Stockage, Developpeur, Deconnexion).
  * - L'identite affichee combine l'etat Firebase client et, a defaut, la
  *   session serveur (cookie signe) pour rester fiable sur mobile/webviews.
  * - Menu mobile anime pour les petits ecrans.
@@ -32,9 +32,10 @@ const MAIN_LINKS = [
 ];
 
 const SECONDARY_LINKS = [
-  { href: "/studio/interface-lab", label: "Atelier d'Interfaces", hint: "Reserve aux agents de code" },
+  { href: "/team", label: "Équipes", hint: "Créer et rejoindre une équipe" },
+  { href: "/studio/interface-lab", label: "Atelier d'Interfaces", hint: "Réservé aux agents de code" },
   { href: "/billing", label: "Facturation", hint: "Solde et rechargement" },
-  { href: "/storage", label: "Stockage permanent", hint: "Fichiers et camera" },
+  { href: "/storage", label: "Stockage permanent", hint: "Fichiers et caméra" },
   { href: "/developer", label: "Espace développeur", hint: "Extensions et API" },
 ];
 
@@ -116,15 +117,15 @@ export function AppNav() {
   if (pathname === "/") return null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#070a12]/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-[rgba(23,23,20,0.07)] bg-[#f6f4ef]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
         {/* Logo */}
         <Link href="/dashboard" className="group flex shrink-0 items-center gap-2.5" aria-label="Gen3ia — tableau de bord">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-cyan-400 text-sm font-black text-white shadow-lg shadow-violet-600/30 transition-transform duration-300 group-hover:scale-105">
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-neutral-900 text-sm font-black text-white shadow-[0_6px_16px_-8px_rgba(28,27,24,0.6)] transition-transform duration-300 group-hover:scale-105">
             G3
           </span>
-          <span className="hidden text-sm font-bold tracking-tight text-white sm:block">
-            Gen3ia <span className="font-medium text-white/40">AI Studio</span>
+          <span className="hidden text-sm font-bold tracking-tight text-neutral-900 sm:block">
+            Gen3ia <span className="font-serif font-medium text-neutral-400">AI Studio</span>
           </span>
         </Link>
 
@@ -138,22 +139,20 @@ export function AppNav() {
                 href={link.href}
                 aria-current={active ? "page" : undefined}
                 onClick={closeMenus}
-                className={`relative rounded-xl px-3.5 py-2 text-sm font-medium transition-colors duration-200 ${
-                  active ? "text-white" : "text-white/55 hover:text-white"
+                className={`relative rounded-full px-3.5 py-2 text-sm font-medium transition-colors duration-200 ${
+                  active
+                    ? "bg-neutral-900 text-white shadow-[0_6px_16px_-8px_rgba(28,27,24,0.55)]"
+                    : "text-neutral-500 hover:bg-white hover:text-neutral-900"
                 }`}
               >
                 {link.label}
                 {link.badge && (
-                  <span className="ml-1.5 rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-wide text-amber-300">
+                  <span className={`ml-1.5 rounded-md px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-wide ${
+                    active ? "bg-white/15 text-amber-200" : "bg-amber-100 text-amber-700"
+                  }`}>
                     {link.badge}
                   </span>
                 )}
-                <span
-                  aria-hidden="true"
-                  className={`absolute inset-x-3 -bottom-[13px] h-0.5 rounded-full bg-gradient-to-r from-violet-400 to-cyan-400 transition-all duration-300 ${
-                    active ? "opacity-100 scale-x-100" : "opacity-0 scale-x-0"
-                  }`}
-                />
               </Link>
             );
           })}
@@ -170,18 +169,18 @@ export function AppNav() {
                 onClick={() => setMenuOpen((open) => !open)}
                 aria-expanded={menuOpen}
                 aria-haspopup="menu"
-                className="flex items-center gap-2.5 rounded-full border border-white/10 bg-white/[.04] py-1.5 pl-1.5 pr-3 transition hover:border-white/20 hover:bg-white/[.08]"
+                className="flex items-center gap-2.5 rounded-full border border-[rgba(23,23,20,0.1)] bg-white py-1.5 pl-1.5 pr-3 shadow-[0_1px_2px_rgba(28,27,24,0.05)] transition hover:border-[rgba(23,23,20,0.2)]"
               >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-400 text-sm font-bold text-white">
+                <span className="grid h-8 w-8 place-items-center rounded-full bg-neutral-900 text-sm font-bold text-white">
                   {identity.initial}
                 </span>
-                <span className="hidden max-w-[140px] truncate text-sm font-medium text-white/80 sm:block">
+                <span className="hidden max-w-[140px] truncate text-sm font-medium text-neutral-800 sm:block">
                   {identity.name}
                 </span>
                 <svg
                   width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-                  className={`text-white/50 transition-transform duration-300 ${menuOpen ? "rotate-180" : ""}`}
+                  className={`text-neutral-400 transition-transform duration-300 ${menuOpen ? "rotate-180" : ""}`}
                 >
                   <path d="m6 9 6 6 6-6" />
                 </svg>
@@ -191,13 +190,13 @@ export function AppNav() {
               <div
                 role="menu"
                 aria-label="Menu utilisateur"
-                className={`absolute right-0 top-[calc(100%+10px)] w-72 origin-top-right overflow-hidden rounded-2xl border border-white/10 bg-[#0d1220] shadow-2xl shadow-black/50 transition-all duration-200 ${
+                className={`absolute right-0 top-[calc(100%+10px)] w-72 origin-top-right overflow-hidden rounded-2xl border border-[rgba(23,23,20,0.09)] bg-white shadow-[0_24px_60px_-24px_rgba(28,27,24,0.35)] transition-all duration-200 ${
                   menuOpen ? "anim-scale-in opacity-100" : "pointer-events-none scale-95 opacity-0"
                 }`}
               >
-                <div className="border-b border-white/10 px-4 py-3.5">
-                  <p className="truncate text-sm font-semibold text-white">{identity.name}</p>
-                  {identity.email && <p className="mt-0.5 truncate text-xs text-white/45">{identity.email}</p>}
+                <div className="border-b border-[rgba(23,23,20,0.07)] px-4 py-3.5">
+                  <p className="truncate text-sm font-semibold text-neutral-900">{identity.name}</p>
+                  {identity.email && <p className="mt-0.5 truncate text-xs text-neutral-400">{identity.email}</p>}
                 </div>
                 <div className="p-1.5">
                   {SECONDARY_LINKS.map((link) => (
@@ -205,19 +204,19 @@ export function AppNav() {
                       key={link.href}
                       href={link.href}
                       role="menuitem"
-                      className="block rounded-xl px-3 py-2.5 transition hover:bg-white/[.06]"
+                      className="block rounded-xl px-3 py-2.5 transition hover:bg-neutral-100"
                     >
-                      <span className="block text-sm font-medium text-white/85">{link.label}</span>
-                      <span className="mt-0.5 block text-xs text-white/40">{link.hint}</span>
+                      <span className="block text-sm font-medium text-neutral-800">{link.label}</span>
+                      <span className="mt-0.5 block text-xs text-neutral-400">{link.hint}</span>
                     </Link>
                   ))}
                 </div>
-                <div className="border-t border-white/10 p-1.5">
+                <div className="border-t border-[rgba(23,23,20,0.07)] p-1.5">
                   <button
                     type="button"
                     role="menuitem"
                     onClick={async () => { closeMenus(); await logout(); window.location.href = "/login"; }}
-                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-300/90 transition hover:bg-red-400/10 hover:text-red-200"
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-600 transition hover:bg-red-50"
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -233,13 +232,13 @@ export function AppNav() {
             <div className="flex items-center gap-2">
               <Link
                 href="/login"
-                className="rounded-xl px-4 py-2 text-sm font-medium text-white/70 transition hover:bg-white/[.06] hover:text-white"
+                className="rounded-full border border-[rgba(23,23,20,0.12)] bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-[0_1px_2px_rgba(28,27,24,0.05)] transition hover:border-[rgba(23,23,20,0.22)]"
               >
                 Se connecter
               </Link>
               <Link
                 href="/signup"
-                className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-violet-600/25 transition hover:bg-violet-500"
+                className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-8px_rgba(28,27,24,0.55)] transition hover:bg-neutral-800"
               >
                 Créer un compte
               </Link>
@@ -252,7 +251,7 @@ export function AppNav() {
             onClick={() => setMobileOpen((open) => !open)}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
-            className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-white/[.04] text-white/70 transition hover:bg-white/[.08] lg:hidden"
+            className="grid h-10 w-10 place-items-center rounded-xl border border-[rgba(23,23,20,0.1)] bg-white text-neutral-600 transition hover:bg-neutral-100 lg:hidden"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
               {mobileOpen ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -263,8 +262,8 @@ export function AppNav() {
 
       {/* Panneau mobile */}
       <div
-        className={`overflow-hidden border-t border-white/10 bg-[#070a12]/95 backdrop-blur-xl transition-all duration-300 lg:hidden ${
-          mobileOpen ? "max-h-[420px] opacity-100" : "max-h-0 border-t-0 opacity-0"
+        className={`overflow-hidden border-t border-[rgba(23,23,20,0.07)] bg-[#f6f4ef]/95 backdrop-blur-xl transition-all duration-300 lg:hidden ${
+          mobileOpen ? "max-h-[520px] opacity-100" : "max-h-0 border-t-0 opacity-0"
         }`}
       >
         <nav aria-label="Navigation mobile" className="space-y-1 px-4 py-4">
@@ -277,25 +276,27 @@ export function AppNav() {
                 aria-current={active ? "page" : undefined}
                 onClick={closeMenus}
                 className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition ${
-                  active ? "bg-violet-600/15 text-white" : "text-white/60 hover:bg-white/[.05] hover:text-white"
+                  active ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-white"
                 }`}
               >
                 {link.label}
                 {link.badge && (
-                  <span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-300">
+                  <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                    active ? "bg-white/15 text-amber-200" : "bg-amber-100 text-amber-700"
+                  }`}>
                     {link.badge}
                   </span>
                 )}
               </Link>
             );
           })}
-          <div className="my-2 h-px bg-white/10" />
+          <div className="my-2 h-px bg-[rgba(23,23,20,0.08)]" />
           {SECONDARY_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               onClick={closeMenus}
-              className="block rounded-xl px-4 py-3 text-sm text-white/60 transition hover:bg-white/[.05] hover:text-white"
+              className="block rounded-xl px-4 py-3 text-sm text-neutral-600 transition hover:bg-white"
             >
               {link.label}
             </Link>

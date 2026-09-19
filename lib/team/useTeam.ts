@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp,
-  runTransaction, onSnapshot
+  runTransaction, onSnapshot, arrayUnion, getDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { useAuth } from '@/lib/firebase/auth-client';
@@ -43,11 +43,13 @@ export function useTeam(teamId?: string) {
     const normalizedDescription = (description ?? '').trim().slice(0, 2000);
     const teamRef = doc(collection(db, 'teams'));
     const memberRef = doc(db, 'teams', teamRef.id, 'members', user.uid);
-    const userTeamRef = doc(collection(db, 'userTeams'));
+    // L'identifiant du document userTeams doit etre l'UID Firebase : les
+    // regles Firestore n'autorisent l'ecriture que sur /userTeams/{uid}.
+    const userTeamRef = doc(db, 'userTeams', user.uid);
     await runTransaction(db, async (tx) => {
       tx.set(teamRef, { name: normalizedName, description: normalizedDescription, ownerId: user.uid, createdAt: serverTimestamp(), updatedAt: serverTimestamp(), memberCount: 1, isArchived: false });
       tx.set(memberRef, { userId: user.uid, email: user.email ?? '', displayName: user.displayName || 'Utilisateur', photoURL: user.photoURL || '', role: 'owner' as TeamRole, joinedAt: serverTimestamp(), invitedBy: user.uid });
-      tx.set(userTeamRef, { userId: user.uid, teamId: teamRef.id, role: 'owner' as TeamRole });
+      tx.set(userTeamRef, { userId: user.uid, teams: arrayUnion(teamRef.id), primaryTeam: teamRef.id }, { merge: true });
     });
     return teamRef.id;
   }, [user]);
@@ -61,24 +63,28 @@ export function useTeam(teamId?: string) {
     const invRef = await addDoc(collection(db, 'invitations'), { teamId, teamName: team?.name || '', invitedEmail: normalizedEmail, invitedBy: { userId: user.uid, displayName: user.displayName || '' }, role, status: 'pending', token, createdAt: serverTimestamp(), expiresAt });
     const response = await fetch('/api/team/invite', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invitationId: invRef.id, email: normalizedEmail, teamName: team?.name, token }) });
     if (!response.ok) throw new Error('Échec de l’envoi de l’invitation');
-    return invRef.id;
+    return token;
   }, [user, teamId, team]);
 
   const acceptInvitation = useCallback(async (invitation: TeamInvitation) => {
     if (!user) throw new Error('Non authentifié');
     const teamRef = doc(db, 'teams', invitation.teamId);
     const memberRef = doc(db, 'teams', invitation.teamId, 'members', user.uid);
-    const userTeamRef = doc(collection(db, 'userTeams'));
+    // Document identifie par l'UID Firebase, conformement aux regles Firestore.
+    const userTeamRef = doc(db, 'userTeams', user.uid);
     const invitationRef = doc(db, 'invitations', invitation.id);
     await runTransaction(db, async (tx) => {
       const [teamSnap, memberSnap, invitationSnap] = await Promise.all([tx.get(teamRef), tx.get(memberRef), tx.get(invitationRef)]);
       if (!teamSnap.exists()) throw new Error('Équipe introuvable');
       if (memberSnap.exists()) throw new Error('Utilisateur déjà membre de cette équipe');
       if (!invitationSnap.exists() || invitationSnap.data()?.status !== 'pending') throw new Error('Invitation invalide ou déjà utilisée');
+      const rawExpiry = invitationSnap.data()?.expiresAt;
+      const expiresAt = typeof rawExpiry?.toDate === 'function' ? rawExpiry.toDate() : null;
+      if (expiresAt && expiresAt.getTime() < Date.now()) throw new Error('Invitation expirée');
       const currentCount = Number(teamSnap.data()?.memberCount ?? 0);
       if (!Number.isSafeInteger(currentCount) || currentCount < 0) throw new Error('Compteur de membres invalide');
       tx.set(memberRef, { userId: user.uid, email: user.email ?? '', displayName: user.displayName || 'Utilisateur', photoURL: user.photoURL || '', role: invitation.role, joinedAt: serverTimestamp(), invitedBy: invitation.invitedBy.userId });
-      tx.set(userTeamRef, { userId: user.uid, teamId: invitation.teamId, role: invitation.role });
+      tx.set(userTeamRef, { userId: user.uid, teams: arrayUnion(invitation.teamId), primaryTeam: invitation.teamId }, { merge: true });
       tx.update(teamRef, { memberCount: currentCount + 1, updatedAt: serverTimestamp() });
       tx.update(invitationRef, { status: 'accepted' });
     });
@@ -88,6 +94,21 @@ export function useTeam(teamId?: string) {
     if (!teamId) return;
     await updateDoc(doc(db, 'teams', teamId, 'members', memberId), { role: newRole });
   }, [teamId]);
+
+  // Liste les equipes de l'utilisateur : lit le document userTeams/{uid}
+  // puis charge chaque equipe referencee.
+  const fetchMyTeams = useCallback(async (): Promise<Team[]> => {
+    if (!user) return [];
+    const userTeamSnap = await getDoc(doc(db, 'userTeams', user.uid));
+    const teamIds = (userTeamSnap.data()?.teams as string[] | undefined) ?? [];
+    const loaded = await Promise.all(
+      teamIds.map(async (id) => {
+        const snap = await getDoc(doc(db, 'teams', id));
+        return snap.exists() ? ({ id: snap.id, ...snap.data() } as Team) : null;
+      })
+    );
+    return loaded.filter((team): team is Team => team !== null && !team.isArchived);
+  }, [user]);
 
   const removeMember = useCallback(async (memberId: string) => {
     if (!teamId) return;
@@ -104,5 +125,5 @@ export function useTeam(teamId?: string) {
     });
   }, [teamId]);
 
-  return { team, members, loading, error, createTeam, inviteMember, acceptInvitation, updateMemberRole, removeMember };
+  return { team, members, loading, error, createTeam, inviteMember, acceptInvitation, updateMemberRole, removeMember, fetchMyTeams };
 }

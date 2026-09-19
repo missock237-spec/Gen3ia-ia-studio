@@ -79,10 +79,10 @@ export async function signInWithGitHub(): Promise<User> {
  * l'utilisateur revient sur /login apres le flux OAuth, cette fonction
  * recupere le resultat et etablit la session serveur.
  */
-export async function completerConnexionRedirect(): Promise<void> {
+export async function completerConnexionRedirect(redirectTo?: string | null): Promise<void> {
   const result = await getRedirectResult(auth);
   if (result?.user) {
-    await establishSession(result.user);
+    await establishSession(result.user, redirectTo);
   }
 }
 
@@ -169,10 +169,12 @@ export async function signUpWithEmail(
 
 /**
  * Etablit la session serveur (profil + wallet) apres une authentification
- * Firebase reussie, puis redirige vers le tableau de bord.
+ * Firebase reussie, puis redirige vers le tableau de bord (ou la destination
+ * `redirectTo` fournie : chemin interne uniquement, pour eviter les
+ * redirections ouvertes).
  * Remonte le message d'erreur exact du serveur pour faciliter le diagnostic.
  */
-export async function establishSession(user: User): Promise<void> {
+export async function establishSession(user: User, redirectTo?: string | null): Promise<void> {
   const token = await user.getIdToken(true);
   const response = await fetch("/api/auth/session", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
   if (!response.ok) {
@@ -183,7 +185,20 @@ export async function establishSession(user: User): Promise<void> {
     } catch { /* corps illisible : message generique */ }
     throw new Error(detail ? `Impossible d'etablir la session authentifiee (${detail}).` : "Impossible d'etablir la session authentifiee.");
   }
-  window.location.href = "/dashboard";
+  window.location.href = sanitizeRedirect(redirectTo) ?? "/dashboard";
+}
+
+/** N'accepte qu'un chemin interne relatif ("(("/")…") — bloque les URL externes. */
+export function sanitizeRedirect(target?: string | null): string | null {
+  if (!target) return null;
+  if (!target.startsWith("/") || target.startsWith("//")) return null;
+  return target;
+}
+
+/** Lit le parametre ?next= de l'URL courante (cote client). */
+export function readNextRedirect(): string | null {
+  if (typeof window === "undefined") return null;
+  return sanitizeRedirect(new URLSearchParams(window.location.search).get("next"));
 }
 
 /**

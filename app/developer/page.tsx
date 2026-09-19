@@ -166,32 +166,32 @@ export default function DeveloperPage() {
 
   if (sessionDisponible === false) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#070a12] p-6 text-white">
-        <div className="max-w-md rounded-3xl border border-white/10 bg-[#0d1220] p-8 text-center">
-          <h1 className="text-xl font-bold">Espace développeur</h1>
-          <p className="mt-2 text-sm text-white/60">Connectez-vous pour créer et publier des extensions Gen3ia.</p>
-          <Link href="/login" className="mt-6 inline-flex rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold">Se connecter</Link>
+      <main className="flex min-h-screen items-center justify-center bg-[#f6f4ef] p-6 text-neutral-900">
+        <div className="max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+          <h1 className="font-serif text-xl font-bold">Espace développeur</h1>
+          <p className="mt-2 text-sm text-neutral-600">Connectez-vous pour créer et publier des extensions Gen3ia.</p>
+          <Link href="/login" className="mt-6 inline-flex rounded-full bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800">Se connecter</Link>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#070a12] text-white p-5 md:p-8">
+    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-5 md:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA DEVELOPER STUDIO</div>
-            <h1 className="mt-2 text-3xl font-bold">Mes extensions</h1>
-            <p className="mt-2 text-white/60">Créez, testez, soumettez et monétisez vos extensions.</p>
+            <div className="text-xs tracking-[.3em] text-sky-700">GEN3IA DEVELOPER STUDIO</div>
+            <h1 className="mt-2 font-serif text-3xl font-bold">Mes extensions</h1>
+            <p className="mt-2 text-neutral-600">Créez, testez, soumettez et monétisez vos extensions.</p>
           </div>
           <div className="flex gap-3">
-            <Link href="/marketplace" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Marketplace</Link>
-            <Link href="/studio" className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Studio</Link>
+            <Link href="/marketplace" className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm hover:bg-neutral-50">Marketplace</Link>
+            <Link href="/studio" className="rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm hover:bg-neutral-50">Studio</Link>
           </div>
         </header>
 
-        {message && <div className="mb-5 rounded-xl border border-violet-400/20 bg-violet-400/5 p-4 text-sm text-white/80">{message}</div>}
+        {message && <div className="mb-5 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-neutral-800">{message}</div>}
 
         <section className="mb-8 grid gap-4 md:grid-cols-4">
           <Stat title="Extensions" value={String(extensions.length)} />
@@ -201,9 +201,9 @@ export default function DeveloperPage() {
         </section>
 
         <section className="mb-8 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-          <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-            <h2 className="text-xl font-semibold">Créer une extension (manifest)</h2>
-            <p className="mt-2 text-sm text-white/55">
+          <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+            <h2 className="font-serif text-xl font-semibold">Créer une extension (manifest)</h2>
+            <p className="mt-2 text-sm text-neutral-500">
               Le manifest déclare tools, skills, workflows, permissions, secrets et prix.
               Il est validé côté serveur à chaque étape. Aucun code tiers n’est exécuté :
               les tools sont des connecteurs HTTPS déclaratifs.
@@ -211,28 +211,28 @@ export default function DeveloperPage() {
             <textarea
               value={manifest}
               onChange={(event) => setManifest(event.target.value)}
-              className="mt-4 min-h-80 w-full resize-y rounded-2xl border border-white/10 bg-black/30 p-4 font-mono text-xs leading-5 outline-none focus:border-violet-400/60"
+              className="mt-4 min-h-80 w-full resize-y rounded-2xl border border-[rgba(23,23,20,0.09)] bg-white p-4 font-mono text-xs leading-5 outline-none focus:border-sky-300"
               spellCheck={false}
             />
-            <button disabled={busy} onClick={createExtension} className="mt-4 rounded-xl bg-violet-600 px-5 py-3 text-sm font-semibold disabled:opacity-40">
+            <button disabled={busy} onClick={createExtension} className="mt-4 rounded-full bg-neutral-900 px-5 py-3 text-sm font-semibold text-white hover:bg-neutral-800 disabled:opacity-40">
               Créer l’extension
             </button>
           </div>
 
           <div className="space-y-5">
-            <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-              <h2 className="text-lg font-semibold">Clés SDK / API</h2>
-              <p className="mt-1 text-xs text-white/45">Authentifie l’API développeur depuis vos outils CI (`Authorization: Bearer g3x_…`).</p>
+            <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+              <h2 className="font-serif text-lg font-semibold">Clés SDK / API</h2>
+              <p className="mt-1 text-xs text-neutral-500">Authentifie l’API développeur depuis vos outils CI (`Authorization: Bearer g3x_…`).</p>
               {newKey && (
-                <div className="mt-3 rounded-xl border border-emerald-400/25 bg-emerald-400/5 p-3">
-                  <div className="text-xs text-emerald-300">Nouvelle clé (affichée une seule fois) :</div>
-                  <code className="mt-1 block overflow-x-auto font-mono text-xs text-emerald-200">{newKey}</code>
+                <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                  <div className="text-xs text-emerald-600">Nouvelle clé (affichée une seule fois) :</div>
+                  <code className="mt-1 block overflow-x-auto font-mono text-xs text-emerald-700">{newKey}</code>
                 </div>
               )}
-              <button disabled={busy} onClick={createApiKey} className="mt-3 rounded-xl border border-white/15 bg-white/[.04] px-4 py-2.5 text-sm font-semibold hover:bg-white/[.08]">Générer une clé</button>
-              <ul className="mt-4 space-y-2 text-xs text-white/50">
+              <button disabled={busy} onClick={createApiKey} className="mt-3 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold hover:bg-neutral-50">Générer une clé</button>
+              <ul className="mt-4 space-y-2 text-xs text-neutral-500">
                 {apiKeys.map((key, index) => (
-                  <li key={index} className="flex items-center justify-between rounded-lg bg-white/[.03] px-3 py-2">
+                  <li key={index} className="flex items-center justify-between rounded-lg bg-neutral-50 px-3 py-2">
                     <span className="font-mono">{key.prefix}…</span>
                     <span>{key.status}</span>
                   </li>
@@ -240,56 +240,56 @@ export default function DeveloperPage() {
               </ul>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-              <h2 className="text-lg font-semibold">Revenus</h2>
+            <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+              <h2 className="font-serif text-lg font-semibold">Revenus</h2>
               {revenue ? (
-                <div className="mt-3 space-y-1 text-sm text-white/65">
+                <div className="mt-3 space-y-1 text-sm text-neutral-600">
                   <div>Brut : {(revenue.totalGrossMinor / 100).toLocaleString("fr-FR")} {revenue.currency}</div>
                   <div>Commission plateforme : {(revenue.totalFeeMinor / 100).toLocaleString("fr-FR")} {revenue.currency}</div>
-                  <div className="font-semibold text-emerald-300">Net : {(revenue.totalNetMinor / 100).toLocaleString("fr-FR")} {revenue.currency}</div>
-                  <p className="mt-2 text-xs text-white/40">{revenue.entries} transactions vérifiées (wallet/Chariow).</p>
+                  <div className="font-semibold text-emerald-600">Net : {(revenue.totalNetMinor / 100).toLocaleString("fr-FR")} {revenue.currency}</div>
+                  <p className="mt-2 text-xs text-neutral-400">{revenue.entries} transactions vérifiées (wallet/Chariow).</p>
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-white/40">Aucun revenu pour le moment.</p>
+                <p className="mt-2 text-sm text-neutral-400">Aucun revenu pour le moment.</p>
               )}
             </div>
           </div>
         </section>
 
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Mes extensions publiées</h2>
-          {extensions.length === 0 && <p className="text-sm text-white/40">Aucune extension — créez la première ci-dessus.</p>}
+          <h2 className="font-serif text-xl font-semibold">Mes extensions publiées</h2>
+          {extensions.length === 0 && <p className="text-sm text-neutral-400">Aucune extension — créez la première ci-dessus.</p>}
           {extensions.map((extension) => (
-            <div key={extension.id} className="rounded-3xl border border-white/10 bg-[#0d1220] p-5">
+            <div key={extension.id} className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">{extension.name}</h3>
                     <span className={`rounded-full px-2.5 py-0.5 text-[11px] ${
-                      extension.status === "approved" ? "bg-emerald-400/10 text-emerald-300" :
-                      extension.status === "pending" ? "bg-amber-400/10 text-amber-300" :
-                      extension.status === "rejected" || extension.status === "suspended" ? "bg-red-400/10 text-red-300" :
-                      "bg-white/5 text-white/50"
+                      extension.status === "approved" ? "bg-emerald-100 text-emerald-600" :
+                      extension.status === "pending" ? "bg-amber-100 text-amber-700" :
+                      extension.status === "rejected" || extension.status === "suspended" ? "bg-red-50 text-red-600" :
+                      "bg-neutral-100 text-neutral-500"
                     }`}>{extension.status}</span>
                   </div>
-                  <p className="mt-1 text-xs text-white/45">
+                  <p className="mt-1 text-xs text-neutral-500">
                     {extension.id} · v{extension.latestVersion} · {extension.stats.installs} install. · {extension.stats.executions} exéc.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => void loadLogs(extension.id)} className="rounded-lg border border-white/15 bg-white/[.04] px-3 py-2 text-xs font-semibold hover:bg-white/[.08]">Logs</button>
-                  <button disabled={busy || extension.status === "approved"} onClick={() => submit(extension.id, extension.latestVersion)} className="rounded-lg bg-violet-600 px-3 py-2 text-xs font-semibold disabled:opacity-40">Soumettre v{extension.latestVersion}</button>
+                  <button onClick={() => void loadLogs(extension.id)} className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs font-semibold hover:bg-neutral-50">Logs</button>
+                  <button disabled={busy || extension.status === "approved"} onClick={() => submit(extension.id, extension.latestVersion)} className="rounded-full bg-neutral-900 px-3 py-2 text-xs font-semibold text-white hover:bg-neutral-800 disabled:opacity-40">Soumettre v{extension.latestVersion}</button>
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {extension.permissions.map((permission) => (
-                  <span key={permission} className="rounded-md bg-white/5 px-2 py-0.5 font-mono text-[10px] text-white/45">{permission}</span>
+                  <span key={permission} className="rounded-md bg-neutral-100 px-2 py-0.5 font-mono text-[10px] text-neutral-500">{permission}</span>
                 ))}
               </div>
               {selected === extension.id && (
-                <div className="mt-4 rounded-xl border border-white/10 bg-black/25 p-4">
-                  <div className="text-xs uppercase tracking-widest text-white/40">Dernières exécutions</div>
-                  <ul className="mt-2 space-y-1 font-mono text-[11px] text-white/55">
+                <div className="mt-4 rounded-xl border border-neutral-200 bg-neutral-50 p-4">
+                  <div className="text-xs uppercase tracking-widest text-neutral-400">Dernières exécutions</div>
+                  <ul className="mt-2 space-y-1 font-mono text-[11px] text-neutral-500">
                     {logs.map((log, index) => (
                       <li key={index}>
                         {String(log.createdAt ? new Date(Number(log.createdAt)).toLocaleString("fr-FR") : "")} · {String(log.toolId)} · {String(log.status)} · {String(log.durationMs)}ms{log.error ? ` · ${String(log.error).slice(0, 120)}` : ""}
@@ -309,8 +309,8 @@ export default function DeveloperPage() {
 
 function Stat({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#0d1220] p-5">
-      <div className="text-xs text-white/45">{title}</div>
+    <div className="rounded-2xl border border-[rgba(23,23,20,0.09)] bg-white p-5 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+      <div className="text-xs text-neutral-500">{title}</div>
       <div className="mt-2 text-xl font-bold">{value}</div>
     </div>
   );

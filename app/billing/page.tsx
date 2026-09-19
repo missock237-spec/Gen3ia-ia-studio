@@ -128,7 +128,7 @@ export default function BillingPage() {
   };
 
   if (sessionDisponible === false) {
-    return <main style={styles.main}><section style={styles.card}><h1>Financement Gen3ia</h1><p>Connectez-vous pour consulter votre solde et recharger votre compte.</p></section></main>;
+    return <main style={styles.main}><section style={styles.card}><h1 className="font-serif">Financement Gen3ia</h1><p>Connectez-vous pour consulter votre solde et recharger votre compte.</p></section></main>;
   }
 
   const currency = wallet?.currency ?? "XAF";
@@ -144,11 +144,11 @@ export default function BillingPage() {
     </div>
     <section style={styles.card}>
       <div style={styles.eyebrow}>GEN3IA WALLET</div>
-      <h1>Solde de votre compte</h1>
-      {wallet?.welcomeGranted && <div style={styles.welcome}>🎁 Solde de démonstration : {welcome} {currency} offerts une seule fois à l&apos;ouverture du compte.</div>}
+      <h1 className="font-serif">Solde de votre compte</h1>
+      {wallet?.welcomeGranted && <div style={styles.welcome}>Solde de démonstration : {welcome} {currency} offerts une seule fois à l&apos;ouverture du compte.</div>}
       <div style={styles.balance}>{loading ? "…" : `${amount} ${currency}`}</div>
       <p style={styles.muted}>Disponible : {available} {currency} · Réservé : {reserved} {currency}</p>
-      {empty && <div style={styles.locked}>🔒 <strong>Agents IA arrêtés</strong><br />Votre solde disponible est à 0. Rechargez votre portefeuille pour reprendre les exécutions.</div>}
+      {empty && <div style={styles.locked}><strong>Agents IA arrêtés</strong><br />Votre solde disponible est à 0. Rechargez votre portefeuille pour reprendre les exécutions.</div>}
 
       {phase === "phone"
         ? <form onSubmit={submitPhone} style={styles.phoneForm}>
@@ -172,19 +172,19 @@ export default function BillingPage() {
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#080b14", color: "#f5f7ff" },
-  card: { width: "100%", maxWidth: 620, padding: 32, borderRadius: 24, border: "1px solid #242a3d", background: "#101522", boxShadow: "0 20px 70px rgba(0,0,0,.35)" },
+  main: { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f6f4ef", color: "#171717" },
+  card: { width: "100%", maxWidth: 620, padding: 32, borderRadius: 24, border: "1px solid rgba(23,23,20,0.09)", background: "#ffffff", boxShadow: "0 14px 40px -18px rgba(28,27,24,0.22)" },
   eyebrow: { fontSize: 12, letterSpacing: 2, opacity: .65, marginBottom: 10 },
-  welcome: { marginTop: 18, padding: 14, borderRadius: 12, background: "#17213a", border: "1px solid #2c3d67", fontSize: 14, lineHeight: 1.5 },
+  welcome: { marginTop: 18, padding: 14, borderRadius: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 14, lineHeight: 1.5 },
   balance: { fontSize: 44, fontWeight: 800, margin: "24px 0 8px" },
   muted: { opacity: .7 },
-  locked: { marginTop: 18, padding: 16, borderRadius: 12, background: "#351923", border: "1px solid #6a3040", color: "#ffd6dc", lineHeight: 1.5 },
+  locked: { marginTop: 18, padding: 16, borderRadius: 12, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", lineHeight: 1.5 },
   note: { marginTop: 20, fontSize: 13, lineHeight: 1.6, opacity: .6 },
   phoneForm: { marginTop: 24, display: "grid", gap: 10 },
   label: { fontSize: 13, opacity: .75 },
-  input: { width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid #2c3550", background: "#0b1120", color: "#f5f7ff", fontSize: 15 },
-  button: { marginTop: 8, width: "100%", border: 0, borderRadius: 12, padding: "14px 18px", fontWeight: 700, cursor: "pointer", background: "#6d5dfc", color: "white" },
-  success: { marginTop: 16, padding: 12, borderRadius: 10, background: "#12301f", border: "1px solid #2e5e40", color: "#9ff0bb", lineHeight: 1.5 },
-  notice: { marginTop: 16, padding: 12, borderRadius: 10, background: "#17213a", border: "1px solid #2c3d67", color: "#c9d6ff", lineHeight: 1.5 },
-  error: { marginTop: 16, color: "#ff7b8a" },
+  input: { width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 10, border: "1px solid rgba(23,23,20,0.09)", background: "#ffffff", color: "#171717", fontSize: 15 },
+  button: { marginTop: 8, width: "100%", border: 0, borderRadius: 999, padding: "14px 18px", fontWeight: 700, cursor: "pointer", background: "#171717", color: "white" },
+  success: { marginTop: 16, padding: 12, borderRadius: 10, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", lineHeight: 1.5 },
+  notice: { marginTop: 16, padding: 12, borderRadius: 10, background: "#f0f9ff", border: "1px solid #bae6fd", color: "#0369a1", lineHeight: 1.5 },
+  error: { marginTop: 16, color: "#dc2626" },
 };

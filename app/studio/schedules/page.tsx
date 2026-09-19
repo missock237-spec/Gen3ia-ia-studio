@@ -121,42 +121,42 @@ export default function AgentSchedulesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
+    <main className="min-h-screen bg-[#f6f4ef] p-5 text-neutral-900 md:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="text-xs tracking-[.3em] text-violet-300">GEN3IA · AUTOMATION</div>
-            <h1 className="mt-2 text-3xl font-bold">Planification des agents</h1>
-            <p className="mt-2 max-w-2xl text-white/55">Définissez les jours et la fenêtre horaire pendant lesquels un agent peut être activé automatiquement. Le serveur applique la fenêtre et le fuseau horaire, même si l’utilisateur ferme l’application.</p>
+            <div className="g3-eyebrow">GEN3IA · AUTOMATION</div>
+            <h1 className="mt-2 font-serif text-3xl font-semibold">Planification des agents</h1>
+            <p className="mt-2 max-w-2xl text-neutral-500">Définissez les jours et la fenêtre horaire pendant lesquels un agent peut être activé automatiquement. Le serveur applique la fenêtre et le fuseau horaire, même si l’utilisateur ferme l’application.</p>
           </div>
-          <Link href="/studio" className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">← Retour au Studio</Link>
+          <Link href="/studio" className="rounded-xl border border-[rgba(23,23,20,0.09)] bg-white px-4 py-2 text-sm hover:bg-neutral-100">← Retour au Studio</Link>
         </header>
 
         <section className="grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-          <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-            <div className="flex items-center justify-between"><h2 className="text-xl font-semibold">Nouvelle planification</h2><span className="rounded-full bg-emerald-400/10 px-3 py-1 text-xs text-emerald-300">Fuseau serveur contrôlé</span></div>
+          <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+            <div className="flex items-center justify-between"><h2 className="font-serif text-xl font-semibold">Nouvelle planification</h2><span className="rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs text-emerald-600">Fuseau serveur contrôlé</span></div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <label className="text-sm text-white/65">Nom<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent du matin" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white outline-none focus:border-violet-400/60" /></label>
-              <label className="text-sm text-white/65">ID de l’agent<input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="agent_..." className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white outline-none focus:border-violet-400/60" /></label>
+              <label className="text-sm text-neutral-600">Nom<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agent du matin" className="g3-input mt-2" /></label>
+              <label className="text-sm text-neutral-600">ID de l’agent<input value={agentId} onChange={(e) => setAgentId(e.target.value)} placeholder="agent_..." className="g3-input mt-2" /></label>
             </div>
-            <label className="mt-4 block text-sm text-white/65">Objectif<textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Ex. Surveille les nouveautés de mon secteur et prépare un rapport." className="mt-2 min-h-28 w-full resize-y rounded-xl border border-white/10 bg-black/20 p-3 text-white outline-none focus:border-violet-400/60" /></label>
-            <div className="mt-5"><div className="text-sm text-white/65">Jours actifs</div><div className="mt-2 flex flex-wrap gap-2">{days.map(([value, label]) => <button type="button" key={value} onClick={() => toggleDay(value)} className={`rounded-xl border px-3 py-2 text-sm ${selectedDays.includes(value) ? "border-violet-400/50 bg-violet-500/20 text-violet-100" : "border-white/10 bg-white/[.03] text-white/50"}`}>{label}</button>)}</div></div>
+            <label className="mt-4 block text-sm text-neutral-600">Objectif<textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Ex. Surveille les nouveautés de mon secteur et prépare un rapport." className="g3-textarea mt-2 min-h-28" /></label>
+            <div className="mt-5"><div className="text-sm text-neutral-600">Jours actifs</div><div className="mt-2 flex flex-wrap gap-2">{days.map(([value, label]) => <button type="button" key={value} onClick={() => toggleDay(value)} className={`rounded-xl border px-3 py-2 text-sm ${selectedDays.includes(value) ? "border-sky-200 bg-sky-100 text-sky-700" : "border-[rgba(23,23,20,0.09)] bg-neutral-50 text-neutral-500"}`}>{label}</button>)}</div></div>
             <div className="mt-5 grid gap-4 md:grid-cols-3">
-              <label className="text-sm text-white/65">Activation<input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white" /></label>
-              <label className="text-sm text-white/65">Arrêt<input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white" /></label>
-              <label className="text-sm text-white/65">Répétition<input type="number" min={0} max={1440} value={intervalMinutes} onChange={(e) => setIntervalMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white" /><span className="mt-1 block text-xs text-white/35">0 = une activation au début de la fenêtre</span></label>
+              <label className="text-sm text-neutral-600">Activation<input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="g3-input mt-2" /></label>
+              <label className="text-sm text-neutral-600">Arrêt<input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="g3-input mt-2" /></label>
+              <label className="text-sm text-neutral-600">Répétition<input type="number" min={0} max={1440} value={intervalMinutes} onChange={(e) => setIntervalMinutes(Math.max(0, Math.min(1440, Number(e.target.value) || 0)))} className="g3-input mt-2" /><span className="mt-1 block text-xs text-neutral-400">0 = une activation au début de la fenêtre</span></label>
             </div>
-            <label className="mt-4 block text-sm text-white/65">Fuseau horaire<input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Africa/Douala" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-white" /></label>
-            <div className="mt-4 rounded-xl border border-white/10 bg-white/[.03] p-3 text-sm text-white/60">{summary} · {timezone}</div>
-            <button disabled={busy || !user || !name.trim() || !agentId.trim() || objective.trim().length < 3 || selectedDays.length === 0} onClick={create} className="mt-4 w-full rounded-xl bg-violet-600 px-5 py-3 font-semibold disabled:opacity-40">Enregistrer la planification</button>
-            {message && <div className="mt-4 rounded-xl border border-violet-400/20 bg-violet-400/5 p-3 text-sm text-white/75">{message}</div>}
+            <label className="mt-4 block text-sm text-neutral-600">Fuseau horaire<input value={timezone} onChange={(e) => setTimezone(e.target.value)} placeholder="Africa/Douala" className="g3-input mt-2" /></label>
+            <div className="mt-4 rounded-xl border border-[rgba(23,23,20,0.09)] bg-neutral-50 p-3 text-sm text-neutral-600">{summary} · {timezone}</div>
+            <button disabled={busy || !user || !name.trim() || !agentId.trim() || objective.trim().length < 3 || selectedDays.length === 0} onClick={create} className="g3-btn g3-btn-primary mt-4 w-full">Enregistrer la planification</button>
+            {message && <div className="mt-4 rounded-xl border border-violet-200 bg-violet-100 p-3 text-sm text-violet-700">{message}</div>}
           </div>
 
-          <div className="rounded-3xl border border-white/10 bg-[#0d1220] p-6">
-            <h2 className="text-xl font-semibold">Vos planifications</h2>
-            <p className="mt-2 text-sm text-white/45">La planification est stockée dans Firestore et traitée côté serveur.</p>
+          <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
+            <h2 className="font-serif text-xl font-semibold">Vos planifications</h2>
+            <p className="mt-2 text-sm text-neutral-500">La planification est stockée dans Firestore et traitée côté serveur.</p>
             <div className="mt-5 space-y-3">
-              {schedules.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-white/40">Aucune planification.</div> : schedules.map((schedule) => <article key={schedule.id} className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{schedule.name}</h3><p className="mt-1 text-xs text-white/40">{schedule.agentId}</p></div><span className={`rounded-full px-2 py-1 text-[10px] uppercase ${schedule.enabled ? "bg-emerald-400/10 text-emerald-300" : "bg-white/10 text-white/40"}`}>{schedule.enabled ? "active" : "pause"}</span></div><p className="mt-3 line-clamp-2 text-sm text-white/55">{schedule.objective}</p><div className="mt-3 text-xs text-white/45">{days.filter(([value]) => schedule.daysOfWeek.includes(value)).map(([, label]) => label).join(" · ")} · {schedule.startTime} → {schedule.endTime}</div><div className="mt-1 text-xs text-white/35">{schedule.timezone}{schedule.intervalMinutes ? ` · toutes les ${schedule.intervalMinutes} min` : " · au début de la fenêtre"}</div><div className="mt-4 flex gap-2"><button disabled={busy} onClick={() => toggle(schedule)} className="rounded-lg border border-white/10 px-3 py-2 text-xs hover:bg-white/10">{schedule.enabled ? "Mettre en pause" : "Activer"}</button><button disabled={busy} onClick={() => remove(schedule)} className="rounded-lg border border-red-400/20 px-3 py-2 text-xs text-red-300 hover:bg-red-400/10">Supprimer</button></div></article>)}
+              {schedules.length === 0 ? <div className="rounded-2xl border border-dashed border-neutral-300 p-6 text-center text-sm text-neutral-400">Aucune planification.</div> : schedules.map((schedule) => <article key={schedule.id} className="rounded-2xl border border-[rgba(23,23,20,0.09)] bg-neutral-50 p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{schedule.name}</h3><p className="mt-1 text-xs text-neutral-400">{schedule.agentId}</p></div><span className={`rounded-full px-2 py-1 text-[10px] uppercase ${schedule.enabled ? "bg-emerald-100 text-emerald-600" : "bg-neutral-200/70 text-neutral-500"}`}>{schedule.enabled ? "active" : "pause"}</span></div><p className="mt-3 line-clamp-2 text-sm text-neutral-500">{schedule.objective}</p><div className="mt-3 text-xs text-neutral-500">{days.filter(([value]) => schedule.daysOfWeek.includes(value)).map(([, label]) => label).join(" · ")} · {schedule.startTime} → {schedule.endTime}</div><div className="mt-1 text-xs text-neutral-400">{schedule.timezone}{schedule.intervalMinutes ? ` · toutes les ${schedule.intervalMinutes} min` : " · au début de la fenêtre"}</div><div className="mt-4 flex gap-2"><button disabled={busy} onClick={() => toggle(schedule)} className="rounded-lg border border-[rgba(23,23,20,0.09)] bg-white px-3 py-2 text-xs hover:bg-neutral-100">{schedule.enabled ? "Mettre en pause" : "Activer"}</button><button disabled={busy} onClick={() => remove(schedule)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600 hover:bg-red-100">Supprimer</button></div></article>)}
             </div>
           </div>
         </section>

@@ -251,8 +251,8 @@ export default function InterfaceLabPage() {
 
   if (checking) {
     return (
-      <main className="min-h-screen bg-[#070a12] p-4 text-white md:p-8">
-        <div className="mx-auto max-w-6xl pt-20 text-center text-sm text-white/50">
+      <main className="min-h-screen bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
+        <div className="mx-auto max-w-6xl pt-20 text-center text-sm text-neutral-500">
           Verification de votre acces<span className="g3-dots"><span /><span /><span /></span>
         </div>
       </main>
@@ -261,15 +261,15 @@ export default function InterfaceLabPage() {
 
   if (access !== true) {
     return (
-      <main className="min-h-screen bg-[#070a12] p-4 text-white md:p-8">
+      <main className="min-h-screen bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
         <div className="mx-auto max-w-2xl pt-16">
           <div className="g3-card anim-scale-in p-8 text-center md:p-12">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 anim-float">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-cyan-300"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6" /></svg>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 anim-float">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-sky-700"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6" /></svg>
             </div>
             <div className="g3-eyebrow mt-6">Acces exclusif</div>
-            <h1 className="mt-2 text-2xl font-black md:text-3xl">Atelier reserve aux agents de code</h1>
-            <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-white/55">
+            <h1 className="mt-2 font-serif text-2xl font-semibold md:text-3xl">Atelier reserve aux agents de code</h1>
+            <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-neutral-500">
               {accessMessage || "L'Atelier d'Interfaces est une fonctionnalite premium reservee aux agents de type « code ». Creez un agent de code dans le Studio, activez-le, puis revenez : l'atelier se deverrouillera automatiquement."}
             </p>
             <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
@@ -283,21 +283,21 @@ export default function InterfaceLabPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070a12] text-white p-4 md:p-8">
+    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
             <div className="g3-eyebrow">EXCLUSIVITE AGENTS DE CODE</div>
             {usage && (
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white/60">
+              <span className="rounded-full border border-[rgba(23,23,20,0.09)] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-600">
                 21st.dev · {usage.tier} · {usage.freeRetrievalsRemaining ?? "?"}/{usage.freeRetrievalsPerDay ?? "?"} recuperations aujourd&apos;hui
               </span>
             )}
           </div>
-          <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
+          <h1 className="mt-2 font-serif text-3xl font-semibold tracking-tight md:text-4xl">
             Atelier <span className="gradient-text">d&apos;Interfaces</span>
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-white/55 md:text-base">
+          <p className="mt-2 max-w-2xl text-sm text-neutral-500 md:text-base">
             Recherchez des composants, themes et logos professionnels dans le catalogue 21st.dev, recuperez leur code source, puis faites-les adapter au design system Gen3ia par vos propres agents.
           </p>
         </header>
@@ -332,12 +332,12 @@ export default function InterfaceLabPage() {
               {loading ? <>Recherche<span className="g3-dots"><span /><span /><span /></span></> : "Rechercher"}
             </button>
           </div>
-          {tab === "logos" && <p className="mt-2 text-xs text-white/40">Recherche de logos SVG de marque (gratuite et illimitee via svgl.app).</p>}
-          {tab !== "logos" && <p className="mt-2 text-xs text-white/40">Recherche illimitee. La recuperation du code complet est quantifiee (les resultats deja recuperees sont servis depuis le cache sans consommer de quota).</p>}
+          {tab === "logos" && <p className="mt-2 text-xs text-neutral-400">Recherche de logos SVG de marque (gratuite et illimitee via svgl.app).</p>}
+          {tab !== "logos" && <p className="mt-2 text-xs text-neutral-400">Recherche illimitee. La recuperation du code complet est quantifiee (les resultats deja recuperees sont servis depuis le cache sans consommer de quota).</p>}
         </div>
 
-        {note && <div className="anim-fade-in mt-4 rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm text-white/60">{note}</div>}
-        {error && <div className="anim-fade-in mt-4 rounded-2xl border border-red-400/20 bg-red-400/5 p-4 text-sm text-red-100/90">{error}</div>}
+        {note && <div className="anim-fade-in mt-4 rounded-2xl border border-[rgba(23,23,20,0.09)] bg-neutral-50 p-4 text-sm text-neutral-600">{note}</div>}
+        {error && <div className="anim-fade-in mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>}
 
         {/* Resultats */}
         {tab === "logos" && logos.length > 0 && (
@@ -357,34 +357,34 @@ export default function InterfaceLabPage() {
         )}
 
         {tab === "logos" && !loading && logos.length === 0 && query.trim().length >= 2 && !error && (
-          <div className="anim-fade-in mt-8 text-center text-sm text-white/40">Aucun logo trouve pour cette recherche — le service de logos (svgl.app) est peut-etre momentanement indisponible.</div>
+          <div className="anim-fade-in mt-8 text-center text-sm text-neutral-400">Aucun logo trouve pour cette recherche — le service de logos (svgl.app) est peut-etre momentanement indisponible.</div>
         )}
 
         {tab !== "logos" && results.length > 0 && (
           <div className="anim-fade-up mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {results.map((item, index) => (
               <article key={`${item.kind}-${item.id}`} className="g3-card card-glow overflow-hidden" style={{ animationDelay: `${index * 0.05}s` }}>
-                <div className="relative aspect-video bg-black/40">
+                <div className="relative aspect-video bg-neutral-100">
                   {item.previewUrl ? (
                     <img src={item.previewUrl} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-white/30">Apercu indisponible</div>
+                    <div className="flex h-full items-center justify-center text-xs text-neutral-400">Apercu indisponible</div>
                   )}
-                  <span className="absolute left-2 top-2 rounded-full border border-white/15 bg-black/60 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white/80 backdrop-blur">
+                  <span className="absolute left-2 top-2 rounded-full border border-neutral-200 bg-white/85 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-neutral-700 backdrop-blur">
                     {KIND_LABELS[item.kind] ?? item.kind}
                   </span>
                 </div>
                 <div className="p-4">
                   <h3 className="truncate text-sm font-bold">{item.name}</h3>
-                  <p className="text-xs text-violet-300/80">par {item.author}</p>
-                  {item.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/50">{item.description}</p>}
+                  <p className="text-xs text-sky-700">par {item.author}</p>
+                  {item.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-neutral-500">{item.description}</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(item.kind === "theme" ? ["theme", "component"] : ["component"]).includes(item.kind) || item.kind === "theme" ? (
                       <button type="button" className="g3-btn g3-btn-primary !px-3 !py-2 text-xs" onClick={() => openDetail(item.kind === "theme" ? "theme" : "component", item.id, item.name, item.description, item.author)}>
                         {item.kind === "theme" ? "Voir le theme" : "Voir le code"}
                       </button>
                     ) : (
-                      <span className="rounded-lg border border-white/10 bg-white/[.04] px-3 py-2 text-xs text-white/40">Metadata uniquement</span>
+                      <span className="rounded-lg border border-[rgba(23,23,20,0.09)] bg-neutral-50 px-3 py-2 text-xs text-neutral-400">Metadata uniquement</span>
                     )}
                     {item.pageUrl && (
                       <a href={item.pageUrl} target="_blank" rel="noopener noreferrer" className="g3-btn g3-btn-ghost !px-3 !py-2 text-xs">Page</a>
@@ -397,18 +397,18 @@ export default function InterfaceLabPage() {
         )}
 
         {tab !== "logos" && !loading && results.length === 0 && query.trim().length >= 2 && !error && (
-          <div className="mt-8 text-center text-sm text-white/40">Aucun resultat. Essayez d&apos;autres mots-cles.</div>
+          <div className="mt-8 text-center text-sm text-neutral-400">Aucun resultat. Essayez d&apos;autres mots-cles.</div>
         )}
       </div>
 
       {/* Drawer de detail */}
       {detail && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Detail ${detail.name}`} onClick={() => setDetail(null)}>
-          <div className="g3-drawer h-full w-full max-w-3xl overflow-y-auto border-l border-white/10 bg-[#0a0e18] p-5 md:p-7" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex justify-end bg-neutral-900/45 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`Detail ${detail.name}`} onClick={() => setDetail(null)}>
+          <div className="g3-drawer h-full w-full max-w-3xl overflow-y-auto border-l border-[rgba(23,23,20,0.09)] bg-white p-5 shadow-[0_14px_40px_-18px_rgba(28,27,24,0.22)] md:p-7" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-black">{detail.name}</h2>
-                <p className="mt-1 text-xs text-white/45">
+                <h2 className="font-serif text-xl font-semibold">{detail.name}</h2>
+                <p className="mt-1 text-xs text-neutral-500">
                   {detail.kind === "theme" ? "Tokens CSS du theme" : "Code source du composant"}
                   {cached && " · servi depuis le cache (0 quota consomme)"}
                 </p>
@@ -421,7 +421,7 @@ export default function InterfaceLabPage() {
                 {component && (
                   <div className="flex flex-wrap gap-2">
                     {component.code && <button type="button" className="g3-btn g3-btn-ghost text-xs" onClick={() => copy(component.code ?? "", "code")}>{copied === "code" ? "Copie ✓" : "Copier le code"}</button>}
-                    {component.installCommand && <code className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-[11px] text-white/60">{component.installCommand}</code>}
+                    {component.installCommand && <code className="rounded-lg border border-neutral-800 bg-neutral-900 px-3 py-2 text-[11px] text-neutral-300">{component.installCommand}</code>}
                   </div>
                 )}
                 <button type="button" className="g3-btn g3-btn-primary" disabled={adapting || (!component?.code && !quotaBlocked)} onClick={adaptForGen3ia}>
@@ -430,7 +430,7 @@ export default function InterfaceLabPage() {
                 {adapted && (
                   <div className="anim-slide-up">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-emerald-300">Version Gen3ia</h3>
+                      <h3 className="text-sm font-bold text-emerald-600">Version Gen3ia</h3>
                       <button type="button" className="g3-btn g3-btn-cyan !px-3 !py-1.5 text-xs" onClick={() => copy(adapted, "adapted")}>{copied === "adapted" ? "Copie ✓" : "Copier"}</button>
                     </div>
                     <pre className="g3-code">{adapted}</pre>
@@ -439,7 +439,7 @@ export default function InterfaceLabPage() {
                 {component?.code && <pre className="g3-code">{component.code}</pre>}
                 {component?.demo && (
                   <div>
-                    <h3 className="mb-2 text-sm font-bold text-white/70">Exemple d&apos;utilisation</h3>
+                    <h3 className="mb-2 text-sm font-bold text-neutral-600">Exemple d&apos;utilisation</h3>
                     <pre className="g3-code">{component.demo}</pre>
                   </div>
                 )}
@@ -455,7 +455,7 @@ export default function InterfaceLabPage() {
                 {adapted && (
                   <div className="anim-slide-up">
                     <div className="mb-2 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-emerald-300">Palette Gen3ia</h3>
+                      <h3 className="text-sm font-bold text-emerald-600">Palette Gen3ia</h3>
                       <button type="button" className="g3-btn g3-btn-cyan !px-3 !py-1.5 text-xs" onClick={() => copy(adapted, "adapted")}>{copied === "adapted" ? "Copie ✓" : "Copier"}</button>
                     </div>
                     <pre className="g3-code">{adapted}</pre>
@@ -466,7 +466,7 @@ export default function InterfaceLabPage() {
             )}
 
             {!component && !theme && !quotaBlocked && (
-              <div className="mt-10 text-center text-sm text-white/50">
+              <div className="mt-10 text-center text-sm text-neutral-500">
                 Recuperation du code via 21st.dev<span className="g3-dots"><span /><span /><span /></span>
                 <div className="g3-progress mt-4" />
               </div>

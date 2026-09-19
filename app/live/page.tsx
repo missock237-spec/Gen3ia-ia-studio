@@ -27,7 +27,7 @@ export default async function LivePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070a12] p-5 text-white md:p-8">
+    <main className="min-h-screen bg-[#f6f4ef] p-5 text-neutral-900 md:p-8">
       <div className="mx-auto max-w-6xl">
         <LiveDashboard />
       </div>

@@ -7,22 +7,22 @@ import EmailAuthForm from "@/components/auth/EmailAuthForm";
  */
 export default function SignupPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
+    <main className="min-h-screen bg-[#f6f4ef] flex items-center justify-center p-6">
       <section className="w-full max-w-md">
         <div className="mb-8">
-          <h1 className="text-3xl font-semibold">
+          <h1 className="font-serif text-3xl font-semibold text-neutral-900">
             Bienvenue sur Gen3ia
           </h1>
 
-          <p className="mt-2 text-sm opacity-70">
+          <p className="mt-2 text-sm text-neutral-600">
             Creez des agents IA autonomes, des workflows et des applications.
           </p>
         </div>
 
-        <div className="rounded-2xl border p-6 shadow-sm">
+        <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-6 shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
           <EmailAuthForm />
 
-          <div className="my-6 flex items-center gap-3 text-xs opacity-50">
+          <div className="my-6 flex items-center gap-3 text-xs text-neutral-500">
             <span className="h-px flex-1 bg-current" />
             ou continuer avec
             <span className="h-px flex-1 bg-current" />

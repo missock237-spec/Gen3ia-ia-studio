@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Source_Serif_4 } from "next/font/google";
 
 import { AppNav } from "@/components/nav/app-nav";
 import { PwaRegister } from "@/components/pwa-register";
@@ -6,11 +7,23 @@ import { ScrollReveal } from "@/components/nav/scroll-reveal";
 
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const sourceSerif = Source_Serif_4({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-source-serif",
+});
+
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#070a12",
+  themeColor: "#f6f4ef",
 };
 
 export const metadata: Metadata = {
@@ -19,12 +32,12 @@ export const metadata: Metadata = {
     template: "%s | Gen3ia AI Studio",
   },
   description:
-    "Autonomous AI agents, dynamic skills, real-time research, multimodal generation, code execution and deployment infrastructure.",
+    "Un seul agent IA pour créer, exécuter et faire grandir vos projets : agents autonomes, skills dynamiques, recherche en temps réel et marketplace.",
   applicationName: "Gen3ia AI Studio",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Gen3ia",
   },
   formatDetection: {
@@ -46,8 +59,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body className="antialiased">
+    <html lang="fr" className={`${inter.variable} ${sourceSerif.variable}`}>
+      <body className="antialiased font-sans">
         <AppNav />
         {children}
         <ScrollReveal />
