@@ -216,7 +216,20 @@ function parseComponent(raw: string, id: string): ComponentCode {
 export async function getComponent(id: string): Promise<ComponentCode> {
   if (!/^\d{1,10}$/.test(id)) throw new TwentyFirstError("Identifiant de composant invalide.", 400, "INVALID_ID");
   const raw = await callTool("get_component", { id: Number(id) });
-  return parseComponent(raw, id);
+  // En plan gratuit, l'outil repond avec un message de succes (pas une erreur
+  // MCP) lorsque le quota quotidien est epuise : on le transforme en erreur 429.
+  if (/reached the free 21st component-code limit/i.test(raw)) {
+    throw new TwentyFirstError(
+      "Quota 21st.dev atteint (2 recuperations de code par jour en plan gratuit, remise a zero a minuit UTC). Les composants deja recuperes restent servis depuis le cache.",
+      429,
+      "QUOTA_EXCEEDED",
+    );
+  }
+  const parsed = parseComponent(raw, id);
+  if (!parsed.code) {
+    throw new TwentyFirstError("Code du composant indisponible chez 21st.dev.", 502, "EMPTY_COMPONENT");
+  }
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------

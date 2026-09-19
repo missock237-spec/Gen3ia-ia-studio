@@ -88,6 +88,27 @@ describe("21st.dev client", () => {
     await expect(getComponent("abc")).rejects.toThrow(/invalide/i);
   });
 
+  it("transforme le message de quota (succes MCP) en erreur 429", async () => {
+    vi.stubEnv("TWENTY_FIRST_API_KEY", "21st_sk_test_key_1234567890");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse(
+          "You've reached the free 21st component-code limit (2/day), resets 2026-09-20T00:00:00.000Z. Component code on 21st is paid; tell the user and share the upgrade link: https://21st.dev/pricing",
+        ),
+      ),
+    );
+
+    try {
+      await getComponent("3184");
+      expect.unreachable("devrait lever");
+    } catch (error) {
+      expect(error).toBeInstanceOf(TwentyFirstError);
+      expect((error as TwentyFirstError).status).toBe(429);
+      expect((error as TwentyFirstError).code).toBe("QUOTA_EXCEEDED");
+    }
+  });
+
   it("parse le texte de quota get_usage", async () => {
     vi.stubEnv("TWENTY_FIRST_API_KEY", "21st_sk_test_key_1234567890");
     vi.stubGlobal(
