@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 
 type Tool = {
   id: string;
@@ -85,7 +86,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         <input ref={fileRef} type="file" className="hidden" accept="image/*,.pdf,.zip" onChange={handleFile} />
         {preview && (
           <div className="mb-1 flex items-center gap-2 rounded-2xl bg-neutral-50 p-2">
-            <img src={preview} alt="Aperçu de la pièce jointe" className="h-12 w-12 rounded-xl object-cover" />
+            <Image src={preview} alt="Aperçu de la pièce jointe" width={48} height={48} unoptimized className="h-12 w-12 rounded-xl object-cover" />
             <span className="text-xs text-neutral-500">Image jointe</span>
             <button type="button" onClick={() => setPreview(null)} className="ml-auto rounded-full p-1.5 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900" aria-label="Retirer la pièce jointe"><XIcon className="h-4 w-4"/></button>
           </div>
