@@ -37,11 +37,28 @@ export function AppNav() {
   const [open, setOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener("gen3ia:open-nav", handler);
     return () => window.removeEventListener("gen3ia:open-nav", handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((value) => !value);
+      }
+      if (event.key === "Escape") {
+        setCommandOpen(false);
+        setAccountOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
   if (pathname === "/") return null;
@@ -51,6 +68,18 @@ export function AppNav() {
   const initial = name.charAt(0).toUpperCase();
   const active = (href: string) =>
     pathname === href || pathname.startsWith(href + "/");
+
+  const commandItems = [...NAV, ...LIBRARY, ...PLATFORM];
+  const filteredCommands = commandItems.filter((item) =>
+    item.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  const goTo = (href: string) => {
+    setCommandOpen(false);
+    setQuery("");
+    setOpen(false);
+    router.push(href);
+  };
 
   const NavGroup = ({
     title,
