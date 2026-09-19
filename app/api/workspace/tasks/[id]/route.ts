@@ -1,0 +1,2 @@
+import { NextRequest,NextResponse } from "next/server"; import { requireUser } from "@/lib/security/authenticated-request"; import { getWorkspaceTask } from "@/lib/agents/workspace";
+export async function GET(request:NextRequest,{params}:{params:{id:string}}){try{const user=await requireUser(request);return NextResponse.json({task:await getWorkspaceTask(user.uid,params.id)});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Task not found"},{status:404});}}
