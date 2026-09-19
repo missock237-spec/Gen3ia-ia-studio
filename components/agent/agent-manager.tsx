@@ -425,7 +425,9 @@ export function AgentManager() {
                           {Object.entries(result.outputs).map(([stepId, output]) => (
                             <div key={stepId}>
                               <div className="text-[10px] font-bold uppercase tracking-wider text-white/35">{stepId}</div>
-                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-white/80">{String(output).slice(0, 2400)}</p>
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-white/80">
+                                {typeof output === "string" ? output.slice(0, 2400) : JSON.stringify(output, null, 2).slice(0, 2400)}
+                              </p>
                             </div>
                           ))}
                         </div>

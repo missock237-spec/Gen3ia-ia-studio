@@ -72,7 +72,8 @@ export default function InterfaceLabPage() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
 
-  const [detail, setDetail] = useState<{ kind: "component" | "theme"; id: string; name: string } | null>(null);
+  const [detail, setDetail] = useState<{ kind: "component" | "theme"; id: string; name: string; description?: string; author?: string } | null>(null);
+  const [quotaBlocked, setQuotaBlocked] = useState(false);
   const [component, setComponent] = useState<ComponentCode | null>(null);
   const [theme, setTheme] = useState<ThemeTokens | null>(null);
   const [cached, setCached] = useState(false);
@@ -159,13 +160,14 @@ export default function InterfaceLabPage() {
     }
   };
 
-  const openDetail = async (kind: "component" | "theme", id: string, name: string) => {
-    setDetail({ kind, id, name });
+  const openDetail = async (kind: "component" | "theme", id: string, name: string, description?: string, author?: string) => {
+    setDetail({ kind, id, name, description, author });
     setComponent(null);
     setTheme(null);
     setAdapted("");
     setCached(false);
     setError("");
+    setQuotaBlocked(false);
     try {
       const response = await authFetch(`/api/code-agents/21st/${kind}`, {
         method: "POST",
@@ -173,7 +175,15 @@ export default function InterfaceLabPage() {
         body: JSON.stringify({ id }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Recuperation impossible");
+      if (!response.ok) {
+        const message = String(data.error ?? "Recuperation impossible");
+        if (response.status === 429 || /quota/i.test(message)) {
+          setQuotaBlocked(true);
+          setError("Quota 21st.dev du jour epuise pour ce composant. Vous pouvez toujours generer une variante Gen3ia a partir de sa description (ci-dessous). Les composants deja recuperes restent en cache.");
+          return;
+        }
+        throw new Error(message);
+      }
       if (kind === "component") {
         setComponent(data.component);
         setCached(Boolean(data.cached));
@@ -189,12 +199,17 @@ export default function InterfaceLabPage() {
 
   const adaptForGen3ia = async () => {
     const source = component?.code ?? theme?.css;
-    if (!source || !detail) return;
+    if (!detail || (!source && !quotaBlocked)) return;
     setAdapting(true);
     setAdapted("");
     setError("");
     try {
       const isTheme = detail.kind === "theme";
+      const sourceBlock = source
+        ? (isTheme
+          ? `Adapte ces tokens CSS a la palette Gen3ia (fond #070a12, violet #8b5cf6, cyan #22d3ee) en gardant la structure :\n\n${source.slice(0, 14_000)}`
+          : `Adapte ce composant au design system Gen3ia decrit ci-dessus. Supprime les imports externes non essentiels (lucide-react remplace par des SVG inline, shadcn/ui remplace par du Tailwind pur) :\n\n${source.slice(0, 14_000)}`)
+        : `Le code source original n'est pas disponible (quota du catalogue). Cree une variante Gen3ia du composant « ${detail.name} »${detail.author ? ` (par ${detail.author})` : ""} a partir de cette description : ${detail.description ?? "aucune description"}. Respecte strictement le design system decrit ci-dessus.`;
       const response = await authFetch("/api/ai/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -204,14 +219,9 @@ export default function InterfaceLabPage() {
             {
               role: "system",
               content:
-                "Tu es un ingenieur frontend senior de l'agence Gen3ia. Gen3ia est une plateforme SaaS dark-only : fond #070a12, panneaux #0d1220, bordures rgba(255,255,255,0.1), accents violet #8b5cf6, cyan #22d3ee, emerald #34d399, coins arrondis 16-20px, typographie systeme, animations douces (cubic-bezier(0.22,1,0.36,1)). Tu adaptes du code externe a CE design system, sans dependances externes payantes, en React + Tailwind CSS v4 strictement compatibles Next.js App Router (composants client 'use client' si besoin). Reponds UNIQUEMENT avec le code final, sans explication.",
+                "Tu es un ingenieur frontend senior de l'agence Gen3ia. Gen3ia est une plateforme SaaS dark-only : fond #070a12, panneaux #0d1220, bordures rgba(255,255,255,0.1), accents violet #8b5cf6, cyan #22d3ee, emerald #34d399, coins arrondis 16-20px, typographie systeme, animations douces (cubic-bezier(0.22,1,0.36,1)). Tu adaptes ou crees du code externe conforme a CE design system, sans dependances externes payantes, en React + Tailwind CSS v4 strictement compatibles Next.js App Router (composants client 'use client' si besoin). Reponds UNIQUEMENT avec le code final, sans explication.",
             },
-            {
-              role: "user",
-              content: isTheme
-                ? `Adapte ces tokens CSS a la palette Gen3ia (fond #070a12, violet #8b5cf6, cyan #22d3ee) en gardant la structure :\n\n${source.slice(0, 14_000)}`
-                : `Adapte ce composant au design system Gen3ia decrit ci-dessus. Supprime les imports externes non essentiels (lucide-react remplace par des SVG inline, shadcn/ui remplace par du Tailwind pur) :\n\n${source.slice(0, 14_000)}`,
-            },
+            { role: "user", content: sourceBlock },
           ],
         }),
       });
@@ -366,7 +376,7 @@ export default function InterfaceLabPage() {
                   {item.description && <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/50">{item.description}</p>}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {(item.kind === "theme" ? ["theme", "component"] : ["component"]).includes(item.kind) || item.kind === "theme" ? (
-                      <button type="button" className="g3-btn g3-btn-primary !px-3 !py-2 text-xs" onClick={() => openDetail(item.kind === "theme" ? "theme" : "component", item.id, item.name)}>
+                      <button type="button" className="g3-btn g3-btn-primary !px-3 !py-2 text-xs" onClick={() => openDetail(item.kind === "theme" ? "theme" : "component", item.id, item.name, item.description, item.author)}>
                         {item.kind === "theme" ? "Voir le theme" : "Voir le code"}
                       </button>
                     ) : (
@@ -402,14 +412,16 @@ export default function InterfaceLabPage() {
               <button type="button" className="g3-btn g3-btn-ghost !px-3 !py-2" onClick={() => setDetail(null)} aria-label="Fermer">✕</button>
             </div>
 
-            {detail.kind === "component" && component && (
+            {detail.kind === "component" && (component || quotaBlocked) && (
               <div className="mt-5 space-y-5">
-                <div className="flex flex-wrap gap-2">
-                  {component.code && <button type="button" className="g3-btn g3-btn-ghost text-xs" onClick={() => copy(component.code ?? "", "code")}>{copied === "code" ? "Copie ✓" : "Copier le code"}</button>}
-                  {component.installCommand && <code className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-[11px] text-white/60">{component.installCommand}</code>}
-                </div>
-                <button type="button" className="g3-btn g3-btn-primary" disabled={adapting || !component.code} onClick={adaptForGen3ia}>
-                  {adapting ? <>Adaptation par l&apos;IA Gen3ia<span className="g3-dots"><span /><span /><span /></span></> : "Adapter au design system Gen3ia"}
+                {component && (
+                  <div className="flex flex-wrap gap-2">
+                    {component.code && <button type="button" className="g3-btn g3-btn-ghost text-xs" onClick={() => copy(component.code ?? "", "code")}>{copied === "code" ? "Copie ✓" : "Copier le code"}</button>}
+                    {component.installCommand && <code className="rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-[11px] text-white/60">{component.installCommand}</code>}
+                  </div>
+                )}
+                <button type="button" className="g3-btn g3-btn-primary" disabled={adapting || (!component?.code && !quotaBlocked)} onClick={adaptForGen3ia}>
+                  {adapting ? <>IA Gen3ia en cours<span className="g3-dots"><span /><span /><span /></span></> : quotaBlocked && !component?.code ? "Generer une variante Gen3ia (IA)" : "Adapter au design system Gen3ia"}
                 </button>
                 {adapted && (
                   <div className="anim-slide-up">
@@ -420,8 +432,8 @@ export default function InterfaceLabPage() {
                     <pre className="g3-code">{adapted}</pre>
                   </div>
                 )}
-                {component.code && <pre className="g3-code">{component.code}</pre>}
-                {component.demo && (
+                {component?.code && <pre className="g3-code">{component.code}</pre>}
+                {component?.demo && (
                   <div>
                     <h3 className="mb-2 text-sm font-bold text-white/70">Exemple d&apos;utilisation</h3>
                     <pre className="g3-code">{component.demo}</pre>
@@ -449,7 +461,7 @@ export default function InterfaceLabPage() {
               </div>
             )}
 
-            {!component && !theme && (
+            {!component && !theme && !quotaBlocked && (
               <div className="mt-10 text-center text-sm text-white/50">
                 Recuperation du code via 21st.dev<span className="g3-dots"><span /><span /><span /></span>
                 <div className="g3-progress mt-4" />
