@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 
@@ -344,7 +345,7 @@ export default function InterfaceLabPage() {
           <div className="anim-fade-in mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {logos.map((logo) => (
               <div key={logo.title} className="g3-card card-glow flex flex-col items-center gap-2 p-4 text-center">
-                {logo.svgUrl && <img src={logo.svgUrl} alt={logo.title} loading="lazy" className="h-10 w-10 object-contain" />}
+                {logo.svgUrl && <Image src={logo.svgUrl} alt={logo.title} width={40} height={40} unoptimized className="h-10 w-10 object-contain" />}
                 <span className="text-xs font-semibold">{logo.title}</span>
                 {logo.svgUrl && (
                   <button type="button" className="g3-btn g3-btn-ghost !px-2 !py-1 text-[10px]" onClick={() => copy(logo.svgUrl ?? "", "code")}>
@@ -366,7 +367,7 @@ export default function InterfaceLabPage() {
               <article key={`${item.kind}-${item.id}`} className="g3-card card-glow overflow-hidden" style={{ animationDelay: `${index * 0.05}s` }}>
                 <div className="relative aspect-video bg-neutral-100">
                   {item.previewUrl ? (
-                    <img src={item.previewUrl} alt={item.name} loading="lazy" className="h-full w-full object-cover" />
+                    <Image src={item.previewUrl} alt={item.name} width={640} height={360} unoptimized className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-xs text-neutral-400">Apercu indisponible</div>
                   )}
