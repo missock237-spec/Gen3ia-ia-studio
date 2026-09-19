@@ -10,6 +10,7 @@ import { authFetch, useSessionAvailable } from "@/lib/firebase/auth-client";
 import { AgentManager } from "@/components/agent/agent-manager";
 import { UniversalAgentChat } from "@/components/agent/universal-agent-chat";
 import { AnimatedTabs } from "@/components/ui/animated-tabs";
+import { WorkspaceTaskPanel } from "@/components/agent/workspace-task-panel";
 
 type Provider = "google_ads" | "meta_ads" | "tiktok_ads";
 const labels: Record<Provider, string> = { google_ads: "Google Ads", meta_ads: "Meta Ads", tiktok_ads: "TikTok Ads" };
@@ -77,6 +78,7 @@ export default function StudioPage() {
   const [tab, setTab] = useState<"agents" | "ads">("agents");
   const searchParams = useSearchParams();
   const initialTask = searchParams.get("task") ?? "";
+  const taskId = searchParams.get("taskId") ?? "";
   const [, setUser] = useState<User | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (current) => setUser(current)), []);
@@ -108,7 +110,7 @@ export default function StudioPage() {
           />
         </div>
 
-        {tab === "agents" ? <AgentManager /> : <AdsWorkshop />}
+        {tab === "agents" ? <div className="space-y-6">{taskId && <WorkspaceTaskPanel taskId={taskId} />}<AgentManager /><UniversalAgentChat initialMessage={taskId ? "" : initialTask} /></div> : <AdsWorkshop />}
       </div>
     </div>
   );
