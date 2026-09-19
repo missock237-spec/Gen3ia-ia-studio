@@ -128,7 +128,7 @@ function DashboardContent() {
   const displayName = user?.displayName?.trim() || serverUser?.name?.trim() || user?.email || serverUser?.email || "votre compte";
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900">
       <div className="relative overflow-hidden">
         <div className="aurora" aria-hidden="true" />
         <div className="relative mx-auto max-w-6xl p-5 md:p-8">
@@ -235,7 +235,7 @@ function DashboardContent() {
           </footer>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

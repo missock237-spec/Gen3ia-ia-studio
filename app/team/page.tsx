@@ -60,7 +60,7 @@ function TeamsContent() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900">
       <div className="mx-auto max-w-5xl px-4 py-10 md:px-8 md:py-14">
         {/* En-tête */}
         <header className="anim-fade-up text-center">
@@ -220,7 +220,7 @@ function TeamsContent() {
           </aside>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 

@@ -121,7 +121,7 @@ export default function AgentSchedulesPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] p-5 text-neutral-900 md:p-8">
+    <div className="min-h-full bg-[#f6f4ef] p-5 text-neutral-900 md:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
@@ -161,6 +161,6 @@ export default function AgentSchedulesPage() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

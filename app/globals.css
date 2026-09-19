@@ -43,6 +43,21 @@ body {
 }
 
 /* ============================================================
+   Mode de défilement « Runable » — coquille applicative
+   Mesuré sur runable.com : la page est verrouillée à la hauteur du
+   viewport (h-dvh + overflow-hidden), le document ne défile jamais ;
+   un unique conteneur interne (#g3-scroll) porte tout le défilement.
+   ============================================================ */
+.g3-shell {
+  height: 100vh;
+  height: 100dvh; /* suit la barre d'adresse mobile (Safari/Chrome) */
+}
+.g3-scroll {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+/* ============================================================
    Animations partagées
    ============================================================ */
 
@@ -222,17 +237,23 @@ body {
   border: 1px solid rgba(23, 23, 20, 0.06);
 }
 
-/* Barre de défilement discrète (thème clair) */
+/* Barre de défilement discrète (spéc. Runable : 10px, piste transparente,
+   pouce sombre translucide arrondi) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(28, 27, 24, 0.22) transparent;
+  scrollbar-color: rgba(28, 27, 24, 0.2) transparent;
 }
-*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(28, 27, 24, 0.22);
+  background: rgba(28, 27, 24, 0.2);
   border-radius: 9999px;
 }
-*::-webkit-scrollbar-thumb:hover { background: rgba(28, 27, 24, 0.34); }
+*::-webkit-scrollbar-thumb:hover { background: rgba(28, 27, 24, 0.32); }
+
+/* Masquer totalement la barre sur les rails horizontaux internes */
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
 
 ::selection {
   background: rgba(14, 165, 233, 0.28);
@@ -265,6 +286,9 @@ body {
   .g3-dots span { animation: none; }
   .g3-tab-pill { transition: none; }
   .rainbow-line { animation: none; }
+  .g3-scroll {
+    scroll-behavior: auto;
+  }
 }
 
 /* ============================================================

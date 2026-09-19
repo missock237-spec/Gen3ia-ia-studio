@@ -1,5 +1,8 @@
 import Link from "next/link";
 
+import { AppDownloads } from "@/components/home/app-downloads";
+import { VitrineHeader } from "@/components/home/vitrine-header";
+
 /**
  * Vitrine SaaS de Gen3ia — page d'accueil publique.
  *
@@ -33,6 +36,30 @@ const CAPABILITIES = [
   { href: "/team", label: "Équipes", icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" },
   { href: "/developer", label: "Développeurs", icon: "M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
   { href: "/billing", label: "Wallet intégré", icon: "M21 12V7H5a2 2 0 0 1 0-4h14v4M3 5v14a2 2 0 0 0 2 2h16v-5M18 12a2 2 0 0 0 0 4h4v-4Z" },
+];
+
+const SOLUTIONS = [
+  {
+    title: "Entrepreneurs & petites entreprises",
+    text: "Veille concurrentielle, relances clients, rapports quotidiens : vos agents exécutent l'opérationnel pendant que vous faites grandir l'activité.",
+    href: "/studio",
+    cta: "Lancer un agent",
+    icon: "M3 3h18v18H3zM3 9h18M9 21V9",
+  },
+  {
+    title: "Créateurs de contenu",
+    text: "Scripts, visages de marque, carrousels et publications planifiées : décrivez une idée, l'agent produit, vous validez, tout part au bon moment.",
+    href: "/studio/schedules",
+    cta: "Planifier du contenu",
+    icon: "M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z",
+  },
+  {
+    title: "Équipes & agences",
+    text: "Espace d'équipe partagé, mémoire collective et agents coordonnés : chaque membre décrit un objectif, l'orchestrateur répartit le travail.",
+    href: "/team",
+    cta: "Créer une équipe",
+    icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm14 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75",
+  },
 ];
 
 const PRODUCTS = [
@@ -140,36 +167,11 @@ const SECURITY_POINTS = [
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-[#f6f4ef] text-neutral-900">
+    <div className="flex min-h-full flex-col bg-[#f6f4ef] text-neutral-900">
       {/* ---------- Navigation (style Runable : pilules blanches flottantes) ---------- */}
-      <header className="sticky top-0 z-50 bg-[#bfe3f7]/70 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Gen3ia — accueil">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-neutral-900 text-sm font-black text-white">
-              G3
-            </span>
-            <span className="text-sm font-bold tracking-tight">Gen3ia</span>
-          </Link>
-          <nav aria-label="Navigation vitrine" className="hidden items-center gap-1.5 md:flex">
-            <a href="#produits" className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-800 shadow-[0_1px_2px_rgba(28,27,24,0.08)] transition hover:shadow-[0_4px_14px_-6px_rgba(28,27,24,0.3)]">Produits</a>
-            <a href="#fonctionnement" className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-800 shadow-[0_1px_2px_rgba(28,27,24,0.08)] transition hover:shadow-[0_4px_14px_-6px_rgba(28,27,24,0.3)]">Fonctionnement</a>
-            <a href="#securite" className="rounded-full bg-white px-4 py-2 text-sm font-medium text-neutral-800 shadow-[0_1px_2px_rgba(28,27,24,0.08)] transition hover:shadow-[0_4px_14px_-6px_rgba(28,27,24,0.3)]">Sécurité</a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link href="/login" className="rounded-full border border-[rgba(23,23,20,0.12)] bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition hover:border-[rgba(23,23,20,0.22)]">
-              Se connecter
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_-10px_rgba(28,27,24,0.6)] transition hover:-translate-y-0.5 hover:bg-neutral-800"
-            >
-              Commencer
-            </Link>
-          </div>
-        </div>
-      </header>
+      <VitrineHeader />
 
-      <main className="flex-1">
+      <div className="flex-1">
         {/* ---------- Héros ciel + prompt box (façon Runable) ---------- */}
         <section className="sky-hero relative overflow-hidden">
           <div className="aurora" aria-hidden="true" />
@@ -259,6 +261,46 @@ export default function HomePage() {
             </blockquote>
             <figcaption className="mt-4 text-sm text-neutral-500">— Aïcha, fondatrice d’une boutique en ligne</figcaption>
           </figure>
+        </section>
+
+        {/* ---------- Solutions (façon Runable : publics cibles) ---------- */}
+        <section aria-label="Pour qui" className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-20">
+          <div className="reveal mx-auto max-w-2xl text-center">
+            <p className="g3-eyebrow">Pour qui</p>
+            <h2 className="mt-4 font-serif text-3xl font-semibold tracking-tight sm:text-5xl">
+              Une idée, menée jusqu&apos;au bout
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-neutral-500 sm:text-base">
+              Choisissez un profil et regardez le travail avancer — le même
+              agent s&apos;adapte à votre façon de travailler.
+            </p>
+          </div>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {SOLUTIONS.map((solution, index) => (
+              <article
+                key={solution.title}
+                className="cream-card card-glow reveal flex flex-col rounded-3xl p-7"
+                style={{ ["--reveal-delay" as string]: `${index * 0.12}s` }}
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-sky-700 shadow-[0_1px_2px_rgba(28,27,24,0.1)]">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d={solution.icon} />
+                  </svg>
+                </span>
+                <h3 className="mt-5 font-serif text-xl font-semibold text-neutral-900">{solution.title}</h3>
+                <p className="mt-2.5 flex-1 text-sm leading-6 text-neutral-600">{solution.text}</p>
+                <Link
+                  href={solution.href}
+                  className="group mt-6 inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-sky-700 transition hover:text-sky-900"
+                >
+                  {solution.cta}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+              </article>
+            ))}
+          </div>
         </section>
 
         {/* ---------- Statistiques ---------- */}
@@ -533,6 +575,9 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ---------- Téléchargez les apps (façon Runable) ---------- */}
+        <AppDownloads />
+
         {/* ---------- CTA final (carte sombre façon footer Runable) ---------- */}
         <section className="px-4 pb-20 sm:px-6">
           <div className="reveal relative mx-auto max-w-5xl overflow-hidden rounded-[32px] bg-[#211d19] p-10 text-center text-white sm:p-14">
@@ -565,7 +610,7 @@ export default function HomePage() {
             <p className="relative mt-4 font-serif text-lg text-white/70">Créer — Exécuter — Grandir</p>
           </div>
         </section>
-      </main>
+      </div>
 
       {/* ---------- Pied de page brun (façon Runable) ---------- */}
       <footer className="mt-auto bg-[#211d19] text-white">
@@ -582,8 +627,8 @@ export default function HomePage() {
                 Marketplace, avec la sécurité et le contrôle humain au centre.
               </p>
             </div>
-            <nav aria-label="Produits">
-              <p className="text-xs font-bold uppercase tracking-[.2em] text-white/35">Produits</p>
+            <nav aria-label="Capacités">
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-white/35">Capacités</p>
               <ul className="mt-4 space-y-2.5 text-sm">
                 {PRODUCT_LINKS.map((link) => (
                   <li key={link.href}>
@@ -591,6 +636,7 @@ export default function HomePage() {
                   </li>
                 ))}
                 <li><Link href="/studio/interface-lab" className="text-white/60 transition hover:text-white">Atelier d&apos;Interfaces</Link></li>
+                <li><Link href="/studio/schedules" className="text-white/60 transition hover:text-white">Planification</Link></li>
               </ul>
             </nav>
             <nav aria-label="Espaces">

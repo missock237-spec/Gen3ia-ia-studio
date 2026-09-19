@@ -207,7 +207,7 @@ export default function InterfaceLabPage() {
       const isTheme = detail.kind === "theme";
       const sourceBlock = source
         ? (isTheme
-          ? `Adapte ces tokens CSS a la palette Gen3ia (fond #070a12, violet #8b5cf6, cyan #22d3ee) en gardant la structure :\n\n${source.slice(0, 14_000)}`
+          ? `Adapte ces tokens CSS a la palette Gen3ia (fond #f6f4ef, panneaux #ffffff, bordures rgba(23,23,20,0.09), encre #1c1b18, accent sky #0ea5e9) en gardant la structure :\n\n${source.slice(0, 14_000)}`
           : `Adapte ce composant au design system Gen3ia decrit ci-dessus. Supprime les imports externes non essentiels (lucide-react remplace par des SVG inline, shadcn/ui remplace par du Tailwind pur) :\n\n${source.slice(0, 14_000)}`)
         : `Le code source original n'est pas disponible (quota du catalogue). Cree une variante Gen3ia du composant « ${detail.name} »${detail.author ? ` (par ${detail.author})` : ""} a partir de cette description : ${detail.description ?? "aucune description"}. Respecte strictement le design system decrit ci-dessus.`;
       const response = await authFetch("/api/ai/generate", {
@@ -219,7 +219,7 @@ export default function InterfaceLabPage() {
             {
               role: "system",
               content:
-                "Tu es un ingenieur frontend senior de l'agence Gen3ia. Gen3ia est une plateforme SaaS dark-only : fond #070a12, panneaux #0d1220, bordures rgba(255,255,255,0.1), accents violet #8b5cf6, cyan #22d3ee, emerald #34d399, coins arrondis 16-20px, typographie systeme, animations douces (cubic-bezier(0.22,1,0.36,1)). Tu adaptes ou crees du code externe conforme a CE design system, sans dependances externes payantes, en React + Tailwind CSS v4 strictement compatibles Next.js App Router (composants client 'use client' si besoin). Reponds UNIQUEMENT avec le code final, sans explication.",
+                "Tu es un ingenieur frontend senior de l'agence Gen3ia. Gen3ia est une plateforme SaaS a theme clair style Runable : fond creme #f6f4ef, panneaux blancs #ffffff, bordures rgba(23,23,20,0.09), encre #1c1b18, texte secondaire #6f6d66, accent sky #0ea5e9 (+ #0284c7), touches emerald #10b981 et amber #f59e0b, blocs de code sombres #211d19, coins arrondis 18-24px (cartes 24-32px, boutons pilules), typographie Inter pour le texte et Source Serif 4 pour les titres, ombres douces (0 2px 10px rgba(15,23,42,0.05)) et animations douces (cubic-bezier(0.22,1,0.36,1)). Tu adaptes ou crees du code externe conforme a CE design system, sans dependances externes payantes, en React + Tailwind CSS v4 strictement compatibles Next.js App Router (composants client 'use client' si besoin). Reponds UNIQUEMENT avec le code final, sans explication.",
             },
             { role: "user", content: sourceBlock },
           ],
@@ -251,17 +251,17 @@ export default function InterfaceLabPage() {
 
   if (checking) {
     return (
-      <main className="min-h-screen bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
+      <div className="min-h-full bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
         <div className="mx-auto max-w-6xl pt-20 text-center text-sm text-neutral-500">
           Verification de votre acces<span className="g3-dots"><span /><span /><span /></span>
         </div>
-      </main>
+      </div>
     );
   }
 
   if (access !== true) {
     return (
-      <main className="min-h-screen bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
+      <div className="min-h-full bg-[#f6f4ef] p-4 text-neutral-900 md:p-8">
         <div className="mx-auto max-w-2xl pt-16">
           <div className="g3-card anim-scale-in p-8 text-center md:p-12">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-sky-200 bg-sky-100 anim-float">
@@ -278,12 +278,12 @@ export default function InterfaceLabPage() {
             </div>
           </div>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6">
           <div className="flex flex-wrap items-center gap-2">
@@ -474,6 +474,6 @@ export default function InterfaceLabPage() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

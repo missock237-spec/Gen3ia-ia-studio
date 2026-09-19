@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 
-import { AppNav } from "@/components/nav/app-nav";
+import { AppShell } from "@/components/nav/app-shell";
 import { PwaRegister } from "@/components/pwa-register";
 import { ScrollReveal } from "@/components/nav/scroll-reveal";
 
@@ -61,8 +61,7 @@ export default function RootLayout({
   return (
     <html lang="fr" className={`${inter.variable} ${sourceSerif.variable}`}>
       <body className="antialiased font-sans">
-        <AppNav />
-        {children}
+        <AppShell>{children}</AppShell>
         <ScrollReveal />
         <PwaRegister />
       </body>

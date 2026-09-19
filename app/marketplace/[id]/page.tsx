@@ -68,9 +68,9 @@ export default function ExtensionFichePage() {
     return () => clearTimeout(timer);
   }, [load, sessionDisponible]);
 
-  if (sessionDisponible === null) return <main className="min-h-screen bg-[#f6f4ef] p-10 text-center text-neutral-500">Chargement…</main>;
+  if (sessionDisponible === null) return <div className="min-h-full bg-[#f6f4ef] p-10 text-center text-neutral-500">Chargement…</div>;
   if (sessionDisponible === false) return <FeatureAuthGate feature="Marketplace Gen3ia" description="Connectez-vous pour consulter les extensions, leurs permissions, leurs versions et leurs avis."><span /></FeatureAuthGate>;
-  if (!fiche) return <main className="min-h-screen bg-[#f6f4ef] p-10 text-center text-neutral-500">{message || "Chargement…"}</main>;
+  if (!fiche) return <div className="min-h-full bg-[#f6f4ef] p-10 text-center text-neutral-500">{message || "Chargement…"}</div>;
 
   const { extension, version, reviews, userState } = fiche;
   const action = async (path: string, init?: RequestInit) => {
@@ -101,7 +101,7 @@ export default function ExtensionFichePage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] p-4 text-neutral-900 sm:p-6 md:p-8">
+    <div className="min-h-full bg-[#f6f4ef] p-4 text-neutral-900 sm:p-6 md:p-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex items-center justify-between gap-4">
           <Link href="/marketplace" className="text-sm text-neutral-500 hover:text-neutral-900">← Marketplace</Link>
@@ -157,6 +157,6 @@ export default function ExtensionFichePage() {
           <div className="mt-5 grid gap-3 md:grid-cols-2">{reviews.map((review, index) => <article key={`${review.createdAt}-${index}`} className="rounded-2xl border border-neutral-200 bg-neutral-50 p-4"><div className="flex items-center justify-between gap-3 text-xs"><span className="text-neutral-400">Utilisateur vérifié</span><span className="text-amber-700">{"★".repeat(Math.max(0, Math.min(5, review.rating)))}</span></div>{review.title && <h3 className="mt-2 text-sm font-semibold">{review.title}</h3>}<p className="mt-2 text-sm leading-6 text-neutral-500">{review.body}</p></article>)}{reviews.length === 0 && <p className="text-sm text-neutral-400">Aucun avis pour le moment.</p>}</div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

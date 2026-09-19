@@ -12,7 +12,7 @@ export default function TeamPage() {
   const { team, loading, error } = useTeam(teamId);
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900">
       <div className="mx-auto max-w-5xl space-y-8 px-4 py-10 md:px-8 md:py-14">
         {loading && (
           <div className="rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
@@ -103,6 +103,6 @@ export default function TeamPage() {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }

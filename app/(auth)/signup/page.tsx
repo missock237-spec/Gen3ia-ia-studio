@@ -7,7 +7,7 @@ import EmailAuthForm from "@/components/auth/EmailAuthForm";
  */
 export default function SignupPage() {
   return (
-    <main className="min-h-screen bg-[#f6f4ef] flex items-center justify-center p-6">
+    <div className="min-h-full bg-[#f6f4ef] flex items-center justify-center p-6">
       <section className="w-full max-w-md">
         <div className="mb-8">
           <h1 className="font-serif text-3xl font-semibold text-neutral-900">
@@ -31,6 +31,6 @@ export default function SignupPage() {
           <AuthButtons />
         </div>
       </section>
-    </main>
+    </div>
   );
 }

@@ -78,7 +78,7 @@ export default function StudioPage() {
   useEffect(() => onAuthStateChanged(auth, (current) => setUser(current)), []);
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900 p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -106,6 +106,6 @@ export default function StudioPage() {
 
         {tab === "agents" ? <AgentManager /> : <AdsWorkshop />}
       </div>
-    </main>
+    </div>
   );
 }

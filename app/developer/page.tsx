@@ -166,18 +166,18 @@ export default function DeveloperPage() {
 
   if (sessionDisponible === false) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f6f4ef] p-6 text-neutral-900">
+      <div className="flex min-h-full items-center justify-center bg-[#f6f4ef] p-6 text-neutral-900">
         <div className="max-w-md rounded-3xl border border-[rgba(23,23,20,0.09)] bg-white p-8 text-center shadow-[0_2px_10px_rgba(15,23,42,0.05)]">
           <h1 className="font-serif text-xl font-bold">Espace développeur</h1>
           <p className="mt-2 text-sm text-neutral-600">Connectez-vous pour créer et publier des extensions Gen3ia.</p>
           <Link href="/login" className="mt-6 inline-flex rounded-full bg-neutral-900 px-6 py-3 text-sm font-semibold text-white hover:bg-neutral-800">Se connecter</Link>
         </div>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f4ef] text-neutral-900 p-5 md:p-8">
+    <div className="min-h-full bg-[#f6f4ef] text-neutral-900 p-5 md:p-8">
       <div className="mx-auto max-w-6xl">
         <header className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -303,7 +303,7 @@ export default function DeveloperPage() {
           ))}
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

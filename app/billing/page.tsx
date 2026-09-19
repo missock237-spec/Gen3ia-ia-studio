@@ -128,7 +128,7 @@ export default function BillingPage() {
   };
 
   if (sessionDisponible === false) {
-    return <main style={styles.main}><section style={styles.card}><h1 className="font-serif">Financement Gen3ia</h1><p>Connectez-vous pour consulter votre solde et recharger votre compte.</p></section></main>;
+    return <div style={styles.main}><section style={styles.card}><h1 className="font-serif">Financement Gen3ia</h1><p>Connectez-vous pour consulter votre solde et recharger votre compte.</p></section></div>;
   }
 
   const currency = wallet?.currency ?? "XAF";
@@ -139,7 +139,7 @@ export default function BillingPage() {
   const welcome = wallet ? (wallet.welcomeAmountMinor / 100).toLocaleString("fr-FR") : "0";
   const busy = phase === "creating" || phase === "redirecting";
 
-  return <main style={styles.main}>
+  return <div style={styles.main}>
     <div style={{ gridColumn: "1 / -1", width: "100%", maxWidth: 980, margin: "0 auto", justifySelf: "center" }}>
     </div>
     <section style={styles.card}>
@@ -168,11 +168,11 @@ export default function BillingPage() {
       <p style={styles.note}>Le solde de démonstration est accordé une seule fois. Après épuisement, vous devez recharger votre portefeuille. Les exécutions sont facturées selon l&apos;utilisation réelle et aucune nouvelle allocation gratuite n&apos;est créée automatiquement.</p>
       {error && <p style={styles.error}>{error}</p>}
     </section>
-  </main>;
+  </div>;
 }
 
 const styles: Record<string, CSSProperties> = {
-  main: { minHeight: "100vh", display: "grid", placeItems: "center", padding: 24, background: "#f6f4ef", color: "#171717" },
+  main: { minHeight: "100%", display: "grid", placeItems: "center", padding: 24, background: "#f6f4ef", color: "#171717" },
   card: { width: "100%", maxWidth: 620, padding: 32, borderRadius: 24, border: "1px solid rgba(23,23,20,0.09)", background: "#ffffff", boxShadow: "0 14px 40px -18px rgba(28,27,24,0.22)" },
   eyebrow: { fontSize: 12, letterSpacing: 2, opacity: .65, marginBottom: 10 },
   welcome: { marginTop: 18, padding: 14, borderRadius: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 14, lineHeight: 1.5 },

@@ -90,7 +90,20 @@ export function AppNav() {
   const identity = useIdentity();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // La barre étant fixe au-dessus du conteneur de défilement interne
+  // (#g3-scroll, mode « Runable »), l'ombre n'apparaît que lorsque le
+  // contenu glisse dessous.
+  useEffect(() => {
+    const el = document.getElementById("g3-scroll");
+    if (!el) return;
+    const onScroll = () => setScrolled(el.scrollTop > 8);
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
 
   const closeMenus = useCallback(() => {
     setMenuOpen(false);
@@ -117,7 +130,13 @@ export function AppNav() {
   if (pathname === "/") return null;
 
   return (
-    <header className="sticky top-0 z-50 border-b border-[rgba(23,23,20,0.07)] bg-[#f6f4ef]/90 backdrop-blur-xl">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 border-b bg-[#f6f4ef]/90 backdrop-blur-xl transition-all duration-300 ease-out ${
+        scrolled
+          ? "border-[rgba(23,23,20,0.07)] shadow-[0_12px_32px_-20px_rgba(28,27,24,0.4)]"
+          : "border-transparent"
+      }`}
+    >
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
         {/* Logo */}
         <Link href="/dashboard" className="group flex shrink-0 items-center gap-2.5" aria-label="Gen3ia — tableau de bord">
