@@ -710,3 +710,40 @@ body {
  .g3-home-orb{width:420px}
  .g3-home-chip{display:none}
 }
+
+
+/* Runable-inspired plan-first workspace task */
+.g3-workspace-task{border:1px solid rgba(23,23,20,.09);border-radius:28px;background:rgba(255,255,255,.92);box-shadow:0 18px 50px -28px rgba(28,27,24,.28);overflow:hidden}
+.g3-workspace-task-head{display:flex;justify-content:space-between;gap:24px;padding:24px 26px;border-bottom:1px solid rgba(23,23,20,.07)}
+.g3-workspace-task-head h2{margin-top:8px;font-size:22px;line-height:1.35;font-weight:700;letter-spacing:-.02em}
+.g3-workspace-task-head p{margin-top:6px;font-size:12px;color:#737373}
+.g3-workspace-task-actions{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.g3-workspace-task-status{display:inline-flex;border:1px solid rgba(23,23,20,.09);border-radius:999px;padding:7px 10px;background:#fafafa;font-size:10px;font-weight:700;color:#525252}
+.g3-workspace-task-status.status-awaiting_approval{border-color:#fde68a;background:#fffbeb;color:#a16207}
+.g3-workspace-task-status.status-approved,.g3-workspace-task-status.status-completed{border-color:#bbf7d0;background:#f0fdf4;color:#15803d}
+.g3-workspace-task-status.status-running{border-color:#bae6fd;background:#f0f9ff;color:#0369a1}
+.g3-workspace-task-status.status-failed{border-color:#fecaca;background:#fef2f2;color:#dc2626}
+.g3-workspace-task-approve{border-radius:12px;background:#171717;color:#fff;padding:8px 13px;font-size:11px;font-weight:800;transition:transform .2s,opacity .2s}
+.g3-workspace-task-approve:hover{transform:translateY(-1px)}
+.g3-workspace-task-approve:disabled{opacity:.5;transform:none}
+.g3-workspace-task-flow{display:flex;align-items:center;gap:9px;overflow:auto;padding:13px 26px;border-bottom:1px solid rgba(23,23,20,.07);font-size:10px;font-weight:700;color:#a3a3a3;white-space:nowrap}
+.g3-workspace-task-flow .is-active{color:#171717}
+.g3-workspace-task-plan{padding:18px 26px;display:grid;gap:8px}
+.g3-workspace-task-step{display:flex;align-items:center;gap:12px;padding:12px 13px;border:1px solid rgba(23,23,20,.08);border-radius:16px;background:#fafafa}
+.g3-workspace-task-index{display:grid;place-items:center;width:28px;height:28px;flex:0 0 28px;border-radius:10px;background:#fff;border:1px solid rgba(23,23,20,.08);font-size:10px;font-weight:800;color:#525252}
+.g3-workspace-task-step strong{display:block;font-size:12px}
+.g3-workspace-task-step p{margin-top:3px;font-size:10px;line-height:1.5;color:#a3a3a3}
+.g3-workspace-task-step-meta{font-size:9px;font-weight:700;color:#737373;white-space:nowrap}
+.g3-workspace-task-note{margin:0 26px 20px;padding:11px 13px;border-radius:12px;background:#f5f5f4;color:#737373;font-size:10px;line-height:1.6}
+.g3-workspace-task-loading,.g3-workspace-task-error{padding:28px;color:#737373;font-size:12px}
+.g3-workspace-task-error button{margin-left:10px;font-weight:700;color:#171717}
+.g3-workspace-task-inline-error{margin:0 26px 14px;border-radius:12px;background:#fef2f2;padding:10px;color:#dc2626;font-size:10px}
+@media(max-width:700px){
+  .g3-workspace-task-head{padding:18px;display:block}
+  .g3-workspace-task-actions{margin-top:14px;justify-content:flex-start}
+  .g3-workspace-task-flow{padding:12px 18px}
+  .g3-workspace-task-plan{padding:14px 18px}
+  .g3-workspace-task-step{align-items:flex-start}
+  .g3-workspace-task-step-meta{display:none}
+  .g3-workspace-task-note,.g3-workspace-task-inline-error{margin-left:18px;margin-right:18px}
+}
