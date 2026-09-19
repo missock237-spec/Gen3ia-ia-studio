@@ -123,7 +123,10 @@ export async function POST(request: NextRequest) {
 
       for (const step of state.plan.steps) {
         const id = claimedByStep.get(step.id);
-        if (id) step.input = { ...step.input, __stepId: step.id, approvalId: id };
+        if (id) {
+          step.status = "pending";
+          step.input = { ...step.input, __stepId: step.id, approvalId: id };
+        }
       }
 
       const runtime = new AgentRuntime({
