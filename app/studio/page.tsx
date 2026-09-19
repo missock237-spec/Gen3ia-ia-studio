@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
@@ -74,6 +75,8 @@ function Feature({ title, text }: { title: string; text: string }) {
 
 export default function StudioPage() {
   const [tab, setTab] = useState<"agents" | "ads">("agents");
+  const searchParams = useSearchParams();
+  const initialTask = searchParams.get("task") ?? "";
   const [, setUser] = useState<User | null>(null);
 
   useEffect(() => onAuthStateChanged(auth, (current) => setUser(current)), []);
