@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { authFetch } from "@/lib/firebase/auth-client";
-import { RuntimePlanSchema, validateDAG, type RuntimePlan, type RuntimeStep } from "@/lib/agents/runtime";
+import { RuntimePlanSchema, validateDAG, type RuntimePlan, type RuntimeStep } from "@/lib/agents/runtime/types-and-dag";
 
 type WorkspaceTask = {
   id: string;

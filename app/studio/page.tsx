@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -74,7 +74,7 @@ function Feature({ title, text }: { title: string; text: string }) {
   return <div className="g3-card p-5"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-neutral-500">{text}</p></div>;
 }
 
-export default function StudioPage() {
+function StudioPageInner() {
   const [tab, setTab] = useState<"agents" | "ads">("agents");
   const searchParams = useSearchParams();
   const initialTask = searchParams.get("task") ?? "";
@@ -113,5 +113,13 @@ export default function StudioPage() {
         {tab === "agents" ? <div className="space-y-6">{taskId ? <WorkspaceTaskPanel taskId={taskId} /> : <AgentManager />}<UniversalAgentChat initialMessage={taskId ? "" : initialTask} /></div> : <AdsWorkshop />}
       </div>
     </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense fallback={<div className="min-h-full bg-[#f6f4ef]" />}>
+      <StudioPageInner />
+    </Suspense>
   );
 }
