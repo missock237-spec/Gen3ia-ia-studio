@@ -106,7 +106,7 @@ export function TeamMembersPanel({ teamId }: { teamId: string }) {
 
       {!canManage && (
         <p className="rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-xs leading-5 text-neutral-500">
-          Seuls les propriétaires et admins de l'équipe peuvent inviter et gérer les membres.
+          Seuls les propriétaires et admins de l&apos;équipe peuvent inviter et gérer les membres.
         </p>
       )}
 
