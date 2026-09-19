@@ -3,19 +3,18 @@ import { z } from "zod";
 import { requireUser } from "@/lib/security/authenticated-request";
 import { planUniversalAgent } from "@/lib/agents/runtime/unified-agent";
 import { AgentRuntime } from "@/lib/agents/runtime/runner";
-import { createCheckpoint } from "@/lib/agents/runtime/checkpoint";
-import { createActionApproval } from "@/lib/agents/action-approvals";
-import { classifyRoles } from "@/lib/agents/orchestrator";
 import { DEFAULT_EXECUTION_POLICY, type ExecutionPolicy } from "@/lib/security/execution-policy";
 import { getToolSecurityDefinition } from "@/lib/security/tool-permissions";
-import { createConversation, appendMessage, getConversation } from "@/lib/chat/repository";
+import { createActionApproval, listActionApprovals } from "@/lib/agents/action-approvals";
+import type { RuntimePlan } from "@/lib/agents/runtime/types";
+import { appendMessage, createConversation, getConversation } from "@/lib/chat/repository";
 
 const Body = z.object({
   message: z.string().trim().min(1).max(20_000),
-  conversationId: z.string().min(1).max(256).optional(),
+  conversationId: z.string().trim().min(1).max(256).optional(),
 });
 
-function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, approved = false): ExecutionPolicy {
+function buildPolicy(plan: RuntimePlan): ExecutionPolicy {
   const tools = [...new Set(
     plan.steps
       .filter((step) => step.type === "tool" || step.type === "research")
@@ -38,11 +37,11 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
     for (const permission of definition.requiredPermissions) permissions.add(permission);
     if (definition.network) allowNetwork = true;
     if (definition.filesystemWrite) allowFileWrite = true;
-    if (definition.destructive) allowFileDelete = approved;
-    if (tool === "code.execute") allowCodeExecution = approved;
-    if (tool === "terminal.execute") allowAgentTerminal = approved;
-    if (tool === "camera.capture") allowCamera = approved;
-    if (definition.externalApp) allowExternalApps = allowExternalApps || definition.risk === "read" || approved;
+    if (definition.destructive) allowFileDelete = true;
+    if (tool === "code.execute") allowCodeExecution = true;
+    if (tool === "terminal.execute") allowAgentTerminal = true;
+    if (tool === "camera.capture") allowCamera = true;
+    if (definition.externalApp) allowExternalApps = true;
   }
 
   return {
@@ -51,7 +50,7 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
     permissions: [...permissions],
     maxSteps: Math.max(50, plan.steps.length + 10),
     allowNetwork,
-    allowFileWrite: allowFileWrite && approved,
+    allowFileWrite,
     allowFileDelete,
     allowCodeExecution,
     allowAgentTerminal,
@@ -60,35 +59,13 @@ function buildPolicy(plan: Awaited<ReturnType<typeof planUniversalAgent>>, appro
   };
 }
 
-function finalText(plan: Awaited<ReturnType<typeof planUniversalAgent>>, outputs: Record<string, unknown>): string {
+function finalResponseText(plan: RuntimePlan, outputs: Record<string, unknown>): string {
   const candidates = [...plan.steps].reverse().filter((step) => ["llm", "document", "media", "research"].includes(step.type));
   for (const step of candidates) {
     const value = outputs[step.id];
     if (typeof value === "string" && value.trim()) return value;
   }
-  return "L’exécution de l’agent est terminée. Consultez les étapes et résultats affichés dans l’espace Agent.";
-}
-
-function initialState(
-  userId: string,
-  plan: Awaited<ReturnType<typeof planUniversalAgent>>,
-  conversationId: string,
-) {
-  return {
-    executionId: plan.executionId,
-    userId,
-    objective: plan.objective,
-    conversationId,
-    status: "pending" as const,
-    plan,
-    observations: [],
-    evaluations: [],
-    outputs: {},
-    iteration: 0,
-    totalRetries: 0,
-    maxTotalRetries: 15,
-    billing: { currency: "XAF", totalChargeMinor: 0, totalProviderCostEur: 0, llmInputTokens: 0, llmOutputTokens: 0 },
-  };
+  return "Le plan de l’agent a été exécuté. Consultez les étapes et résultats ci-dessous.";
 }
 
 export async function POST(request: NextRequest) {
@@ -98,10 +75,12 @@ export async function POST(request: NextRequest) {
 
     let conversationId = body.conversationId;
     if (conversationId) {
-      const conversation = await getConversation(user.uid, conversationId);
-      if (!conversation) return NextResponse.json({ error: "Conversation introuvable." }, { status: 404 });
+      if (!(await getConversation(user.uid, conversationId))) {
+        return NextResponse.json({ error: "Conversation introuvable." }, { status: 404 });
+      }
     } else {
-      conversationId = (await createConversation(user.uid, body.message.slice(0, 80))).id;
+      const conversation = await createConversation(user.uid, body.message.slice(0, 80));
+      conversationId = conversation.id;
     }
 
     await appendMessage({
@@ -112,83 +91,82 @@ export async function POST(request: NextRequest) {
     });
 
     const plan = await planUniversalAgent(user.uid, body.message);
-    const approvalSteps = plan.steps.filter((step) =>
-      (step.type === "tool" && Boolean(step.toolName) && (step.requiresApproval || step.sideEffect)) ||
-      step.type === "code",
-    );
+    const approvalSteps = plan.steps.filter((step) => step.type === "tool" && (step.requiresApproval || step.sideEffect));
 
-    if (approvalSteps.length > 0) {
-      await createCheckpoint(initialState(user.uid, plan, conversationId));
-      const role = classifyRoles(body.message)[0];
-      const approvals = await Promise.all(approvalSteps.map((step) =>
-        createActionApproval({
-          ownerId: user.uid,
-          executionId: plan.executionId,
-          role,
-          toolSlug: step.type === "code" ? "code.execute" : step.toolName!,
-          arguments: { ...step.input, __stepId: step.id },
-          reason: step.description,
-        }),
-      ));
-
-      await appendMessage({
-        conversationId,
-        userId: user.uid,
-        role: "assistant",
-        content: "J’ai préparé le plan. Certaines actions nécessitent votre confirmation avant exécution.",
-      });
-
-      return NextResponse.json({
-        mode: "agent",
-        status: "waiting_approval",
+    const approvals = await Promise.all(approvalSteps.map(async (step) => {
+      const approval = await createActionApproval({
+        ownerId: user.uid,
         executionId: plan.executionId,
-        objective: plan.objective,
-        conversationId,
-        plan,
-        approvals: approvals.map((approval) => ({
-          id: approval.id,
-          toolSlug: approval.toolSlug,
-          reason: approval.reason,
-          status: approval.status,
-          expiresAt: approval.expiresAt,
-          stepId: approval.arguments.__stepId ?? undefined,
-        })),
+        role: "admin",
+        toolSlug: step.toolName ?? step.type,
+        arguments: { ...step.input, __stepId: step.id },
+        reason: step.description,
       });
-    }
+      step.status = "waiting_approval";
+      step.input = { ...step.input, __stepId: step.id };
+      return approval;
+    }));
 
     const runtime = new AgentRuntime({
       userId: user.uid,
-      objective: plan.objective,
+      objective: body.message,
       plan,
-      conversationId,
-      policy: buildPolicy(plan, false),
+      policy: buildPolicy(plan),
     });
-    const state = await runtime.run();
-    const responseText = finalText(plan, state.outputs);
 
+    let result;
+    try {
+      result = await runtime.run();
+    } catch (error) {
+      return NextResponse.json({
+        mode: "agent",
+        status: "failed",
+        executionId: plan.executionId,
+        conversationId,
+        objective: body.message,
+        plan,
+        error: error instanceof Error ? error.message : "Agent execution failed.",
+        approvals: await listActionApprovals(user.uid, plan.executionId),
+      }, { status: 400 });
+    }
+
+    const currentApprovals = await listActionApprovals(user.uid, plan.executionId);
+    const pending = currentApprovals.filter((item) => item.status === "pending");
+
+    const status = pending.length > 0 ? "waiting_approval" : result.status;
+    const finalText = finalResponseText(result.plan, result.outputs);
     await appendMessage({
       conversationId,
       userId: user.uid,
       role: "assistant",
-      content: responseText,
-      provider: "gen3ia-agent",
+      content: status === "waiting_approval"
+        ? "J’ai préparé et exécuté les étapes autorisées. Une ou plusieurs actions nécessitent maintenant votre confirmation."
+        : finalText,
     });
 
     return NextResponse.json({
       mode: "agent",
-      status: state.status,
-      executionId: state.executionId,
-      objective: state.objective,
+      status,
+      executionId: result.executionId,
       conversationId,
-      plan: state.plan,
-      observations: state.observations,
-      outputs: state.outputs,
-      billing: state.billing,
-      finalText: responseText,
+      objective: result.objective,
+      plan: result.plan,
+      observations: result.observations,
+      outputs: result.outputs,
+      billing: result.billing,
+      approvals: currentApprovals.map((item) => ({
+        id: item.id,
+        toolSlug: item.toolSlug,
+        reason: item.reason,
+        status: item.status,
+        expiresAt: item.expiresAt,
+        stepId: typeof item.arguments.__stepId === "string" ? item.arguments.__stepId : undefined,
+      })),
+      finalText: status === "completed" ? finalText : undefined,
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Agent execution failed." },
+      { error: error instanceof Error ? error.message : "Agent request failed." },
       { status: 400 },
     );
   }
