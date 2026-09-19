@@ -813,3 +813,22 @@ body {
 .g3-workspace-task-execution-result strong{font-size:10px}
 .g3-workspace-task-execution-result pre{max-height:260px;overflow:auto;margin-top:8px;border-radius:9px;background:#fff;padding:10px;font:9px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:#525252;white-space:pre-wrap}
 @media(max-width:700px){.g3-workspace-task-execution-result{margin-left:18px;margin-right:18px}}
+
+
+/* Évolution navigation : recherche visible + contexte palette + fil d'Ariane (tokens existants) */
+.g3-nav-search{display:flex;align-items:center;gap:.55rem;width:100%;min-height:38px;margin-top:8px;padding:.5rem .65rem;border:1px dashed rgba(23,23,20,.15);border-radius:11px;background:transparent;color:#73716b;font-size:.76rem;font-weight:550;transition:background .16s ease,color .16s ease,border-color .16s ease}
+.g3-nav-search:hover{background:#fff;color:#1c1b18;border-color:rgba(23,23,20,.22)}
+.g3-nav-search>span:first-child{display:grid;place-items:center;width:21px;height:21px;min-width:21px;border-radius:7px;border:1px solid rgba(23,23,20,.1);font-size:13px}
+.g3-nav-search kbd{border:1px solid rgba(23,23,20,.1);border-radius:5px;padding:2px 5px;color:#aaa;font-size:9px;font-weight:600}
+.g3-nav-search.is-compact{justify-content:center;padding:.5rem}
+.g3-nav-hint{display:block;font-size:9px;color:#aaa69d}
+.g3-command-item.is-cursor{background:#f5f4f0;color:#1c1b18}
+.g3-command-group{margin-left:auto;border-radius:999px;background:#eeece7;padding:3px 7px;font-size:9px;color:#8b8881;white-space:nowrap}
+.g3-command-item .g3-command-current+.g3-command-group{margin-left:8px}
+.g3-breadcrumb{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:12px 16px 0;font-size:11px;color:#8b8881}
+.g3-breadcrumb a{color:#8b8881;text-decoration:none;transition:color .16s ease}
+.g3-breadcrumb a:hover{color:#1c1b18;text-decoration:underline}
+.g3-breadcrumb [aria-current]{color:#1c1b18;font-weight:600}
+.g3-breadcrumb .g3-breadcrumb-sep{color:#c9c5bc}
+@media(max-width:1023px){.g3-breadcrumb{padding:14px 58px 0 58px}}
+@media(prefers-reduced-motion:reduce){.g3-nav-search,.g3-breadcrumb a{transition:none}}
