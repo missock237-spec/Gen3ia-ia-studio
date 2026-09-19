@@ -61,6 +61,11 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [branches, setBranches] = useState<Array<{ id: string; name: string; active: boolean; snapshotId: string }>>([]);
+  const [snapshots, setSnapshots] = useState<Array<{ id: string; branchId: string; createdAt: number; state?: { plan?: RuntimePlan; status?: string } }>>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [branchName, setBranchName] = useState("");
+  const [historyBusy, setHistoryBusy] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -80,6 +85,78 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
   }
 
   useEffect(() => { void load(); }, [taskId]);
+
+  async function loadHistory() {
+    try {
+      const [branchResponse, snapshotResponse] = await Promise.all([
+        authFetch("/api/workspace/tasks/" + encodeURIComponent(taskId) + "/branches", { cache: "no-store" }),
+        authFetch("/api/workspace/tasks/" + encodeURIComponent(taskId) + "/rollback", { cache: "no-store" }),
+      ]);
+      const branchData = await branchResponse.json();
+      const snapshotData = await snapshotResponse.json();
+      if (!branchResponse.ok) throw new Error(branchData.error || "Impossible de charger les branches.");
+      if (!snapshotResponse.ok) throw new Error(snapshotData.error || "Impossible de charger l'historique.");
+      setBranches(branchData.branches ?? []);
+      setSnapshots(snapshotData.snapshots ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de charger l'historique.");
+    }
+  }
+
+  async function createBranchAction() {
+    const name = branchName.trim();
+    if (!name || historyBusy) return;
+    setHistoryBusy(true);
+    setError("");
+    try {
+      const response = await authFetch("/api/workspace/tasks/" + encodeURIComponent(taskId) + "/branches", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Création de branche impossible.");
+      setBranchName("");
+      await loadHistory();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Création de branche impossible.");
+    } finally { setHistoryBusy(false); }
+  }
+
+  async function switchBranch(branchId: string) {
+    if (historyBusy || hasChanges) {
+      if (hasChanges) setError("Enregistre d'abord les modifications avant de changer de branche.");
+      return;
+    }
+    setHistoryBusy(true); setError("");
+    try {
+      const response = await authFetch("/api/workspace/tasks/" + encodeURIComponent(taskId) + "/branches", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ branchId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Changement de branche impossible.");
+      setTask(data.task); setDraftPlan(data.task.plan ? clonePlan(data.task.plan) : null);
+      await loadHistory();
+    } catch (e) { setError(e instanceof Error ? e.message : "Changement de branche impossible."); }
+    finally { setHistoryBusy(false); }
+  }
+
+  async function rollback(snapshotId: string) {
+    if (historyBusy || hasChanges) {
+      if (hasChanges) setError("Enregistre d'abord les modifications avant de restaurer un snapshot.");
+      return;
+    }
+    if (!window.confirm("Restaurer ce snapshot ? Le plan et l'état de la tâche seront remplacés.")) return;
+    setHistoryBusy(true); setError("");
+    try {
+      const response = await authFetch("/api/workspace/tasks/" + encodeURIComponent(taskId) + "/rollback", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ snapshotId }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Restauration impossible.");
+      setTask(data.task); setDraftPlan(data.task.plan ? clonePlan(data.task.plan) : null);
+      await loadHistory();
+    } catch (e) { setError(e instanceof Error ? e.message : "Restauration impossible."); }
+    finally { setHistoryBusy(false); }
+  }
 
   const isEditable = task?.status === "draft" || task?.status === "awaiting_approval";
   const hasChanges = useMemo(
@@ -212,6 +289,31 @@ export function WorkspaceTaskPanel({ taskId }: { taskId: string }) {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="g3-workspace-task-historybar">
+        <button type="button" onClick={() => { setHistoryOpen((v) => !v); if (!historyOpen) void loadHistory(); }} disabled={historyBusy}>
+          {historyOpen ? "Fermer historique" : "Branches & historique"}
+        </button>
+        {historyOpen && <div className="g3-workspace-task-history">
+          <div className="g3-workspace-task-history-section">
+            <strong>Branches</strong>
+            <div className="g3-workspace-task-branch-create">
+              <input value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder="Nom de la branche" maxLength={80} />
+              <button type="button" onClick={() => void createBranchAction()} disabled={!branchName.trim() || historyBusy}>Créer</button>
+            </div>
+            {branches.map((branch) => <button key={branch.id} type="button" className={"g3-workspace-task-branch " + (branch.active ? "is-active" : "")} onClick={() => void switchBranch(branch.id)} disabled={historyBusy || branch.active}>
+              <span>{branch.name}</span>{branch.active && <small>active</small>}
+            </button>)}
+          </div>
+          <div className="g3-workspace-task-history-section">
+            <strong>Snapshots</strong>
+            {snapshots.slice(0, 12).map((snapshot) => <div key={snapshot.id} className="g3-workspace-task-snapshot">
+              <div><span>{new Date(snapshot.createdAt).toLocaleString("fr-FR")}</span><small>{snapshot.state?.status ?? "plan"}</small></div>
+              <button type="button" onClick={() => void rollback(snapshot.id)} disabled={historyBusy || hasChanges}>Restaurer</button>
+            </div>)}
+          </div>
+        </div>}
       </div>
 
       <div className="g3-workspace-task-flow">
