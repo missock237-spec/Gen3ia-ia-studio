@@ -90,7 +90,13 @@ export const adminStorage: Storage = lazyService(() =>
 export function getAdminDb(): Firestore {
   const app = getAdminApp();
   const databaseId = process.env.FIREBASE_FIRESTORE_DATABASE_ID?.trim();
-  return databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+  const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+  // Les sorties d'outils/agents (resultats de recherche, observations, plans)
+  // contiennent parfois des champs undefined (ex. publishedAt absent d'un
+  // resultat). Firestore les refuse par defaut et fait echouer checkpoints,
+  // conversations et sauvegardes : on les ignore silencieusement.
+  db.settings({ ignoreUndefinedProperties: true });
+  return db;
 }
 
 export function getAdminStorage(): Storage {
