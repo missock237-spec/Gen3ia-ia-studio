@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/lib/firebase/auth-client";
+import { authFetch, useAuth } from "@/lib/firebase/auth-client";
 import { FeatureAuthGate, useServerSessionUser } from "@/components/auth/feature-auth-gate";
 
 const MODES = [
@@ -24,6 +24,7 @@ function DashboardContent() {
   const [objective, setObjective] = useState("");
   const [recentTasks, setRecentTasks] = useState<Array<{ id:string; objective:string; status:string; updatedAt:number }>>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,14 +47,27 @@ function DashboardContent() {
   const displayName = user?.displayName?.trim() || serverUser?.name?.trim() || user?.email || serverUser?.email || "vous";
   const firstName = useMemo(() => displayName.split(/[ .@_-]/)[0] || "vous", [displayName]);
 
-  function openAgent(event: React.FormEvent) {
+  async function openAgent(event: React.FormEvent) {
     event.preventDefault();
     const value = objective.trim();
-    if (!value) {
-      window.location.assign("/studio");
+    if (!value || starting) {
+      if (!value) window.location.assign("/studio");
       return;
     }
-    window.location.assign("/studio?task=" + encodeURIComponent(value));
+    setStarting(true);
+    try {
+      const response = await authFetch("/api/workspace/tasks", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ objective: value }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.task?.id) throw new Error(data.error || "Impossible de préparer la tâche.");
+      window.location.assign("/studio?taskId=" + encodeURIComponent(data.task.id));
+    } catch (error) {
+      setStarting(false);
+      window.alert(error instanceof Error ? error.message : "Impossible de préparer la tâche.");
+    }
   }
 
   return (
@@ -96,8 +110,8 @@ function DashboardContent() {
                 <span className="g3-home-chip">Outils sécurisés</span>
                 <span className="g3-home-chip">Validation humaine</span>
               </div>
-              <button type="submit" className="g3-home-submit">
-                Commencer <Arrow />
+              <button type="submit" disabled={starting} className="g3-home-submit disabled:opacity-50">
+                {starting ? "Préparation..." : "Commencer"} <Arrow />
               </button>
             </div>
           </form>
